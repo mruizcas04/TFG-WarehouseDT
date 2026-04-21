@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+
+# Unity
+unity/Library/
+unity/Temp/
+unity/Logs/
+unity/obj/
+unity/Build/
+
+# OS
+.DS_Store
+Thumbs.db
