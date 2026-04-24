@@ -1,0 +1,108 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.db.database import get_db
+from app.models.models import User, Movement, InventoryItem, Location
+from app.schemas.schemas import MovementCreate, MovementResponse
+from app.api.deps import get_current_admin, get_current_user
+import uuid
+
+router = APIRouter(prefix="/movements", tags=["movements"])
+
+@router.get("", response_model=list[MovementResponse])
+async def get_movements(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    result = await db.execute(select(Movement))
+    return result.scalars().all()
+
+
+@router.get("/{movement_id}", response_model=MovementResponse)
+async def get_movement(
+    movement_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    result = await db.execute(select(Movement).where(Movement.id == movement_id))
+    movement = result.scalar_one_or_none()
+    if not movement:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movimiento no encontrado")
+    return movement
+
+
+@router.get("/task/{task_id}", response_model=list[MovementResponse])
+async def get_movements_by_task(
+    task_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    result = await db.execute(select(Movement).where(Movement.task_id == task_id))
+    return result.scalars().all()
+
+
+@router.post("", response_model=MovementResponse, status_code=status.HTTP_201_CREATED)
+async def create_movement(
+    movement_data: MovementCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Validar que el movimiento es coherente
+    if movement_data.product_id is None and movement_data.box_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El movimiento debe afectar a un producto o una caja"
+        )
+
+    # Actualizar inventario según el tipo de movimiento
+    if movement_data.type.value == "entrada":
+        if movement_data.destination_location_id is None:
+            raise HTTPException(status_code=400, detail="La entrada requiere ubicación de destino")
+        # Crear InventoryItem en destino
+        item = InventoryItem(
+            id=uuid.uuid4(),
+            location_id=movement_data.destination_location_id,
+            product_id=movement_data.product_id,
+            box_id=movement_data.box_id,
+            quantity=1 if movement_data.product_id else None
+        )
+        db.add(item)
+
+    elif movement_data.type.value == "salida":
+        if movement_data.origin_location_id is None:
+            raise HTTPException(status_code=400, detail="La salida requiere ubicación de origen")
+        # Eliminar InventoryItem de origen
+        result = await db.execute(
+            select(InventoryItem).where(InventoryItem.location_id == movement_data.origin_location_id)
+        )
+        item = result.scalar_one_or_none()
+        if item:
+            await db.delete(item)
+
+    elif movement_data.type.value == "traslado":
+        if movement_data.origin_location_id is None or movement_data.destination_location_id is None:
+            raise HTTPException(status_code=400, detail="El traslado requiere ubicación de origen y destino")
+        # Mover InventoryItem de origen a destino
+        result = await db.execute(
+            select(InventoryItem).where(InventoryItem.location_id == movement_data.origin_location_id)
+        )
+        item = result.scalar_one_or_none()
+        if not item:
+            raise HTTPException(status_code=400, detail="No hay inventario en la ubicación de origen")
+        item.location_id = movement_data.destination_location_id
+
+    # Registrar el movimiento
+    movement = Movement(
+        id=uuid.uuid4(),
+        task_id=movement_data.task_id,
+        performed_by=current_user.id,
+        type=movement_data.type,
+        product_id=movement_data.product_id,
+        box_id=movement_data.box_id,
+        origin_location_id=movement_data.origin_location_id,
+        destination_location_id=movement_data.destination_location_id
+    )
+    db.add(movement)
+    await db.commit()
+    await db.refresh(movement)
+    return movement

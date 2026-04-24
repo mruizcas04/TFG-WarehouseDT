@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth
+from app.api import auth, warehouses, shelves, locations, products, boxes, inventory, tasks, movements
 
 app = FastAPI(
     title="Warehouse Digital Twin API",
@@ -17,6 +17,14 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(warehouses.router)
+app.include_router(shelves.router)
+app.include_router(locations.router)
+app.include_router(products.router)
+app.include_router(boxes.router)
+app.include_router(inventory.router)
+app.include_router(tasks.router)
+app.include_router(movements.router)
 
 @app.get("/health")
 async def health_check():
