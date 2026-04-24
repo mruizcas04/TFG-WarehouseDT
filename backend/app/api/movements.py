@@ -5,6 +5,7 @@ from app.db.database import get_db
 from app.models.models import User, Movement, InventoryItem, Location
 from app.schemas.schemas import MovementCreate, MovementResponse
 from app.api.deps import get_current_admin, get_current_user
+from app.services.websocket_service import websocket_service
 import uuid
 
 router = APIRouter(prefix="/movements", tags=["movements"])
@@ -105,4 +106,15 @@ async def create_movement(
     db.add(movement)
     await db.commit()
     await db.refresh(movement)
+
+    # Notificar por WebSocket
+    await websocket_service.broadcast_movement_created(
+        movement_id=str(movement.id),
+        data={
+            "type": movement.type.value,
+            "origin_location_id": str(movement.origin_location_id) if movement.origin_location_id else None,
+            "destination_location_id": str(movement.destination_location_id) if movement.destination_location_id else None,
+        }
+    )
+
     return movement

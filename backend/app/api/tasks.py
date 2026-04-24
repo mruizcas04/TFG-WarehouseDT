@@ -5,6 +5,7 @@ from app.db.database import get_db
 from app.models.models import User, Task
 from app.schemas.schemas import TaskCreate, TaskResponse, TaskStatusUpdate
 from app.api.deps import get_current_admin, get_current_user
+from app.services.websocket_service import websocket_service
 import uuid
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -33,8 +34,11 @@ async def create_task(
     db.add(task)
     await db.commit()
     await db.refresh(task)
+    await websocket_service.broadcast_task_assigned(
+        task_id=str(task.id),
+        assigned_to=str(task.assigned_to)
+    )
     return task
-
 
 @router.get("/user/{user_id}", response_model=list[TaskResponse])
 async def get_tasks_by_user(
@@ -74,4 +78,8 @@ async def update_task_status(
     task.status = status_data.status
     await db.commit()
     await db.refresh(task)
+    await websocket_service.broadcast_task_status_changed(
+        task_id=str(task.id),
+        status=task.status.value
+    )
     return task
