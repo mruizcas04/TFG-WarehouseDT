@@ -56,3 +56,11 @@ async def register(
     await db.commit()
     await db.refresh(new_user)
     return new_user
+
+@router.get("/users", response_model=list[UserResponse])
+async def get_users(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    result = await db.execute(select(User))
+    return result.scalars().all()
