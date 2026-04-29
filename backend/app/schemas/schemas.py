@@ -49,6 +49,50 @@ class WarehouseResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+# --- Warehouse Full (para el Gemelo Digital) ---
+
+class InventoryItemFullResponse(BaseModel):
+    id: UUID
+    product_id: Optional[UUID]
+    box_id: Optional[UUID]
+    quantity: Optional[int]
+
+    model_config = {"from_attributes": True}
+
+class LocationFullResponse(BaseModel):
+    id: UUID
+    position_number: int
+    nfc_tag: Optional[str]
+    inventory: Optional[InventoryItemFullResponse]
+
+    model_config = {"from_attributes": True}
+
+class LevelFullResponse(BaseModel):
+    id: UUID
+    level_number: int
+    locations: list[LocationFullResponse]
+
+    model_config = {"from_attributes": True}
+
+class ShelfFullResponse(BaseModel):
+    id: UUID
+    aisle_number: int
+    shelf_number: int
+    levels: list[LevelFullResponse]
+
+    model_config = {"from_attributes": True}
+
+class WarehouseFullResponse(BaseModel):
+    id: UUID
+    name: str
+    num_shelves: int
+    num_levels: int
+    num_locations: int
+    created_at: datetime
+    shelves: list[ShelfFullResponse]
+
+    model_config = {"from_attributes": True}
+
 # --- Shelf ---
 
 class ShelfResponse(BaseModel):

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.db.database import get_db
-from app.models.models import User, Warehouse, Shelf, Level, Location
-from app.schemas.schemas import WarehouseCreate, WarehouseResponse
+from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem
+from app.schemas.schemas import WarehouseCreate, WarehouseResponse, WarehouseFullResponse
 from app.api.deps import get_current_admin, get_current_user
 import uuid
 
@@ -70,6 +71,33 @@ async def get_warehouse(
     current_user: User = Depends(get_current_admin)
 ):
     result = await db.execute(select(Warehouse).where(Warehouse.id == warehouse_id))
+    warehouse = result.scalar_one_or_none()
+    if not warehouse:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Almacén no encontrado")
+    return warehouse
+
+
+@router.get("/{warehouse_id}/full", response_model=WarehouseFullResponse)
+async def get_warehouse_full(
+    warehouse_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    """
+    Devuelve la estructura completa del almacén con todas las estanterías,
+    niveles, ubicaciones y su estado de inventario actual.
+    Usado por el Gemelo Digital Unity para inicializarse.
+    """
+    result = await db.execute(
+        select(Warehouse)
+        .where(Warehouse.id == warehouse_id)
+        .options(
+            selectinload(Warehouse.shelves)
+            .selectinload(Shelf.levels)
+            .selectinload(Level.locations)
+            .selectinload(Location.inventory_item)
+        )
+    )
     warehouse = result.scalar_one_or_none()
     if not warehouse:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Almacén no encontrado")
