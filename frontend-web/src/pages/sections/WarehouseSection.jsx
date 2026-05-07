@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getWarehouses, createWarehouse } from '../../api/warehouses'
+import DigitalTwin from '../../components/DigitalTwin'
+import { useAuthStore } from '../../store/authStore'
 
 export default function WarehouseSection() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', num_shelves: '', num_levels: '', num_locations: '' })
+  const { token } = useAuthStore()
 
   const { data: warehouses, isLoading } = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
 
@@ -89,29 +92,54 @@ export default function WarehouseSection() {
           No hay ningún almacén configurado
         </div>
       ) : (
-        <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <h3 style={{ fontSize: '18px', fontWeight: '500', color: '#1C1C1A', marginBottom: '8px' }}>{warehouse.name}</h3>
-              <div style={{ display: 'flex', gap: '20px' }}>
-                {[
-                  { label: 'Estanterías', value: warehouse.num_shelves },
-                  { label: 'Niveles', value: warehouse.num_levels },
-                  { label: 'Ubicaciones por nivel', value: warehouse.num_locations },
-                  { label: 'Total ubicaciones', value: warehouse.num_shelves * warehouse.num_levels * warehouse.num_locations },
-                ].map((stat) => (
-                  <div key={stat.label} style={{ padding: '12px 16px', background: '#F8F8F6', borderRadius: '8px', minWidth: '120px' }}>
-                    <div style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>{stat.label}</div>
-                    <div style={{ fontSize: '24px', fontWeight: '500', color: '#1C1C1A' }}>{stat.value}</div>
-                  </div>
-                ))}
+        <>
+          {/* Métricas del almacén */}
+          <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: '500', color: '#1C1C1A', marginBottom: '8px' }}>{warehouse.name}</h3>
+                <div style={{ display: 'flex', gap: '20px' }}>
+                  {[
+                    { label: 'Estanterías', value: warehouse.num_shelves },
+                    { label: 'Niveles', value: warehouse.num_levels },
+                    { label: 'Ubicaciones por nivel', value: warehouse.num_locations },
+                    { label: 'Total ubicaciones', value: warehouse.num_shelves * warehouse.num_levels * warehouse.num_locations },
+                  ].map((stat) => (
+                    <div key={stat.label} style={{ padding: '12px 16px', background: '#F8F8F6', borderRadius: '8px', minWidth: '120px' }}>
+                      <div style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>{stat.label}</div>
+                      <div style={{ fontSize: '24px', fontWeight: '500', color: '#1C1C1A' }}>{stat.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ fontSize: '12px', color: '#B4B2A9' }}>
+                {new Date(warehouse.created_at).toLocaleDateString('es-ES')}
               </div>
             </div>
-            <div style={{ fontSize: '12px', color: '#B4B2A9' }}>
-              {new Date(warehouse.created_at).toLocaleDateString('es-ES')}
-            </div>
           </div>
-        </div>
+
+          {/* Gemelo Digital */}
+          <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '24px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#1C1C1A', marginBottom: '16px' }}>Gemelo Digital</h3>
+
+            {/* Leyenda de colores */}
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+              {[
+                { color: '#999', label: 'Libre' },
+                { color: '#33cc33', label: 'Producto' },
+                { color: '#3366ee', label: 'Caja' },
+                { color: '#ffdd00', label: 'Tarea activa' },
+              ].map(({ color, label }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: color }} />
+                  <span style={{ fontSize: '12px', color: '#888780' }}>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            <DigitalTwin warehouseId={warehouse.id} token={token} />
+          </div>
+        </>
       )}
     </div>
   )

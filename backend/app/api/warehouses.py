@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from app.db.database import get_db
 from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem
-from app.schemas.schemas import WarehouseCreate, WarehouseResponse, WarehouseFullResponse
-from app.api.deps import get_current_admin, get_current_user
+from app.schemas.schemas import (
+    WarehouseCreate, WarehouseResponse, WarehouseFullResponse,
+    ShelfFullResponse, LevelFullResponse, LocationFullResponse,
+    InventoryItemFullResponse
+)
+from app.api.deps import get_current_admin
 import uuid
 
 router = APIRouter(prefix="/warehouses", tags=["warehouses"])
@@ -83,25 +86,96 @@ async def get_warehouse_full(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    """
-    Devuelve la estructura completa del almacén con todas las estanterías,
-    niveles, ubicaciones y su estado de inventario actual.
-    Usado por el Gemelo Digital Unity para inicializarse.
-    """
-    result = await db.execute(
-        select(Warehouse)
-        .where(Warehouse.id == warehouse_id)
-        .options(
-            selectinload(Warehouse.shelves)
-            .selectinload(Shelf.levels)
-            .selectinload(Level.locations)
-            .selectinload(Location.inventory_item)
-        )
-    )
+    # Obtener el warehouse
+    result = await db.execute(select(Warehouse).where(Warehouse.id == warehouse_id))
     warehouse = result.scalar_one_or_none()
     if not warehouse:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Almacén no encontrado")
-    return warehouse
+        raise HTTPException(status_code=404, detail="Almacén no encontrado")
+
+    # Obtener todas las shelves del warehouse
+    shelves_result = await db.execute(
+        select(Shelf).where(Shelf.warehouse_id == warehouse_id)
+    )
+    shelves = shelves_result.scalars().all()
+
+    # Obtener todos los levels de todas las shelves
+    shelf_ids = [s.id for s in shelves]
+    levels_result = await db.execute(
+        select(Level).where(Level.shelf_id.in_(shelf_ids))
+    )
+    levels = levels_result.scalars().all()
+
+    # Obtener todas las locations de todos los levels
+    level_ids = [l.id for l in levels]
+    locations_result = await db.execute(
+        select(Location).where(Location.level_id.in_(level_ids))
+    )
+    locations = locations_result.scalars().all()
+
+    # Obtener todos los inventory items de todas las locations
+    location_ids = [loc.id for loc in locations]
+    inventory_result = await db.execute(
+        select(InventoryItem).where(InventoryItem.location_id.in_(location_ids))
+    )
+    inventory_items = inventory_result.scalars().all()
+
+    # Indexar inventory items por location_id para acceso O(1)
+    inventory_by_location = {item.location_id: item for item in inventory_items}
+
+    # Indexar locations por level_id
+    locations_by_level = {}
+    for loc in locations:
+        locations_by_level.setdefault(loc.level_id, []).append(loc)
+
+    # Indexar levels por shelf_id
+    levels_by_shelf = {}
+    for level in levels:
+        levels_by_shelf.setdefault(level.shelf_id, []).append(level)
+
+    # Construir la respuesta manualmente
+    shelves_full = []
+    for shelf in shelves:
+        levels_full = []
+        for level in levels_by_shelf.get(shelf.id, []):
+            locations_full = []
+            for loc in locations_by_level.get(level.id, []):
+                inv = inventory_by_location.get(loc.id)
+                inventory_dto = InventoryItemFullResponse(
+                    id=inv.id,
+                    product_id=inv.product_id,
+                    box_id=inv.box_id,
+                    quantity=inv.quantity
+                ) if inv else None
+
+                locations_full.append(LocationFullResponse(
+                    id=loc.id,
+                    position_number=loc.position_number,
+                    nfc_tag=loc.nfc_tag,
+                    inventory=inventory_dto
+                ))
+
+            levels_full.append(LevelFullResponse(
+                id=level.id,
+                level_number=level.level_number,
+                locations=locations_full
+            ))
+
+        shelves_full.append(ShelfFullResponse(
+            id=shelf.id,
+            aisle_number=shelf.aisle_number,
+            shelf_number=shelf.shelf_number,
+            levels=levels_full
+        ))
+
+    return WarehouseFullResponse(
+        id=warehouse.id,
+        name=warehouse.name,
+        num_shelves=warehouse.num_shelves,
+        num_levels=warehouse.num_levels,
+        num_locations=warehouse.num_locations,
+        created_at=warehouse.created_at,
+        shelves=shelves_full
+    )
 
 
 @router.put("/{warehouse_id}", response_model=WarehouseResponse)

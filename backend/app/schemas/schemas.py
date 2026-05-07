@@ -63,7 +63,7 @@ class LocationFullResponse(BaseModel):
     id: UUID
     position_number: int
     nfc_tag: Optional[str]
-    inventory: Optional[InventoryItemFullResponse]
+    inventory: Optional[InventoryItemFullResponse] = None
 
     model_config = {"from_attributes": True}
 
