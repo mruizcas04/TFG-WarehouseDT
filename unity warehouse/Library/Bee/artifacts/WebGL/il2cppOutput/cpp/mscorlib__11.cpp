@@ -828,8 +828,6 @@ struct CodePageDataItem_t52460FA30AE37F4F26ACB81055E58002262F19F2  : public Runt
 	int32_t ___m_dataIndex;
 	int32_t ___m_uiFamilyCodePage;
 	String_t* ___m_webName;
-	String_t* ___m_headerName;
-	String_t* ___m_bodyName;
 	uint32_t ___m_flags;
 };
 struct CodePointIndexer_tDB29485BEDB55D414DA8F327ACDC24A37B5300EF  : public RuntimeObject

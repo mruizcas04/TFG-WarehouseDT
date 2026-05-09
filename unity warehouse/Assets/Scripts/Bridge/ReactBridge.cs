@@ -59,11 +59,9 @@ namespace WarehouseTwin.Bridge
 
         private IEnumerator ConnectWebSocket(string token)
         {
-            var connectTask = WebSocketClient.Instance.ConnectAsync(token);
-            yield return new UnityEngine.WaitUntil(() => connectTask.IsCompleted);
-
-            if (connectTask.IsFaulted)
-                Debug.LogError($"Error conectando WebSocket: {connectTask.Exception?.Message}");
+            Debug.Log($"Intentando conectar WebSocket con token: {token.Substring(0, 20)}...");
+            WebSocketClient.Instance.ConnectAsync(token);
+            yield break;
         }
 
         private IEnumerator InitWarehouse(string warehouseId)

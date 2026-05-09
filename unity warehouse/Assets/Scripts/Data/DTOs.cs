@@ -64,10 +64,18 @@ namespace WarehouseTwin.Data
     [Serializable]
     public class WebSocketEventDTO
     {
-        public string type;     // "inventory_updated" | "movement_created"
+        public string @event;        // "inventory_updated" | "movement_created"
+        public WebSocketEventData data;
+    }
+
+    [Serializable]
+    public class WebSocketEventData
+    {
         public string location_id;
-        public string task_id;
-        public InventoryItemDTO inventory;  // null si la ubicación quedó vacía
+        public string destination_location_id;
+        public string origin_location_id;
+        public string movement_id;
+        public InventoryItemDTO inventory;
     }
 
     // --- Estado de una ubicación (para colores) ---

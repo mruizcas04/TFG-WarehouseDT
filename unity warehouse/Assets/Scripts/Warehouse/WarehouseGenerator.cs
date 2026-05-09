@@ -17,10 +17,10 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private string warehouseId;
 
         [Header("Dimensiones de los elementos (metros)")]
-        [SerializeField] private float shelfWidth      = 1.0f;
-        [SerializeField] private float shelfHeight     = 0.4f;
-        [SerializeField] private float shelfDepth      = 0.6f;
-        [SerializeField] private float aisleSpacing    = 2.5f;
+        [SerializeField] private float shelfWidth = 1.0f;
+        [SerializeField] private float shelfHeight = 0.4f;
+        [SerializeField] private float shelfDepth = 0.6f;
+        [SerializeField] private float aisleSpacing = 2.5f;
         [SerializeField] private float locationPadding = 0.05f;
 
         [Header("Prefabs")]
@@ -33,14 +33,10 @@ namespace WarehouseTwin.Warehouse
 
         private void Start()
         {
+            // No hacemos nada aquí — ReactBridge.Initialize() 
+            // llama a GenerateFromDTO() cuando tiene el token
             WebSocketClient.Instance.OnInventoryUpdated += HandleInventoryUpdated;
-            WebSocketClient.Instance.OnMovementCreated  += HandleMovementCreated;
-
-            StartCoroutine(ApiClient.Instance.GetWarehouseFull(
-                warehouseId,
-                warehouse => GenerateFromDTO(warehouse),
-                error => Debug.LogError($"No se pudo cargar el almacén: {error}")
-            ));
+            WebSocketClient.Instance.OnMovementCreated += HandleMovementCreated;
         }
 
         private void OnDestroy()
@@ -48,7 +44,7 @@ namespace WarehouseTwin.Warehouse
             if (WebSocketClient.Instance != null)
             {
                 WebSocketClient.Instance.OnInventoryUpdated -= HandleInventoryUpdated;
-                WebSocketClient.Instance.OnMovementCreated  -= HandleMovementCreated;
+                WebSocketClient.Instance.OnMovementCreated -= HandleMovementCreated;
             }
         }
 
@@ -110,16 +106,25 @@ namespace WarehouseTwin.Warehouse
 
         private void HandleInventoryUpdated(WebSocketEventDTO evt)
         {
-            if (!_locationObjects.TryGetValue(evt.location_id, out LocationObject locObj))
+            // Entrada: destination tiene producto → verde
+            if (!string.IsNullOrEmpty(evt.data?.destination_location_id))
             {
-                Debug.LogWarning($"Location no encontrada: {evt.location_id}");
-                return;
+                if (_locationObjects.TryGetValue(evt.data.destination_location_id, out LocationObject dest))
+                {
+                    dest.SetState(LocationState.Product);
+                    Debug.Log($"Entrada en {evt.data.destination_location_id} → Product");
+                }
             }
 
-            LocationState newState = LocationObject.StateFromInventory(evt.inventory);
-            locObj.SetState(newState);
-
-            Debug.Log($"Location {evt.location_id} actualizada a estado: {newState}");
+            // Salida: origin queda vacío → gris
+            if (!string.IsNullOrEmpty(evt.data?.origin_location_id))
+            {
+                if (_locationObjects.TryGetValue(evt.data.origin_location_id, out LocationObject origin))
+                {
+                    origin.SetState(LocationState.Free);
+                    Debug.Log($"Salida de {evt.data.origin_location_id} → Free");
+                }
+            }
         }
 
         private void HandleMovementCreated(WebSocketEventDTO evt)

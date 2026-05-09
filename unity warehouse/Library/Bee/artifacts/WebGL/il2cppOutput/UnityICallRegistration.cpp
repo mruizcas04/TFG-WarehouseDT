@@ -286,6 +286,10 @@ void RegisterAllStrippedInternalCalls()
 		void Register_UnityEngine_GameObject_GetComponent();
 		Register_UnityEngine_GameObject_GetComponent();
 
+		//UnityEngine.Component UnityEngine.GameObject::Internal_AddComponentWithType(System.Type)
+		void Register_UnityEngine_GameObject_Internal_AddComponentWithType();
+		Register_UnityEngine_GameObject_Internal_AddComponentWithType();
+
 		//UnityEngine.Transform UnityEngine.GameObject::get_transform()
 		void Register_UnityEngine_GameObject_get_transform();
 		Register_UnityEngine_GameObject_get_transform();

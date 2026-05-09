@@ -4,8 +4,12 @@ const DigitalTwin = ({ warehouseId, token }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const unityInstanceRef = useRef(null);
+  const scriptLoadedRef = useRef(false);
 
-  useEffect(() => {
+useEffect(() => {
+  if (scriptLoadedRef.current) return;
+  scriptLoadedRef.current = true;
+  
     const buildUrl = "/unity";
     const config = {
       dataUrl:            `${buildUrl}/WebGL.data`,
