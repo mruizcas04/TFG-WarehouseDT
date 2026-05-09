@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { login } from '../api/auth'
 import { useAuthStore } from '../store/authStore'
 
@@ -93,6 +93,13 @@ export default function Login() {
               {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
           </form>
+
+          <p style={{ textAlign: 'center', fontSize: '13px', color: '#888780', marginTop: '20px' }}>
+            ¿Primera vez?{' '}
+            <Link to="/register" style={{ color: '#185FA5', textDecoration: 'none', fontWeight: '500' }}>
+              Crear cuenta de administrador
+            </Link>
+          </p>
         </div>
       </div>
     </div>
