@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select
 from app.db.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
-from app.models.models import User
+from app.models.models import User, Company, UserRole
 from app.schemas.schemas import Token, UserCreate, UserResponse
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, get_user_from_token
 import uuid
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
 
 @router.post("/login", response_model=Token)
 async def login(
@@ -26,7 +27,11 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+    access_token = create_access_token(data={
+        "sub": str(user.id),
+        "role": user.role.value,
+        "company_id": str(user.company_id) if user.company_id else None,
+    })
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -36,23 +41,6 @@ async def register(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    # Contar usuarios existentes
-    count_result = await db.execute(select(func.count()).select_from(User))
-    user_count = count_result.scalar()
-
-    # Si ya hay usuarios, solo un admin autenticado puede registrar nuevos
-    if user_count > 0:
-        try:
-            current_user = await get_current_admin(
-                token=await _extract_token(request),
-                db=db
-            )
-        except Exception:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Se requiere autenticación de administrador para crear usuarios"
-            )
-
     # Comprobar email duplicado
     result = await db.execute(select(User).where(User.email == user_data.email))
     existing = result.scalar_one_or_none()
@@ -62,16 +50,33 @@ async def register(
             detail="Ya existe un usuario con ese email"
         )
 
-    # Si es el primer usuario, forzar rol admin
-    if user_count == 0:
-        user_data.role = "admin"
+    if user_data.company_name is not None:
+        # Registro de empresa nueva: cualquiera puede hacerlo, el usuario se convierte en admin
+        company = Company(id=uuid.uuid4(), name=user_data.company_name)
+        db.add(company)
+        await db.flush()
+        company_id = company.id
+        role = UserRole.admin
+    else:
+        # Alta de usuario en empresa existente: requiere admin autenticado
+        try:
+            token = await _extract_token(request)
+        except HTTPException:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Se requiere autenticación de administrador para añadir usuarios a una empresa"
+            )
+        current_admin = await get_user_from_token(token, db)
+        company_id = current_admin.company_id
+        role = user_data.role
 
     new_user = User(
         id=uuid.uuid4(),
+        company_id=company_id,
         name=user_data.name,
         email=user_data.email,
         password_hash=get_password_hash(user_data.password),
-        role=user_data.role
+        role=role
     )
     db.add(new_user)
     await db.commit()
@@ -91,5 +96,7 @@ async def get_users(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    result = await db.execute(select(User))
+    result = await db.execute(
+        select(User).where(User.company_id == current_user.company_id)
+    )
     return result.scalars().all()

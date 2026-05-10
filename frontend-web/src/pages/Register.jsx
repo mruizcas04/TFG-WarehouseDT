@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { register } from '../api/auth'
 
 export default function Register() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
+  const [form, setForm] = useState({ company_name: '', name: '', email: '', password: '', confirmPassword: '' })
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
@@ -18,6 +18,7 @@ export default function Register() {
     setError(null)
     try {
       await register({
+        company_name: form.company_name,
         name: form.name,
         email: form.email,
         password: form.password,
@@ -25,8 +26,10 @@ export default function Register() {
       })
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al crear la cuenta')
-    } finally {
+  console.error('Error completo:', err)
+  console.error('Response data:', err.response?.data)
+  setError(err.response?.data?.detail || 'Error al crear la cuenta')
+} finally {
       setLoading(false)
     }
   }
@@ -59,6 +62,11 @@ export default function Register() {
           <p style={{ fontSize: '13px', color: '#888780', marginBottom: '24px' }}>Configura tu cuenta de administrador</p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label style={labelStyle}>Nombre de la empresa</label>
+              <input type="text" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+                placeholder="Almacenes García S.L." required style={inputStyle} />
+            </div>
             <div>
               <label style={labelStyle}>Nombre</label>
               <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}

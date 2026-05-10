@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Integer, ForeignKey, Enum, DateTime, Text, Boolean
+from sqlalchemy import String, Integer, ForeignKey, Enum, DateTime, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.db.database import Base
@@ -29,16 +29,33 @@ class MovementType(enum.Enum):
 
 # --- Modelos ---
 
+class Company(Base):
+    __tablename__ = "companies"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    users: Mapped[list["User"]] = relationship("User", back_populates="company")
+    warehouses: Mapped[list["Warehouse"]] = relationship("Warehouse", back_populates="company")
+    products: Mapped[list["Product"]] = relationship("Product", back_populates="company")
+    boxes: Mapped[list["Box"]] = relationship("Box", back_populates="company")
+    tasks: Mapped[list["Task"]] = relationship("Task", back_populates="company")
+    movements: Mapped[list["Movement"]] = relationship("Movement", back_populates="company")
+
+
 class Warehouse(Base):
     __tablename__ = "warehouses"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     num_shelves: Mapped[int] = mapped_column(Integer, nullable=False)
     num_levels: Mapped[int] = mapped_column(Integer, nullable=False)
     num_locations: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    company: Mapped["Company | None"] = relationship("Company", back_populates="warehouses")
     shelves: Mapped[list["Shelf"]] = relationship("Shelf", back_populates="warehouse", cascade="all, delete-orphan")
 
 
@@ -79,13 +96,16 @@ class Location(Base):
 
 class Product(Base):
     __tablename__ = "products"
+    __table_args__ = (UniqueConstraint("company_id", "barcode", name="uq_product_company_barcode"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     type: Mapped[str | None] = mapped_column(String, nullable=True)
-    barcode: Mapped[str | None] = mapped_column(String, nullable=True, unique=True)
+    barcode: Mapped[str | None] = mapped_column(String, nullable=True)
 
+    company: Mapped["Company | None"] = relationship("Company", back_populates="products")
     boxes: Mapped[list["Box"]] = relationship("Box", back_populates="product")
 
 
@@ -93,10 +113,12 @@ class Box(Base):
     __tablename__ = "boxes"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
     product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
     current_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     max_capacity: Mapped[int] = mapped_column(Integer, nullable=False)
 
+    company: Mapped["Company | None"] = relationship("Company", back_populates="boxes")
     product: Mapped["Product"] = relationship("Product", back_populates="boxes")
     inventory_item: Mapped["InventoryItem | None"] = relationship("InventoryItem", back_populates="box", uselist=False)
 
@@ -119,12 +141,14 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    company: Mapped["Company | None"] = relationship("Company", back_populates="users")
     tasks_assigned: Mapped[list["Task"]] = relationship("Task", foreign_keys="Task.assigned_to", back_populates="worker")
     tasks_created: Mapped[list["Task"]] = relationship("Task", foreign_keys="Task.created_by", back_populates="admin")
 
@@ -133,12 +157,14 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     assigned_to: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     type: Mapped[TaskType] = mapped_column(Enum(TaskType), nullable=False)
     status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), nullable=False, default=TaskStatus.pendiente)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    company: Mapped["Company | None"] = relationship("Company", back_populates="tasks")
     admin: Mapped["User"] = relationship("User", foreign_keys=[created_by], back_populates="tasks_created")
     worker: Mapped["User"] = relationship("User", foreign_keys=[assigned_to], back_populates="tasks_assigned")
     movements: Mapped[list["Movement"]] = relationship("Movement", back_populates="task")
@@ -148,6 +174,7 @@ class Movement(Base):
     __tablename__ = "movements"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
     task_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=False)
     performed_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     type: Mapped[MovementType] = mapped_column(Enum(MovementType), nullable=False)
@@ -157,6 +184,7 @@ class Movement(Base):
     destination_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    company: Mapped["Company | None"] = relationship("Company", back_populates="movements")
     task: Mapped["Task"] = relationship("Task", back_populates="movements")
     performed_by_user: Mapped["User"] = relationship("User", foreign_keys=[performed_by])
     product: Mapped["Product | None"] = relationship("Product", foreign_keys=[product_id])

@@ -13,6 +13,16 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     user_id: UUID
     role: UserRole
+    company_id: UUID
+
+# --- Company ---
+
+class CompanyResponse(BaseModel):
+    id: UUID
+    name: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 # --- User ---
 
@@ -21,9 +31,11 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: UserRole
+    company_name: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: UUID
+    company_id: Optional[UUID]
     name: str
     email: str
     role: UserRole
@@ -41,6 +53,7 @@ class WarehouseCreate(BaseModel):
 
 class WarehouseResponse(BaseModel):
     id: UUID
+    company_id: Optional[UUID]
     name: str
     num_shelves: int
     num_levels: int
@@ -135,6 +148,7 @@ class ProductCreate(BaseModel):
 
 class ProductResponse(BaseModel):
     id: UUID
+    company_id: Optional[UUID]
     name: str
     description: Optional[str]
     type: Optional[str]
@@ -151,6 +165,7 @@ class BoxCreate(BaseModel):
 
 class BoxResponse(BaseModel):
     id: UUID
+    company_id: Optional[UUID]
     product_id: UUID
     current_quantity: int
     max_capacity: int
@@ -179,6 +194,7 @@ class TaskStatusUpdate(BaseModel):
 
 class TaskResponse(BaseModel):
     id: UUID
+    company_id: Optional[UUID]
     created_by: UUID
     assigned_to: UUID
     type: TaskType
@@ -199,6 +215,7 @@ class MovementCreate(BaseModel):
 
 class MovementResponse(BaseModel):
     id: UUID
+    company_id: Optional[UUID]
     task_id: UUID
     performed_by: UUID
     type: MovementType

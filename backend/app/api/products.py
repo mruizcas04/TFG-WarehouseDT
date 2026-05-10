@@ -14,7 +14,9 @@ async def get_products(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Product))
+    result = await db.execute(
+        select(Product).where(Product.company_id == current_user.company_id)
+    )
     return result.scalars().all()
 
 
@@ -26,6 +28,7 @@ async def create_product(
 ):
     product = Product(
         id=uuid.uuid4(),
+        company_id=current_user.company_id,
         name=product_data.name,
         description=product_data.description,
         type=product_data.type,
@@ -43,7 +46,12 @@ async def get_product_by_barcode(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Product).where(Product.barcode == barcode))
+    result = await db.execute(
+        select(Product).where(
+            Product.barcode == barcode,
+            Product.company_id == current_user.company_id
+        )
+    )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
@@ -56,7 +64,12 @@ async def get_product(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(
+        select(Product).where(
+            Product.id == product_id,
+            Product.company_id == current_user.company_id
+        )
+    )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
@@ -70,7 +83,12 @@ async def update_product(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(
+        select(Product).where(
+            Product.id == product_id,
+            Product.company_id == current_user.company_id
+        )
+    )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
@@ -91,7 +109,12 @@ async def delete_product(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    result = await db.execute(select(Product).where(Product.id == product_id))
+    result = await db.execute(
+        select(Product).where(
+            Product.id == product_id,
+            Product.company_id == current_user.company_id
+        )
+    )
     product = result.scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")

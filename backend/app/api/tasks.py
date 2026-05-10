@@ -15,7 +15,9 @@ async def get_tasks(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    result = await db.execute(select(Task))
+    result = await db.execute(
+        select(Task).where(Task.company_id == current_user.company_id)
+    )
     return result.scalars().all()
 
 
@@ -25,8 +27,22 @@ async def create_task(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
+    # Verificar que el usuario asignado pertenece a la misma empresa
+    result = await db.execute(
+        select(User).where(
+            User.id == task_data.assigned_to,
+            User.company_id == current_user.company_id
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El usuario asignado no pertenece a esta empresa"
+        )
+
     task = Task(
         id=uuid.uuid4(),
+        company_id=current_user.company_id,
         created_by=current_user.id,
         assigned_to=task_data.assigned_to,
         type=task_data.type,
@@ -46,7 +62,12 @@ async def get_tasks_by_user(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Task).where(Task.assigned_to == user_id))
+    result = await db.execute(
+        select(Task).where(
+            Task.assigned_to == user_id,
+            Task.company_id == current_user.company_id
+        )
+    )
     return result.scalars().all()
 
 
@@ -56,7 +77,12 @@ async def get_task(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Task).where(Task.id == task_id))
+    result = await db.execute(
+        select(Task).where(
+            Task.id == task_id,
+            Task.company_id == current_user.company_id
+        )
+    )
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tarea no encontrada")
@@ -70,7 +96,12 @@ async def update_task_status(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Task).where(Task.id == task_id))
+    result = await db.execute(
+        select(Task).where(
+            Task.id == task_id,
+            Task.company_id == current_user.company_id
+        )
+    )
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tarea no encontrada")

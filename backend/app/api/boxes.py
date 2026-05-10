@@ -14,7 +14,9 @@ async def get_boxes(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    result = await db.execute(select(Box))
+    result = await db.execute(
+        select(Box).where(Box.company_id == current_user.company_id)
+    )
     return result.scalars().all()
 
 
@@ -26,6 +28,7 @@ async def create_box(
 ):
     box = Box(
         id=uuid.uuid4(),
+        company_id=current_user.company_id,
         product_id=box_data.product_id,
         current_quantity=box_data.current_quantity,
         max_capacity=box_data.max_capacity
@@ -42,7 +45,12 @@ async def get_box(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Box).where(Box.id == box_id))
+    result = await db.execute(
+        select(Box).where(
+            Box.id == box_id,
+            Box.company_id == current_user.company_id
+        )
+    )
     box = result.scalar_one_or_none()
     if not box:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Caja no encontrada")
@@ -56,7 +64,12 @@ async def update_box(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    result = await db.execute(select(Box).where(Box.id == box_id))
+    result = await db.execute(
+        select(Box).where(
+            Box.id == box_id,
+            Box.company_id == current_user.company_id
+        )
+    )
     box = result.scalar_one_or_none()
     if not box:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Caja no encontrada")

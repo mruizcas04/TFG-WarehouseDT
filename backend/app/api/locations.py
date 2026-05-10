@@ -2,12 +2,21 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
-from app.models.models import User, Location
+from app.models.models import User, Location, Level, Shelf, Warehouse
 from app.schemas.schemas import LocationResponse, LocationNFCUpdate
 from app.api.deps import get_current_admin, get_current_user
 import uuid
 
 router = APIRouter(tags=["locations"])
+
+def _location_company_query(company_id: uuid.UUID):
+    return (
+        select(Location)
+        .join(Level, Location.level_id == Level.id)
+        .join(Shelf, Level.shelf_id == Shelf.id)
+        .join(Warehouse, Shelf.warehouse_id == Warehouse.id)
+        .where(Warehouse.company_id == company_id)
+    )
 
 @router.get("/levels/{level_id}/locations", response_model=list[LocationResponse])
 async def get_locations(
@@ -15,7 +24,10 @@ async def get_locations(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Location).where(Location.level_id == level_id))
+    result = await db.execute(
+        _location_company_query(current_user.company_id)
+        .where(Location.level_id == level_id)
+    )
     return result.scalars().all()
 
 
@@ -25,7 +37,10 @@ async def get_location(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Location).where(Location.id == location_id))
+    result = await db.execute(
+        _location_company_query(current_user.company_id)
+        .where(Location.id == location_id)
+    )
     location = result.scalar_one_or_none()
     if not location:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ubicación no encontrada")
@@ -38,7 +53,10 @@ async def get_location_by_nfc(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    result = await db.execute(select(Location).where(Location.nfc_tag == nfc_tag))
+    result = await db.execute(
+        _location_company_query(current_user.company_id)
+        .where(Location.nfc_tag == nfc_tag)
+    )
     location = result.scalar_one_or_none()
     if not location:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ubicación no encontrada")
@@ -52,7 +70,10 @@ async def update_location_nfc(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    result = await db.execute(select(Location).where(Location.id == location_id))
+    result = await db.execute(
+        _location_company_query(current_user.company_id)
+        .where(Location.id == location_id)
+    )
     location = result.scalar_one_or_none()
     if not location:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ubicación no encontrada")

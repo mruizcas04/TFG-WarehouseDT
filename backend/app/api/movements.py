@@ -15,7 +15,9 @@ async def get_movements(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    result = await db.execute(select(Movement))
+    result = await db.execute(
+        select(Movement).where(Movement.company_id == current_user.company_id)
+    )
     return result.scalars().all()
 
 
@@ -25,7 +27,12 @@ async def get_movement(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    result = await db.execute(select(Movement).where(Movement.id == movement_id))
+    result = await db.execute(
+        select(Movement).where(
+            Movement.id == movement_id,
+            Movement.company_id == current_user.company_id
+        )
+    )
     movement = result.scalar_one_or_none()
     if not movement:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movimiento no encontrado")
@@ -38,7 +45,12 @@ async def get_movements_by_task(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    result = await db.execute(select(Movement).where(Movement.task_id == task_id))
+    result = await db.execute(
+        select(Movement).where(
+            Movement.task_id == task_id,
+            Movement.company_id == current_user.company_id
+        )
+    )
     return result.scalars().all()
 
 
@@ -48,18 +60,15 @@ async def create_movement(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Validar que el movimiento es coherente
     if movement_data.product_id is None and movement_data.box_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El movimiento debe afectar a un producto o una caja"
         )
 
-    # Actualizar inventario según el tipo de movimiento
     if movement_data.type.value == "entrada":
         if movement_data.destination_location_id is None:
             raise HTTPException(status_code=400, detail="La entrada requiere ubicación de destino")
-        # Crear InventoryItem en destino
         item = InventoryItem(
             id=uuid.uuid4(),
             location_id=movement_data.destination_location_id,
@@ -72,7 +81,6 @@ async def create_movement(
     elif movement_data.type.value == "salida":
         if movement_data.origin_location_id is None:
             raise HTTPException(status_code=400, detail="La salida requiere ubicación de origen")
-        # Eliminar InventoryItem de origen
         result = await db.execute(
             select(InventoryItem).where(InventoryItem.location_id == movement_data.origin_location_id)
         )
@@ -83,7 +91,6 @@ async def create_movement(
     elif movement_data.type.value == "traslado":
         if movement_data.origin_location_id is None or movement_data.destination_location_id is None:
             raise HTTPException(status_code=400, detail="El traslado requiere ubicación de origen y destino")
-        # Mover InventoryItem de origen a destino
         result = await db.execute(
             select(InventoryItem).where(InventoryItem.location_id == movement_data.origin_location_id)
         )
@@ -92,9 +99,9 @@ async def create_movement(
             raise HTTPException(status_code=400, detail="No hay inventario en la ubicación de origen")
         item.location_id = movement_data.destination_location_id
 
-    # Registrar el movimiento
     movement = Movement(
         id=uuid.uuid4(),
+        company_id=current_user.company_id,
         task_id=movement_data.task_id,
         performed_by=current_user.id,
         type=movement_data.type,
@@ -107,7 +114,6 @@ async def create_movement(
     await db.commit()
     await db.refresh(movement)
 
-    # Notificar por WebSocket
     await websocket_service.broadcast_movement_created(
         movement_id=str(movement.id),
         data={
