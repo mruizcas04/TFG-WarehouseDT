@@ -42,8 +42,6 @@ ScriptsOnlyBuild:
       Script: {instanceID: 0}
     - Class: 48
       Script: {instanceID: 0}
-    - Class: 64
-      Script: {instanceID: 0}
     - Class: 65
       Script: {instanceID: 0}
     - Class: 81
@@ -59,15 +57,15 @@ ScriptsOnlyBuild:
     - Class: 114
       Script: {instanceID: 3048}
     - Class: 114
-      Script: {instanceID: 3930}
+      Script: {instanceID: 3932}
     - Class: 114
-      Script: {instanceID: 6106}
+      Script: {instanceID: 6108}
     - Class: 114
-      Script: {instanceID: 6160}
+      Script: {instanceID: 6162}
     - Class: 114
-      Script: {instanceID: 7244}
+      Script: {instanceID: 7248}
     - Class: 114
-      Script: {instanceID: 7490}
+      Script: {instanceID: 7494}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 157
@@ -647,7 +645,7 @@ ScriptsOnlyBuild:
     className: CanvasScaler
   - hash:
       serializedVersion: 2
-      Hash: 10ba86c027e5303dd191556e36edccd8
+      Hash: f3c55a752871611418d61cda640966a9
     assemblyName: Assembly-CSharp
     namespaceName: WarehouseTwin.Warehouse
     className: WarehouseGenerator

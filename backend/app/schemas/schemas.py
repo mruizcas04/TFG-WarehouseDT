@@ -45,19 +45,28 @@ class UserResponse(BaseModel):
 
 # --- Warehouse ---
 
-class WarehouseCreate(BaseModel):
-    name: str
-    num_shelves: int
+class ShelfConfig(BaseModel):
     num_levels: int
     num_locations: int
+
+class AisleConfig(BaseModel):
+    shelves: list[ShelfConfig]
+
+class WarehouseCreate(BaseModel):
+    name: str
+    aisles: list[AisleConfig]
+
+class WarehouseNameUpdate(BaseModel):
+    name: str
 
 class WarehouseResponse(BaseModel):
     id: UUID
     company_id: Optional[UUID]
     name: str
     num_shelves: int
-    num_levels: int
-    num_locations: int
+    num_levels: Optional[int]
+    num_locations: Optional[int]
+    total_locations: Optional[int]
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -99,8 +108,9 @@ class WarehouseFullResponse(BaseModel):
     id: UUID
     name: str
     num_shelves: int
-    num_levels: int
-    num_locations: int
+    num_levels: Optional[int] = None
+    num_locations: Optional[int] = None
+    total_locations: Optional[int] = None
     created_at: datetime
     shelves: list[ShelfFullResponse]
 

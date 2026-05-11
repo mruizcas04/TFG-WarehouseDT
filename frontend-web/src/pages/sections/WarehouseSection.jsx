@@ -4,10 +4,24 @@ import { getWarehouses, createWarehouse } from '../../api/warehouses'
 import DigitalTwin from '../../components/DigitalTwin'
 import { useAuthStore } from '../../store/authStore'
 
+const DEFAULT_SHELF = { num_levels: 3, num_locations: 5 }
+const DEFAULT_AISLE = () => ({ shelves: [{ ...DEFAULT_SHELF }] })
+
+const labelStyle = {
+  display: 'block', fontSize: '11px', fontWeight: '500', color: '#888780',
+  textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px',
+}
+const inputStyle = {
+  width: '100%', border: '0.5px solid #D3D1C7', borderRadius: '8px',
+  padding: '9px 12px', fontSize: '13px', color: '#1C1C1A', outline: 'none',
+}
+const numInputStyle = { ...inputStyle, width: '80px' }
+
 export default function WarehouseSection() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', num_shelves: '', num_levels: '', num_locations: '' })
+  const [name, setName] = useState('')
+  const [aisles, setAisles] = useState([DEFAULT_AISLE()])
   const { token } = useAuthStore()
 
   const { data: warehouses, isLoading } = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
@@ -17,18 +31,44 @@ export default function WarehouseSection() {
     onSuccess: () => {
       queryClient.invalidateQueries(['warehouses'])
       setShowForm(false)
-      setForm({ name: '', num_shelves: '', num_levels: '', num_locations: '' })
+      setName('')
+      setAisles([DEFAULT_AISLE()])
     },
   })
 
+  const addAisle = () => setAisles([...aisles, DEFAULT_AISLE()])
+  const removeAisle = (ai) => setAisles(aisles.filter((_, i) => i !== ai))
+
+  const addShelf = (ai) => {
+    const updated = [...aisles]
+    updated[ai] = { shelves: [...updated[ai].shelves, { ...DEFAULT_SHELF }] }
+    setAisles(updated)
+  }
+  const removeShelf = (ai, si) => {
+    const updated = [...aisles]
+    updated[ai] = { shelves: updated[ai].shelves.filter((_, i) => i !== si) }
+    setAisles(updated)
+  }
+  const updateShelf = (ai, si, field, value) => {
+    const updated = aisles.map((aisle, i) => {
+      if (i !== ai) return aisle
+      return {
+        shelves: aisle.shelves.map((shelf, j) =>
+          j !== si ? shelf : { ...shelf, [field]: Math.max(1, parseInt(value) || 1) }
+        ),
+      }
+    })
+    setAisles(updated)
+  }
+
+  const totalLocations = aisles.reduce(
+    (acc, aisle) => acc + aisle.shelves.reduce((a, s) => a + s.num_levels * s.num_locations, 0), 0
+  )
+  const totalShelves = aisles.reduce((acc, aisle) => acc + aisle.shelves.length, 0)
+
   const handleSubmit = (e) => {
     e.preventDefault()
-    mutation.mutate({
-      name: form.name,
-      num_shelves: parseInt(form.num_shelves),
-      num_levels: parseInt(form.num_levels),
-      num_locations: parseInt(form.num_locations),
-    })
+    mutation.mutate({ name, aisles })
   }
 
   const warehouse = warehouses?.[0]
@@ -38,40 +78,93 @@ export default function WarehouseSection() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h2 style={{ fontSize: '20px', fontWeight: '500', color: '#1C1C1A' }}>Almacén</h2>
         {!warehouse && (
-          <button
-            onClick={() => setShowForm(!showForm)}
-            style={{ background: '#185FA5', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}
-          >
+          <button onClick={() => setShowForm(!showForm)}
+            style={{ background: '#185FA5', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
             + Nuevo almacén
           </button>
         )}
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#1C1C1A' }}>Configurar almacén</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Nombre</label>
-              <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                style={{ width: '100%', border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: '#1C1C1A', outline: 'none' }} required />
+
+          {/* Nombre */}
+          <div>
+            <label style={labelStyle}>Nombre del almacén</label>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+              style={{ ...inputStyle, maxWidth: '320px' }} required />
+          </div>
+
+          {/* Pasillos */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <label style={labelStyle}>Pasillos ({aisles.length})</label>
+              <button type="button" onClick={addAisle}
+                style={{ background: '#F1EFE8', color: '#185FA5', border: 'none', padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                + Añadir pasillo
+              </button>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Estanterías</label>
-              <input type="number" min="1" value={form.num_shelves} onChange={(e) => setForm({ ...form, num_shelves: e.target.value })}
-                style={{ width: '100%', border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: '#1C1C1A', outline: 'none' }} required />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {aisles.map((aisle, ai) => (
+                <div key={ai} style={{ border: '0.5px solid #E5E4E0', borderRadius: '10px', overflow: 'hidden' }}>
+                  {/* Cabecera del pasillo */}
+                  <div style={{ background: '#F8F8F6', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '500', color: '#5F5E5A' }}>Pasillo {ai + 1}</span>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button type="button" onClick={() => addShelf(ai)}
+                        style={{ background: 'none', border: '0.5px solid #D3D1C7', color: '#185FA5', padding: '3px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}>
+                        + Estantería
+                      </button>
+                      <button type="button" onClick={() => removeAisle(ai)} disabled={aisles.length === 1}
+                        style={{ background: 'none', border: 'none', color: aisles.length === 1 ? '#D3D1C7' : '#C0392B', cursor: aisles.length === 1 ? 'default' : 'pointer', fontSize: '15px', lineHeight: 1, padding: '2px' }}>
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Estanterías del pasillo */}
+                  <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {/* Cabecera columnas */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 36px', gap: '8px', padding: '0 4px' }}>
+                      <span style={{ fontSize: '11px', color: '#B4B2A9' }}>#</span>
+                      <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Estantería</span>
+                      <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Niveles</span>
+                      <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ubic./nivel</span>
+                      <span />
+                    </div>
+
+                    {aisle.shelves.map((shelf, si) => (
+                      <div key={si} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 36px', gap: '8px', alignItems: 'center', background: '#FAFAF8', borderRadius: '8px', padding: '8px 10px' }}>
+                        <span style={{ fontSize: '12px', color: '#888780', textAlign: 'center' }}>{si + 1}</span>
+                        <span style={{ fontSize: '13px', color: '#5F5E5A' }}>Estantería {si + 1}</span>
+                        <input type="number" min="1" value={shelf.num_levels}
+                          onChange={(e) => updateShelf(ai, si, 'num_levels', e.target.value)}
+                          style={numInputStyle} />
+                        <input type="number" min="1" value={shelf.num_locations}
+                          onChange={(e) => updateShelf(ai, si, 'num_locations', e.target.value)}
+                          style={numInputStyle} />
+                        <button type="button" onClick={() => removeShelf(ai, si)}
+                          disabled={aisle.shelves.length === 1}
+                          style={{ background: 'none', border: 'none', color: aisle.shelves.length === 1 ? '#D3D1C7' : '#C0392B', cursor: aisle.shelves.length === 1 ? 'default' : 'pointer', fontSize: '16px', lineHeight: 1, padding: '2px' }}>
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Niveles por estantería</label>
-              <input type="number" min="1" value={form.num_levels} onChange={(e) => setForm({ ...form, num_levels: e.target.value })}
-                style={{ width: '100%', border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: '#1C1C1A', outline: 'none' }} required />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>Ubicaciones por nivel</label>
-              <input type="number" min="1" value={form.num_locations} onChange={(e) => setForm({ ...form, num_locations: e.target.value })}
-                style={{ width: '100%', border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: '#1C1C1A', outline: 'none' }} required />
+
+            {/* Resumen */}
+            <div style={{ marginTop: '10px', fontSize: '12px', color: '#888780' }}>
+              Total: <strong style={{ color: '#1C1C1A' }}>{totalLocations}</strong> ubicaciones en{' '}
+              <strong style={{ color: '#1C1C1A' }}>{totalShelves}</strong> estantería{totalShelves !== 1 ? 's' : ''} y{' '}
+              <strong style={{ color: '#1C1C1A' }}>{aisles.length}</strong> pasillo{aisles.length !== 1 ? 's' : ''}
             </div>
           </div>
+
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" disabled={mutation.isLoading}
               style={{ background: '#185FA5', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
@@ -98,12 +191,10 @@ export default function WarehouseSection() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <h3 style={{ fontSize: '18px', fontWeight: '500', color: '#1C1C1A', marginBottom: '8px' }}>{warehouse.name}</h3>
-                <div style={{ display: 'flex', gap: '20px' }}>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   {[
                     { label: 'Estanterías', value: warehouse.num_shelves },
-                    { label: 'Niveles', value: warehouse.num_levels },
-                    { label: 'Ubicaciones por nivel', value: warehouse.num_locations },
-                    { label: 'Total ubicaciones', value: warehouse.num_shelves * warehouse.num_levels * warehouse.num_locations },
+                    { label: 'Total ubicaciones', value: warehouse.total_locations ?? '—' },
                   ].map((stat) => (
                     <div key={stat.label} style={{ padding: '12px 16px', background: '#F8F8F6', borderRadius: '8px', minWidth: '120px' }}>
                       <div style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>{stat.label}</div>
@@ -121,8 +212,6 @@ export default function WarehouseSection() {
           {/* Gemelo Digital */}
           <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '24px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#1C1C1A', marginBottom: '16px' }}>Gemelo Digital</h3>
-
-            {/* Leyenda de colores */}
             <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
               {[
                 { color: '#999', label: 'Libre' },
@@ -136,7 +225,6 @@ export default function WarehouseSection() {
                 </div>
               ))}
             </div>
-
             <DigitalTwin warehouseId={warehouse.id} token={token} />
           </div>
         </>

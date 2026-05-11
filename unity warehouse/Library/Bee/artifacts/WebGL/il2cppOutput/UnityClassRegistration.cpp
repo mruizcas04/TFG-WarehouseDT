@@ -98,14 +98,13 @@ class TimeManager; template <> void RegisterUnityClass<TimeManager>(const char*)
 class Transform; template <> void RegisterUnityClass<Transform>(const char*);
 class BoxCollider; template <> void RegisterUnityClass<BoxCollider>(const char*);
 class Collider; template <> void RegisterUnityClass<Collider>(const char*);
-class MeshCollider; template <> void RegisterUnityClass<MeshCollider>(const char*);
 class PhysicsManager; template <> void RegisterUnityClass<PhysicsManager>(const char*);
 
 void RegisterAllClasses()
 {
 void RegisterBuiltinTypes();
 RegisterBuiltinTypes();
-	//Total: 60 non stripped classes
+	//Total: 59 non stripped classes
 	//0. AudioBehaviour
 	RegisterUnityClass<AudioBehaviour>("Audio");
 	//1. AudioClip
@@ -222,9 +221,7 @@ RegisterBuiltinTypes();
 	RegisterUnityClass<BoxCollider>("Physics");
 	//57. Collider
 	RegisterUnityClass<Collider>("Physics");
-	//58. MeshCollider
-	RegisterUnityClass<MeshCollider>("Physics");
-	//59. PhysicsManager
+	//58. PhysicsManager
 	RegisterUnityClass<PhysicsManager>("Physics");
 
 }

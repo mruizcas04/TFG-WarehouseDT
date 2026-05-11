@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.db.database import get_db
 from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem
 from app.schemas.schemas import (
-    WarehouseCreate, WarehouseResponse, WarehouseFullResponse,
+    WarehouseCreate, WarehouseNameUpdate, WarehouseResponse, WarehouseFullResponse,
     ShelfFullResponse, LevelFullResponse, LocationFullResponse,
     InventoryItemFullResponse
 )
@@ -30,40 +30,49 @@ async def create_warehouse(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
+    total_locations = sum(
+        s.num_levels * s.num_locations
+        for aisle in warehouse_data.aisles
+        for s in aisle.shelves
+    )
+    num_shelves = sum(len(aisle.shelves) for aisle in warehouse_data.aisles)
+
     warehouse = Warehouse(
         id=uuid.uuid4(),
         company_id=current_user.company_id,
         name=warehouse_data.name,
-        num_shelves=warehouse_data.num_shelves,
-        num_levels=warehouse_data.num_levels,
-        num_locations=warehouse_data.num_locations
+        num_shelves=num_shelves,
+        num_levels=None,
+        num_locations=None,
+        total_locations=total_locations,
     )
     db.add(warehouse)
 
-    for aisle in range(1, warehouse_data.num_shelves + 1):
-        shelf = Shelf(
-            id=uuid.uuid4(),
-            warehouse_id=warehouse.id,
-            aisle_number=aisle,
-            shelf_number=1
-        )
-        db.add(shelf)
-
-        for level_num in range(1, warehouse_data.num_levels + 1):
-            level = Level(
+    for aisle_num, aisle_cfg in enumerate(warehouse_data.aisles, start=1):
+        for shelf_num, shelf_cfg in enumerate(aisle_cfg.shelves, start=1):
+            shelf = Shelf(
                 id=uuid.uuid4(),
-                shelf_id=shelf.id,
-                level_number=level_num
+                warehouse_id=warehouse.id,
+                aisle_number=aisle_num,
+                shelf_number=shelf_num
             )
-            db.add(level)
+            db.add(shelf)
 
-            for pos in range(1, warehouse_data.num_locations + 1):
-                location = Location(
+            for level_num in range(1, shelf_cfg.num_levels + 1):
+                level = Level(
                     id=uuid.uuid4(),
-                    level_id=level.id,
-                    position_number=pos
+                    shelf_id=shelf.id,
+                    level_number=level_num
                 )
-                db.add(location)
+                db.add(level)
+
+                for pos in range(1, shelf_cfg.num_locations + 1):
+                    location = Location(
+                        id=uuid.uuid4(),
+                        level_id=level.id,
+                        position_number=pos
+                    )
+                    db.add(location)
 
     await db.commit()
     await db.refresh(warehouse)
@@ -175,6 +184,7 @@ async def get_warehouse_full(
         num_shelves=warehouse.num_shelves,
         num_levels=warehouse.num_levels,
         num_locations=warehouse.num_locations,
+        total_locations=warehouse.total_locations,
         created_at=warehouse.created_at,
         shelves=shelves_full
     )
@@ -183,7 +193,7 @@ async def get_warehouse_full(
 @router.put("/{warehouse_id}", response_model=WarehouseResponse)
 async def update_warehouse(
     warehouse_id: uuid.UUID,
-    warehouse_data: WarehouseCreate,
+    warehouse_data: WarehouseNameUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
@@ -198,9 +208,6 @@ async def update_warehouse(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Almacén no encontrado")
 
     warehouse.name = warehouse_data.name
-    warehouse.num_shelves = warehouse_data.num_shelves
-    warehouse.num_levels = warehouse_data.num_levels
-    warehouse.num_locations = warehouse_data.num_locations
 
     await db.commit()
     await db.refresh(warehouse)

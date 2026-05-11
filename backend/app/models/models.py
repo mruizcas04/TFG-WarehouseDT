@@ -51,8 +51,9 @@ class Warehouse(Base):
     company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     num_shelves: Mapped[int] = mapped_column(Integer, nullable=False)
-    num_levels: Mapped[int] = mapped_column(Integer, nullable=False)
-    num_locations: Mapped[int] = mapped_column(Integer, nullable=False)
+    num_levels: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    num_locations: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_locations: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     company: Mapped["Company | None"] = relationship("Company", back_populates="warehouses")

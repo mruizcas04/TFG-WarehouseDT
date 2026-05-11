@@ -6,11 +6,6 @@ using WarehouseTwin.Network;
 
 namespace WarehouseTwin.Warehouse
 {
-    // Script principal del gemelo digital.
-    // Al inicializarse llama al backend para obtener la configuración
-    // del almacén y genera proceduralmente la geometría 3D.
-    // También se suscribe a los eventos WebSocket para actualizar
-    // el estado visual en tiempo real.
     public class WarehouseGenerator : MonoBehaviour
     {
         [Header("Configuración del almacén")]
@@ -27,14 +22,19 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private GameObject locationPrefab;
         [SerializeField] private GameObject shelfFramePrefab;
 
-        // Diccionario para acceder a cada LocationObject por su ID del backend
-        private Dictionary<string, LocationObject> _locationObjects
-            = new Dictionary<string, LocationObject>();
+        [Header("Espacio libre alrededor (metros)")]
+        [SerializeField] private float margin = 8.0f;
+        [SerializeField] private float wallExtraHeight = 5.0f;
+        [SerializeField] private float shelfGap = 1.0f;
+
+        [Header("Materiales (opcional)")]
+        [SerializeField] private Material floorMaterial;
+        [SerializeField] private Material wallMaterial;
+
+        private Dictionary<string, LocationObject> _locationObjects = new();
 
         private void Start()
         {
-            // No hacemos nada aquí — ReactBridge.Initialize() 
-            // llama a GenerateFromDTO() cuando tiene el token
             WebSocketClient.Instance.OnInventoryUpdated += HandleInventoryUpdated;
             WebSocketClient.Instance.OnMovementCreated += HandleMovementCreated;
         }
@@ -48,8 +48,6 @@ namespace WarehouseTwin.Warehouse
             }
         }
 
-        // Genera toda la geometría 3D a partir del WarehouseDTO.
-        // Es público para que ReactBridge pueda llamarlo también.
         public void GenerateFromDTO(WarehouseDTO warehouse)
         {
             Debug.Log($"Generando almacén: {warehouse.name}");
@@ -58,13 +56,86 @@ namespace WarehouseTwin.Warehouse
             foreach (Transform child in transform)
                 Destroy(child.gameObject);
 
+            // --- Primera pasada: calcular dimensiones totales ---
+            int maxAisle = 0;
+            int maxLevels = 0;
+            Dictionary<int, float> aisleLengths = new();
+
+            foreach (ShelfDTO shelf in warehouse.shelves)
+            {
+                maxAisle = Mathf.Max(maxAisle, shelf.aisle_number);
+                maxLevels = Mathf.Max(maxLevels, shelf.levels.Count);
+
+                if (!aisleLengths.ContainsKey(shelf.aisle_number))
+                    aisleLengths[shelf.aisle_number] = 0f;
+
+                int numLocs = shelf.levels.Count > 0 ? shelf.levels[0].locations.Count : 0;
+                aisleLengths[shelf.aisle_number] += numLocs * (shelfWidth + locationPadding) + 0.3f;
+            }
+
+            float maxLength = 0f;
+            foreach (float l in aisleLengths.Values)
+                maxLength = Mathf.Max(maxLength, l - 0.3f);
+
+            // Límites reales de las estanterías (los cubos tienen pivot en el centro)
+            float halfDepth = shelfDepth / 2f;
+            float halfWidth = (shelfWidth - locationPadding) / 2f;
+            float boundsMinX = -halfDepth;
+            float boundsMaxX = (maxAisle - 1) * aisleSpacing + halfDepth;
+            float boundsMinZ = -halfWidth;
+            float boundsMaxZ = maxLength + halfWidth;
+
+
+            float wallThickness = 0.3f;
+            float wallHeight = maxLevels * shelfHeight + wallExtraHeight;
+            float floorThickness = 0.2f;
+
+            float fMinX = boundsMinX - margin;
+            float fMaxX = boundsMaxX + margin;
+            float fMinZ = boundsMinZ - margin;
+            float fMaxZ = boundsMaxZ + margin;
+            float fW = fMaxX - fMinX;
+            float fL = fMaxZ - fMinZ;
+            float fCX = (fMinX + fMaxX) / 2f;
+            float fCZ = (fMinZ + fMaxZ) / 2f;
+
+            // --- Suelo ---
+            GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            floor.name = "Floor";
+            floor.transform.SetParent(transform);
+            floor.transform.localScale = new Vector3(fW, floorThickness, fL);
+            floor.transform.localPosition = new Vector3(fCX, -floorThickness / 2f, fCZ);
+            if (floorMaterial != null)
+                floor.GetComponent<Renderer>().material = floorMaterial;
+
+            // --- Paredes ---
+            CreateWall("Wall_Front", fCX, wallHeight / 2f, fMinZ - wallThickness / 2f,
+                new Vector3(fW + wallThickness * 2f, wallHeight, wallThickness));
+            CreateWall("Wall_Back", fCX, wallHeight / 2f, fMaxZ + wallThickness / 2f,
+                new Vector3(fW + wallThickness * 2f, wallHeight, wallThickness));
+            CreateWall("Wall_Left", fMinX - wallThickness / 2f, wallHeight / 2f, fCZ,
+                new Vector3(wallThickness, wallHeight, fL));
+            CreateWall("Wall_Right", fMaxX + wallThickness / 2f, wallHeight / 2f, fCZ,
+                new Vector3(wallThickness, wallHeight, fL));
+
+            // --- Segunda pasada: generar estanterías ---
+            // Offset Y para que el nivel 1 apoye en el suelo (pivot de los cubos en centro)
+            float groundOffset = (shelfHeight - locationPadding) / 2f;
+            Dictionary<int, float> aisleZOffset = new();
+
             foreach (ShelfDTO shelf in warehouse.shelves)
             {
                 float shelfX = (shelf.aisle_number - 1) * aisleSpacing;
 
-                GameObject shelfGO = new GameObject($"Shelf_Aisle{shelf.aisle_number}");
+                if (!aisleZOffset.ContainsKey(shelf.aisle_number))
+                    aisleZOffset[shelf.aisle_number] = 0f;
+                float shelfZ = aisleZOffset[shelf.aisle_number];
+
+                GameObject shelfGO = new GameObject($"Shelf_Aisle{shelf.aisle_number}_Shelf{shelf.shelf_number}");
                 shelfGO.transform.SetParent(transform);
-                shelfGO.transform.localPosition = new Vector3(shelfX, 0, 0);
+                shelfGO.transform.localPosition = new Vector3(shelfX, groundOffset, shelfZ);
+
+                int numLocations = shelf.levels.Count > 0 ? shelf.levels[0].locations.Count : 0;
 
                 foreach (LevelDTO level in shelf.levels)
                 {
@@ -76,13 +147,9 @@ namespace WarehouseTwin.Warehouse
 
                     foreach (LocationDTO location in level.locations)
                     {
-                        float locationZ = (location.position_number - 1)
-                            * (shelfWidth + locationPadding);
+                        float locationZ = (location.position_number - 1) * (shelfWidth + locationPadding);
 
-                        GameObject locationGO = Instantiate(
-                            locationPrefab,
-                            levelGO.transform
-                        );
+                        GameObject locationGO = Instantiate(locationPrefab, levelGO.transform);
                         locationGO.name = $"Location_{location.position_number}";
                         locationGO.transform.localPosition = new Vector3(0, 0, locationZ);
                         locationGO.transform.localScale = new Vector3(
@@ -92,38 +159,40 @@ namespace WarehouseTwin.Warehouse
                         );
 
                         LocationObject locObj = locationGO.GetComponent<LocationObject>();
-                        LocationState initialState =
-                            LocationObject.StateFromInventory(location.inventory);
-                        locObj.Initialize(location.id, initialState);
-
+                        locObj.Initialize(location.id, LocationObject.StateFromInventory(location.inventory));
                         _locationObjects[location.id] = locObj;
                     }
                 }
+
+                float shelfLength = numLocations * (shelfWidth + locationPadding);
+                aisleZOffset[shelf.aisle_number] += shelfLength + shelfGap;
             }
 
             Debug.Log($"Almacén generado: {_locationObjects.Count} ubicaciones.");
         }
 
+        private void CreateWall(string wallName, float x, float y, float z, Vector3 scale)
+        {
+            GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            wall.name = wallName;
+            wall.transform.SetParent(transform);
+            wall.transform.localPosition = new Vector3(x, y, z);
+            wall.transform.localScale = scale;
+            if (wallMaterial != null)
+                wall.GetComponent<Renderer>().material = wallMaterial;
+        }
+
         private void HandleInventoryUpdated(WebSocketEventDTO evt)
         {
-            // Entrada: destination tiene producto → verde
             if (!string.IsNullOrEmpty(evt.data?.destination_location_id))
             {
                 if (_locationObjects.TryGetValue(evt.data.destination_location_id, out LocationObject dest))
-                {
                     dest.SetState(LocationState.Product);
-                    Debug.Log($"Entrada en {evt.data.destination_location_id} → Product");
-                }
             }
-
-            // Salida: origin queda vacío → gris
             if (!string.IsNullOrEmpty(evt.data?.origin_location_id))
             {
                 if (_locationObjects.TryGetValue(evt.data.origin_location_id, out LocationObject origin))
-                {
                     origin.SetState(LocationState.Free);
-                    Debug.Log($"Salida de {evt.data.origin_location_id} → Free");
-                }
             }
         }
 

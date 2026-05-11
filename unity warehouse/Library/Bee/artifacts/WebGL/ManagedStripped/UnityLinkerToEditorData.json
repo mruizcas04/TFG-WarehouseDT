@@ -466,14 +466,6 @@
             "icon": null
           },
           {
-            "name": "MeshCollider",
-            "scenes": [
-              "Assets/Scenes/SampleScene.unity"
-            ],
-            "dependencyType": 0,
-            "icon": null
-          },
-          {
             "name": "PhysicsManager",
             "scenes": [],
             "dependencyType": 1,

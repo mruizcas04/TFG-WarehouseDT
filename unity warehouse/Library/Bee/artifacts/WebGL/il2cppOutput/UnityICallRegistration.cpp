@@ -290,6 +290,10 @@ void RegisterAllStrippedInternalCalls()
 		void Register_UnityEngine_GameObject_Internal_AddComponentWithType();
 		Register_UnityEngine_GameObject_Internal_AddComponentWithType();
 
+		//UnityEngine.GameObject UnityEngine.GameObject::CreatePrimitive(UnityEngine.PrimitiveType)
+		void Register_UnityEngine_GameObject_CreatePrimitive();
+		Register_UnityEngine_GameObject_CreatePrimitive();
+
 		//UnityEngine.Transform UnityEngine.GameObject::get_transform()
 		void Register_UnityEngine_GameObject_get_transform();
 		Register_UnityEngine_GameObject_get_transform();
@@ -809,6 +813,10 @@ void RegisterAllStrippedInternalCalls()
 	//End Registrations for type : UnityEngine.Quaternion
 
 	//Start Registrations for type : UnityEngine.Renderer
+
+		//System.Void UnityEngine.Renderer::SetMaterial(UnityEngine.Material)
+		void Register_UnityEngine_Renderer_SetMaterial();
+		Register_UnityEngine_Renderer_SetMaterial();
 
 		//UnityEngine.Material UnityEngine.Renderer::GetMaterial()
 		void Register_UnityEngine_Renderer_GetMaterial();

@@ -54,8 +54,9 @@ namespace WarehouseTwin.Data
         public string id;
         public string name;
         public int num_shelves;
-        public int num_levels;
-        public int num_locations;
+        public int? num_levels;
+        public int? num_locations;
+        public int? total_locations;
         public List<ShelfDTO> shelves;
     }
 
