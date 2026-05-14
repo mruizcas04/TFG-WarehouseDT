@@ -60,7 +60,7 @@ async def create_movement(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if movement_data.product_id is None and movement_data.box_id is None:
+    if movement_data.type.value != "salida" and movement_data.product_id is None and movement_data.box_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El movimiento debe afectar a un producto o una caja"
@@ -69,6 +69,11 @@ async def create_movement(
     if movement_data.type.value == "entrada":
         if movement_data.destination_location_id is None:
             raise HTTPException(status_code=400, detail="La entrada requiere ubicación de destino")
+        existing = await db.execute(
+            select(InventoryItem).where(InventoryItem.location_id == movement_data.destination_location_id)
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="La ubicación de destino ya tiene inventario asignado")
         item = InventoryItem(
             id=uuid.uuid4(),
             location_id=movement_data.destination_location_id,
@@ -91,6 +96,11 @@ async def create_movement(
     elif movement_data.type.value == "traslado":
         if movement_data.origin_location_id is None or movement_data.destination_location_id is None:
             raise HTTPException(status_code=400, detail="El traslado requiere ubicación de origen y destino")
+        existing_dest = await db.execute(
+            select(InventoryItem).where(InventoryItem.location_id == movement_data.destination_location_id)
+        )
+        if existing_dest.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="La ubicación de destino ya tiene inventario asignado")
         result = await db.execute(
             select(InventoryItem).where(InventoryItem.location_id == movement_data.origin_location_id)
         )

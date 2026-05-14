@@ -163,11 +163,17 @@ class Task(Base):
     assigned_to: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     type: Mapped[TaskType] = mapped_column(Enum(TaskType), nullable=False)
     status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), nullable=False, default=TaskStatus.pendiente)
+    product_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
+    origin_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
+    destination_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     company: Mapped["Company | None"] = relationship("Company", back_populates="tasks")
     admin: Mapped["User"] = relationship("User", foreign_keys=[created_by], back_populates="tasks_created")
     worker: Mapped["User"] = relationship("User", foreign_keys=[assigned_to], back_populates="tasks_assigned")
+    product: Mapped["Product | None"] = relationship("Product", foreign_keys=[product_id])
+    origin_location: Mapped["Location | None"] = relationship("Location", foreign_keys=[origin_location_id])
+    destination_location: Mapped["Location | None"] = relationship("Location", foreign_keys=[destination_location_id])
     movements: Mapped[list["Movement"]] = relationship("Movement", back_populates="task")
 
 

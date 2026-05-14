@@ -36,16 +36,20 @@ class WebSocketService:
             **data
         })
 
-    async def broadcast_task_assigned(self, task_id: str, assigned_to: str):
+    async def broadcast_task_assigned(self, task_id: str, assigned_to: str, origin_location_id: str | None = None, destination_location_id: str | None = None):
         await self.broadcast("task_assigned", {
             "task_id": task_id,
-            "assigned_to": assigned_to
+            "assigned_to": assigned_to,
+            "origin_location_id": origin_location_id,
+            "destination_location_id": destination_location_id,
         })
 
-    async def broadcast_task_status_changed(self, task_id: str, status: str):
+    async def broadcast_task_status_changed(self, task_id: str, status: str, origin_location_id: str | None = None, destination_location_id: str | None = None):
         await self.broadcast("task_status_changed", {
             "task_id": task_id,
-            "status": status
+            "status": status,
+            "origin_location_id": origin_location_id,
+            "destination_location_id": destination_location_id,
         })
 
 websocket_service = WebSocketService()

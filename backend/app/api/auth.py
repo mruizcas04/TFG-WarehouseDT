@@ -6,7 +6,7 @@ from app.db.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.models.models import User, Company, UserRole
 from app.schemas.schemas import Token, UserCreate, UserResponse
-from app.api.deps import get_current_admin, get_user_from_token
+from app.api.deps import get_current_admin, get_current_user, get_user_from_token
 import uuid
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -89,6 +89,13 @@ async def _extract_token(request: Request) -> str:
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token no proporcionado")
     return auth_header[7:]
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(
+    current_user: User = Depends(get_current_user)
+):
+    return current_user
 
 
 @router.get("/users", response_model=list[UserResponse])

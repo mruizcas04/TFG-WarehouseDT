@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx expo *)",
+      "Bash(node -e \"require\\('./src/theme.js'\\); console.log\\('theme OK'\\)\")",
+      "Bash(echo \"sdk.dir=C\\\\:\\\\\\\\Users\\\\\\\\mruiz\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Android\\\\\\\\Sdk\")",
+      "Bash(dir \"C:\\\\Users\\\\mruiz\\\\AppData\\\\Local\\\\Android\\\\Sdk\")",
+      "Bash(xargs wc *)"
+    ]
+  }
+}

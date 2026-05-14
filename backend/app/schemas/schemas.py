@@ -198,6 +198,9 @@ class InventoryItemResponse(BaseModel):
 class TaskCreate(BaseModel):
     assigned_to: UUID
     type: TaskType
+    product_id: Optional[UUID] = None
+    origin_location_id: Optional[UUID] = None
+    destination_location_id: Optional[UUID] = None
 
 class TaskStatusUpdate(BaseModel):
     status: TaskStatus
@@ -209,6 +212,9 @@ class TaskResponse(BaseModel):
     assigned_to: UUID
     type: TaskType
     status: TaskStatus
+    product_id: Optional[UUID]
+    origin_location_id: Optional[UUID]
+    destination_location_id: Optional[UUID]
     created_at: datetime
 
     model_config = {"from_attributes": True}

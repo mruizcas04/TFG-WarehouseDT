@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
-from app.models.models import User, Task
+from app.models.models import User, Task, InventoryItem, TaskStatus
 from app.schemas.schemas import TaskCreate, TaskResponse, TaskStatusUpdate
 from app.api.deps import get_current_admin, get_current_user
 from app.services.websocket_service import websocket_service
@@ -40,19 +40,79 @@ async def create_task(
             detail="El usuario asignado no pertenece a esta empresa"
         )
 
+    # Validación de ubicaciones según tipo
+    if task_data.type.value == "traslado":
+        if not task_data.origin_location_id or not task_data.destination_location_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Las tareas de traslado requieren ubicación de origen y destino")
+    elif task_data.type.value == "entrada" and not task_data.destination_location_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Las tareas de entrada requieren ubicación de destino")
+    elif task_data.type.value == "salida" and not task_data.origin_location_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Las tareas de salida requieren ubicación de origen")
+
+    # Validación de inventario según tipo
+    if task_data.type.value in ("entrada", "traslado"):
+        dest_inv = await db.execute(
+            select(InventoryItem).where(InventoryItem.location_id == task_data.destination_location_id)
+        )
+        if dest_inv.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La ubicación de destino ya tiene inventario asignado")
+
+    if task_data.type.value in ("salida", "traslado"):
+        if not task_data.product_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Las tareas de salida y traslado requieren un producto")
+        origin_inv = await db.execute(
+            select(InventoryItem).where(
+                InventoryItem.location_id == task_data.origin_location_id,
+                InventoryItem.product_id == task_data.product_id,
+            )
+        )
+        if not origin_inv.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El producto seleccionado no se encuentra en la ubicación de origen")
+
+    active_statuses = [TaskStatus.pendiente, TaskStatus.en_curso]
+
+    # Conflicto en destino: otra tarea activa ya apunta a esa ubicación
+    if task_data.destination_location_id:
+        conflict = await db.execute(
+            select(Task).where(
+                Task.destination_location_id == task_data.destination_location_id,
+                Task.status.in_(active_statuses),
+                Task.company_id == current_user.company_id,
+            )
+        )
+        if conflict.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La ubicación de destino ya tiene una tarea activa asignada")
+
+    # Conflicto en origen: otra tarea activa ya consume ese inventario
+    if task_data.origin_location_id:
+        conflict = await db.execute(
+            select(Task).where(
+                Task.origin_location_id == task_data.origin_location_id,
+                Task.status.in_(active_statuses),
+                Task.company_id == current_user.company_id,
+            )
+        )
+        if conflict.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La ubicación de origen ya tiene una tarea activa asignada")
+
     task = Task(
         id=uuid.uuid4(),
         company_id=current_user.company_id,
         created_by=current_user.id,
         assigned_to=task_data.assigned_to,
         type=task_data.type,
+        product_id=task_data.product_id,
+        origin_location_id=task_data.origin_location_id,
+        destination_location_id=task_data.destination_location_id,
     )
     db.add(task)
     await db.commit()
     await db.refresh(task)
     await websocket_service.broadcast_task_assigned(
         task_id=str(task.id),
-        assigned_to=str(task.assigned_to)
+        assigned_to=str(task.assigned_to),
+        origin_location_id=str(task.origin_location_id) if task.origin_location_id else None,
+        destination_location_id=str(task.destination_location_id) if task.destination_location_id else None,
     )
     return task
 
@@ -111,6 +171,8 @@ async def update_task_status(
     await db.refresh(task)
     await websocket_service.broadcast_task_status_changed(
         task_id=str(task.id),
-        status=task.status.value
+        status=task.status.value,
+        origin_location_id=str(task.origin_location_id) if task.origin_location_id else None,
+        destination_location_id=str(task.destination_location_id) if task.destination_location_id else None,
     )
     return task
