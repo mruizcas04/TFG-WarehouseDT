@@ -37,6 +37,8 @@ namespace WarehouseTwin.Warehouse
         {
             WebSocketClient.Instance.OnInventoryUpdated += HandleInventoryUpdated;
             WebSocketClient.Instance.OnMovementCreated += HandleMovementCreated;
+            WebSocketClient.Instance.OnTaskAssigned += HandleTaskAssigned;
+            WebSocketClient.Instance.OnTaskStatusChanged += HandleTaskStatusChanged;
         }
 
         private void OnDestroy()
@@ -45,6 +47,8 @@ namespace WarehouseTwin.Warehouse
             {
                 WebSocketClient.Instance.OnInventoryUpdated -= HandleInventoryUpdated;
                 WebSocketClient.Instance.OnMovementCreated -= HandleMovementCreated;
+                WebSocketClient.Instance.OnTaskAssigned -= HandleTaskAssigned;
+                WebSocketClient.Instance.OnTaskStatusChanged -= HandleTaskStatusChanged;
             }
         }
 
@@ -168,6 +172,16 @@ namespace WarehouseTwin.Warehouse
                 aisleZOffset[shelf.aisle_number] += shelfLength + shelfGap;
             }
 
+            // Pintar en amarillo las ubicaciones con tareas activas
+            if (warehouse.active_task_locations != null)
+            {
+                foreach (string locationId in warehouse.active_task_locations)
+                {
+                    if (_locationObjects.TryGetValue(locationId, out LocationObject locObj))
+                        locObj.SetState(LocationState.Task);
+                }
+            }
+            
             Debug.Log($"Almacén generado: {_locationObjects.Count} ubicaciones.");
         }
 
@@ -187,12 +201,12 @@ namespace WarehouseTwin.Warehouse
             if (!string.IsNullOrEmpty(evt.data?.destination_location_id))
             {
                 if (_locationObjects.TryGetValue(evt.data.destination_location_id, out LocationObject dest))
-                    dest.SetState(LocationState.Product);
+                    dest.SetState(ParseLocationState(evt.data.destination_state));
             }
             if (!string.IsNullOrEmpty(evt.data?.origin_location_id))
             {
                 if (_locationObjects.TryGetValue(evt.data.origin_location_id, out LocationObject origin))
-                    origin.SetState(LocationState.Free);
+                    origin.SetState(ParseLocationState(evt.data.origin_state));
             }
         }
 
@@ -200,6 +214,13 @@ namespace WarehouseTwin.Warehouse
         {
             HandleInventoryUpdated(evt);
         }
+
+        private static LocationState ParseLocationState(string state) => state switch
+        {
+            "box" => LocationState.Box,
+            "product" => LocationState.Product,
+            _ => LocationState.Free,
+        };
 
         public void HighlightTaskLocation(string locationId)
         {
@@ -211,6 +232,47 @@ namespace WarehouseTwin.Warehouse
         {
             if (_locationObjects.TryGetValue(locationId, out LocationObject locObj))
                 locObj.SetState(LocationState.Free);
+        }
+
+        private void HandleTaskAssigned(WebSocketEventDTO evt)
+        {
+            Debug.Log($"HandleTaskAssigned llamado — dest: {evt.data?.destination_location_id} — origin: {evt.data?.origin_location_id}");
+            HighlightLocation(evt.data?.destination_location_id, LocationState.Task);
+            HighlightLocation(evt.data?.origin_location_id, LocationState.Task);
+        }
+
+        private void HandleTaskStatusChanged(WebSocketEventDTO evt)
+        {
+            // Si la tarea se completa o cancela, quitar el amarillo
+            string status = evt.data?.status;
+            if (status == "completada" || status == "cancelada")
+            {
+                // Restaurar al color real consultando el estado actual
+                RestoreLocation(evt.data?.destination_location_id);
+                RestoreLocation(evt.data?.origin_location_id);
+                Debug.Log($"Tarea {status} — restaurando colores");
+            }
+            else if (status == "en_curso")
+            {
+                // Mantener amarillo mientras está en curso
+                HighlightLocation(evt.data?.destination_location_id, LocationState.Task);
+                HighlightLocation(evt.data?.origin_location_id, LocationState.Task);
+            }
+        }
+
+        private void HighlightLocation(string locationId, LocationState state)
+        {
+            if (string.IsNullOrEmpty(locationId)) return;
+            Debug.Log($"HighlightLocation — buscando: {locationId} — encontrado: {_locationObjects.ContainsKey(locationId)}");
+            if (_locationObjects.TryGetValue(locationId, out LocationObject locObj))
+                locObj.SetState(state);
+        }
+
+        private void RestoreLocation(string locationId)
+        {
+            if (string.IsNullOrEmpty(locationId)) return;
+            if (_locationObjects.TryGetValue(locationId, out LocationObject locObj))
+                locObj.SetState(LocationState.Free); // simplificación — podría consultarse el inventario real
         }
     }
 }

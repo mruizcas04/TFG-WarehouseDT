@@ -3,20 +3,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTasks, createTask } from '../../api/tasks'
 import { getUsers } from '../../api/users'
 import { getProducts } from '../../api/products'
+import { getBoxes } from '../../api/boxes'
 import { getWarehouses, getWarehouseFull, flattenLocations } from '../../api/warehouses'
 
 const labelStyle = { display: 'block', fontSize: '11px', fontWeight: '500', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }
 const inputStyle = { width: '100%', border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: '#1C1C1A', outline: 'none', boxSizing: 'border-box' }
 const selectStyle = { ...inputStyle, background: 'white' }
 
-// Buscador de producto con autocomplete
 function ProductSearch({ products, value, onChange }) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
-
   const selected = products?.find(p => p.id === value)
-
   const filtered = products?.filter(p =>
     p.name.toLowerCase().includes(query.toLowerCase()) ||
     (p.barcode && p.barcode.includes(query))
@@ -76,10 +74,8 @@ function ProductSearch({ products, value, onChange }) {
   )
 }
 
-// Selector de ubicación por pasillos encadenados
 function LocationPicker({ allLocations, value, onChange, label }) {
   const shelves = [...new Set(allLocations.map(l => l.aisle_number))].sort((a, b) => a - b)
-
   const [aisle, setAisle] = useState('')
   const [shelf, setShelf] = useState('')
   const [level, setLevel] = useState('')
@@ -91,14 +87,16 @@ function LocationPicker({ allLocations, value, onChange, label }) {
 
   useEffect(() => {
     if (aisle && shelf && level && pos) {
-      const loc = allLocations.find(l => l.aisle_number === Number(aisle) && l.shelf_number === Number(shelf) && l.level_number === Number(level) && l.position_number === Number(pos))
-      onChange(loc?.id || '')
+      const loc = allLocations.find(l =>
+        l.aisle_number === Number(aisle) && l.shelf_number === Number(shelf) &&
+        l.level_number === Number(level) && l.position_number === Number(pos)
+      )
+      onChange(loc?.id || '', loc || null)
     } else {
-      onChange('')
+      onChange('', null)
     }
   }, [aisle, shelf, level, pos])
 
-  // Si viene un value externo (reset), limpiar
   useEffect(() => { if (!value) { setAisle(''); setShelf(''); setLevel(''); setPos('') } }, [value])
 
   const preview = (aisle && shelf && level && pos) ? `P${aisle} · Est. ${shelf} · Balda ${level} · Hueco ${pos}` : null
@@ -107,67 +105,126 @@ function LocationPicker({ allLocations, value, onChange, label }) {
     <div>
       <label style={labelStyle}>{label}</label>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
-        <div>
-          <label style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '4px', display: 'block' }}>Pasillo</label>
-          <select value={aisle} onChange={e => { setAisle(e.target.value); setShelf(''); setLevel(''); setPos('') }} style={selectStyle}>
-            <option value="">—</option>
-            {shelves.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div>
-          <label style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '4px', display: 'block' }}>Estantería</label>
-          <select value={shelf} onChange={e => { setShelf(e.target.value); setLevel(''); setPos('') }} style={selectStyle} disabled={!aisle}>
-            <option value="">—</option>
-            {shelfNumbers.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div>
-          <label style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '4px', display: 'block' }}>Balda</label>
-          <select value={level} onChange={e => { setLevel(e.target.value); setPos('') }} style={selectStyle} disabled={!shelf}>
-            <option value="">—</option>
-            {levelNumbers.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </div>
-        <div>
-          <label style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '4px', display: 'block' }}>Hueco</label>
-          <select value={pos} onChange={e => setPos(e.target.value)} style={selectStyle} disabled={!level}>
-            <option value="">—</option>
-            {posNumbers.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
-        </div>
+        {[
+          { label: 'Pasillo', value: aisle, options: shelves, onChange: v => { setAisle(v); setShelf(''); setLevel(''); setPos('') }, disabled: false },
+          { label: 'Estantería', value: shelf, options: shelfNumbers, onChange: v => { setShelf(v); setLevel(''); setPos('') }, disabled: !aisle },
+          { label: 'Balda', value: level, options: levelNumbers, onChange: v => { setLevel(v); setPos('') }, disabled: !shelf },
+          { label: 'Hueco', value: pos, options: posNumbers, onChange: v => setPos(v), disabled: !level },
+        ].map(col => (
+          <div key={col.label}>
+            <label style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '4px', display: 'block' }}>{col.label}</label>
+            <select value={col.value} onChange={e => col.onChange(e.target.value)} style={selectStyle} disabled={col.disabled}>
+              <option value="">—</option>
+              {col.options.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+        ))}
       </div>
       {preview && <p style={{ fontSize: '11px', color: '#888780', margin: '4px 0 0' }}>→ {preview}</p>}
     </div>
   )
 }
 
+// Badge que indica si la cantidad implica caja o producto suelto
+function QuantityTypeBadge({ quantity }) {
+  if (!quantity || quantity <= 1) return null
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '4px',
+      background: '#E8EEFF', color: '#2244AA',
+      padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500',
+    }}>
+      <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#3366CC', flexShrink: 0 }} />
+      Caja
+    </span>
+  )
+}
+
+// Muestra el contenido actual de una ubicación (para confirmar qué hay antes de una salida)
+function LocationInventoryInfo({ inventory, products, boxes }) {
+  if (!inventory) return <span style={{ fontSize: '12px', color: '#B4B2A9' }}>Vacía</span>
+
+  if (inventory.box_id) {
+    const box = boxes?.find(b => b.id === inventory.box_id)
+    const qty = inventory.box_current_quantity ?? box?.current_quantity
+    const max = inventory.box_max_capacity ?? box?.max_capacity
+    const productName = products?.find(p => p.id === box?.product_id)?.name || '—'
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#E8EEFF', color: '#2244AA', padding: '3px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '500' }}>
+        <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#3366CC', flexShrink: 0 }} />
+        Caja · {productName} · {qty}/{max} ud.
+      </span>
+    )
+  }
+
+  if (inventory.product_id) {
+    const productName = products?.find(p => p.id === inventory.product_id)?.name || '—'
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EAF3DE', color: '#3B6D11', padding: '3px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '500' }}>
+        Producto · {productName} · {inventory.quantity} ud.
+      </span>
+    )
+  }
+
+  return <span style={{ fontSize: '12px', color: '#B4B2A9' }}>Vacía</span>
+}
+
 export default function TasksSection() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ assigned_to: '', type: 'entrada', product_id: '', origin_location_id: '', destination_location_id: '' })
+  const [form, setForm] = useState({
+    assigned_to: '',
+    type: 'entrada',
+    product_id: '',
+    quantity: '',
+    origin_location_id: '',
+    destination_location_id: '',
+  })
+  const [originLocation, setOriginLocation] = useState(null)
   const [allLocations, setAllLocations] = useState([])
   const [formError, setFormError] = useState(null)
 
-  const updateForm = (patch) => {
-    setFormError(null)
-    setForm(prev => ({ ...prev, ...patch }))
-  }
+  const updateForm = (patch) => { setFormError(null); setForm(prev => ({ ...prev, ...patch })) }
 
   const { data: tasks, isLoading } = useQuery({ queryKey: ['tasks'], queryFn: getTasks })
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: getUsers })
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: getProducts })
+  const { data: boxes } = useQuery({ queryKey: ['boxes'], queryFn: getBoxes })
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
 
   useEffect(() => {
-  if (!warehouses?.length) return
-  Promise.all(warehouses.map(w => getWarehouseFull(w.id))).then(full => {
-    setAllLocations(full.flatMap(flattenLocations))
-  })
-}, [warehouses])
+    if (!warehouses?.length) return
+    Promise.all(warehouses.map(w => getWarehouseFull(w.id))).then(full => {
+      setAllLocations(full.flatMap(flattenLocations))
+    })
+  }, [warehouses])
+
+  // Al seleccionar ubicación de origen, auto-detectar producto y cantidad máxima
+  const handleOriginChange = (locationId, locationObj) => {
+    setOriginLocation(locationObj)
+    let patch = { origin_location_id: locationId, product_id: '', quantity: '' }
+
+    const inv = locationObj?.inventory
+    if (inv?.box_id) {
+      const box = boxes?.find(b => b.id === inv.box_id)
+      if (box) patch.product_id = box.product_id
+    } else if (inv?.product_id) {
+      patch.product_id = inv.product_id
+    }
+    updateForm(patch)
+  }
 
   const workers = users?.filter(u => u.role === 'worker')
   const needsOrigin = form.type === 'salida' || form.type === 'traslado'
   const needsDestination = form.type === 'entrada' || form.type === 'traslado'
+  const needsQuantity = form.type === 'entrada' || form.type === 'salida'
+
+  const originInv = originLocation?.inventory
+  const originBoxMaxQty = originInv?.box_id
+    ? (originInv.box_current_quantity ?? boxes?.find(b => b.id === originInv.box_id)?.current_quantity)
+    : null
+
+  const quantity = Number(form.quantity) || 0
 
   const createMutation = useMutation({
     mutationFn: createTask,
@@ -175,11 +232,10 @@ export default function TasksSection() {
       queryClient.invalidateQueries(['tasks'])
       setShowForm(false)
       setFormError(null)
-      setForm({ assigned_to: '', type: 'entrada', product_id: '', origin_location_id: '', destination_location_id: '' })
+      setOriginLocation(null)
+      setForm({ assigned_to: '', type: 'entrada', product_id: '', quantity: '', origin_location_id: '', destination_location_id: '' })
     },
-    onError: (err) => {
-      setFormError(err?.response?.data?.detail || 'Error al crear la tarea')
-    },
+    onError: (err) => setFormError(err?.response?.data?.detail || 'Error al crear la tarea'),
   })
 
   const handleSubmit = (e) => {
@@ -188,10 +244,13 @@ export default function TasksSection() {
       assigned_to: form.assigned_to,
       type: form.type,
       product_id: form.product_id || null,
+      quantity: form.quantity ? Number(form.quantity) : null,
       origin_location_id: needsOrigin ? form.origin_location_id || null : null,
       destination_location_id: needsDestination ? form.destination_location_id || null : null,
     })
   }
+
+  const resetForm = () => { setShowForm(false); setOriginLocation(null); setFormError(null) }
 
   const statusLabel = s => ({ pendiente: 'Pendiente', en_curso: 'En curso', completada: 'Completada' })[s] || s
   const statusBadge = s => ({ pendiente: { bg: '#FAEEDA', color: '#854F0B' }, en_curso: { bg: '#E6F1FB', color: '#185FA5' }, completada: { bg: '#EAF3DE', color: '#3B6D11' } })[s] || { bg: '#F1EFE8', color: '#888780' }
@@ -200,6 +259,24 @@ export default function TasksSection() {
   const getUserName = id => users?.find(u => u.id === id)?.name || '—'
   const getProductName = id => products?.find(p => p.id === id)?.name || '—'
   const getLocationLabel = id => allLocations.find(l => l.id === id)?.label || '—'
+
+  const getTaskContent = (task) => {
+    if (!task.product_id) return '—'
+    const name = getProductName(task.product_id)
+    const qty = task.quantity
+    if (!qty) return name
+    if (qty > 1) return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+        {name}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#E8EEFF', color: '#2244AA', padding: '1px 6px', borderRadius: '20px', fontSize: '10px', fontWeight: '500' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#3366CC', flexShrink: 0 }} />
+          Caja
+        </span>
+        <span style={{ color: '#888780', fontSize: '12px' }}>{qty} ud.</span>
+      </span>
+    )
+    return `${name} · ${qty} ud.`
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -224,7 +301,14 @@ export default function TasksSection() {
             </div>
             <div>
               <label style={labelStyle}>Tipo de operación</label>
-              <select value={form.type} onChange={e => updateForm({ type: e.target.value, origin_location_id: '', destination_location_id: '' })} style={selectStyle}>
+              <select
+                value={form.type}
+                onChange={e => {
+                  updateForm({ type: e.target.value, product_id: '', quantity: '', origin_location_id: '', destination_location_id: '' })
+                  setOriginLocation(null)
+                }}
+                style={selectStyle}
+              >
                 <option value="entrada">Entrada</option>
                 <option value="salida">Salida</option>
                 <option value="traslado">Traslado</option>
@@ -232,20 +316,72 @@ export default function TasksSection() {
             </div>
           </div>
 
-          <div>
-            <label style={labelStyle}>Producto</label>
-            <ProductSearch products={products} value={form.product_id} onChange={v => updateForm({ product_id: v })} />
-          </div>
-
+          {/* Origen: salida y traslado */}
           {needsOrigin && (
-            <LocationPicker
-              allLocations={allLocations}
-              value={form.origin_location_id}
-              onChange={v => updateForm({ origin_location_id: v })}
-              label="Ubicación origen"
-            />
+            <div>
+              <LocationPicker
+                allLocations={allLocations}
+                value={form.origin_location_id}
+                onChange={handleOriginChange}
+                label="Ubicación origen"
+              />
+              {form.origin_location_id && (
+                <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', color: '#888780' }}>Contenido actual:</span>
+                  <LocationInventoryInfo inventory={originInv} products={products} boxes={boxes} />
+                </div>
+              )}
+              {form.origin_location_id && !originInv && (
+                <p style={{ fontSize: '12px', color: '#A32D2D', margin: '6px 0 0' }}>La ubicación seleccionada está vacía</p>
+              )}
+            </div>
           )}
 
+          {/* Producto: siempre visible (en salida/traslado se rellena automáticamente) */}
+          <div>
+            <label style={labelStyle}>
+              Producto
+              {needsOrigin && form.origin_location_id && <span style={{ color: '#B4B2A9', fontWeight: '400', marginLeft: '6px' }}>(detectado automáticamente)</span>}
+            </label>
+            <ProductSearch
+              products={products}
+              value={form.product_id}
+              onChange={v => updateForm({ product_id: v })}
+            />
+          </div>
+
+          {/* Cantidad + badge Caja */}
+          {needsQuantity && (
+            <div>
+              <label style={labelStyle}>
+                {form.type === 'entrada' ? 'Cantidad a introducir' : 'Unidades a extraer'}
+                {originBoxMaxQty != null && form.type === 'salida' && (
+                  <span style={{ color: '#B4B2A9', fontWeight: '400', marginLeft: '6px' }}>máx. {originBoxMaxQty}</span>
+                )}
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="number"
+                  min="1"
+                  max={form.type === 'salida' && originBoxMaxQty != null ? originBoxMaxQty : undefined}
+                  value={form.quantity}
+                  onChange={e => updateForm({ quantity: e.target.value })}
+                  placeholder="1"
+                  style={{ ...inputStyle, width: '120px' }}
+                />
+                <QuantityTypeBadge quantity={quantity} />
+                {quantity > 1 && (
+                  <span style={{ fontSize: '11px', color: '#888780' }}>
+                    {form.type === 'entrada'
+                      ? 'Se almacenará como caja en el gemelo digital'
+                      : 'Extracción parcial de caja'}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Destino: entrada y traslado */}
           {needsDestination && (
             <LocationPicker
               allLocations={allLocations}
@@ -266,7 +402,7 @@ export default function TasksSection() {
             <button type="submit" disabled={createMutation.isLoading} style={{ background: '#185FA5', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
               {createMutation.isLoading ? 'Creando...' : 'Crear tarea'}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} style={{ background: '#F1EFE8', color: '#5F5E5A', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
+            <button type="button" onClick={resetForm} style={{ background: '#F1EFE8', color: '#5F5E5A', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
               Cancelar
             </button>
           </div>
@@ -298,7 +434,7 @@ export default function TasksSection() {
                     <td style={{ padding: '12px 16px' }}>
                       <span style={{ background: tb.bg, color: tb.color, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap' }}>{typeLabel(task.type)}</span>
                     </td>
-                    <td style={{ padding: '12px 16px', color: '#5F5E5A' }}>{task.product_id ? getProductName(task.product_id) : '—'}</td>
+                    <td style={{ padding: '12px 16px', color: '#5F5E5A' }}>{getTaskContent(task)}</td>
                     <td style={{ padding: '12px 16px', color: '#5F5E5A', fontSize: '12px' }}>{task.origin_location_id ? getLocationLabel(task.origin_location_id) : '—'}</td>
                     <td style={{ padding: '12px 16px', color: '#5F5E5A', fontSize: '12px' }}>{task.destination_location_id ? getLocationLabel(task.destination_location_id) : '—'}</td>
                     <td style={{ padding: '12px 16px', color: '#1C1C1A', fontWeight: '500' }}>{getUserName(task.assigned_to)}</td>

@@ -3,29 +3,23 @@ using System.Collections.Generic;
 
 namespace WarehouseTwin.Data
 {
-    // --- Inventory ---
-
     [Serializable]
     public class InventoryItemDTO
     {
         public string id;
-        public string product_id;   // null si es caja
-        public string box_id;       // null si es producto suelto
-        public int? quantity;       // null si es caja
+        public string product_id;
+        public string box_id;
+        public int? quantity;
     }
-
-    // --- Location ---
 
     [Serializable]
     public class LocationDTO
     {
         public string id;
         public int position_number;
-        public string nfc_tag;              // puede ser null
-        public InventoryItemDTO inventory;  // null si está vacía
+        public string nfc_tag;
+        public InventoryItemDTO inventory;
     }
-
-    // --- Level ---
 
     [Serializable]
     public class LevelDTO
@@ -34,8 +28,6 @@ namespace WarehouseTwin.Data
         public int level_number;
         public List<LocationDTO> locations;
     }
-
-    // --- Shelf ---
 
     [Serializable]
     public class ShelfDTO
@@ -46,27 +38,16 @@ namespace WarehouseTwin.Data
         public List<LevelDTO> levels;
     }
 
-    // --- Warehouse ---
-
     [Serializable]
     public class WarehouseDTO
     {
         public string id;
         public string name;
         public int num_shelves;
-        public int? num_levels;
-        public int? num_locations;
-        public int? total_locations;
+        public int num_levels;
+        public int num_locations;
         public List<ShelfDTO> shelves;
-    }
-
-    // --- WebSocket Events ---
-
-    [Serializable]
-    public class WebSocketEventDTO
-    {
-        public string @event;        // "inventory_updated" | "movement_created"
-        public WebSocketEventData data;
+        public List<string> active_task_locations;
     }
 
     [Serializable]
@@ -75,17 +56,27 @@ namespace WarehouseTwin.Data
         public string location_id;
         public string destination_location_id;
         public string origin_location_id;
+        public string destination_state;   // "free" | "product" | "box"
+        public string origin_state;        // "free" | "product" | "box"
         public string movement_id;
+        public string task_id;
+        public string assigned_to;
+        public string status;
         public InventoryItemDTO inventory;
     }
 
-    // --- Estado de una ubicación (para colores) ---
+    [Serializable]
+    public class WebSocketEventDTO
+    {
+        public string @event;
+        public WebSocketEventData data;
+    }
 
     public enum LocationState
     {
-        Free,       // gris   — sin inventario
-        Product,    // verde  — producto suelto
-        Box,        // azul   — caja
-        Task        // amarillo — implicada en tarea activa
+        Free,
+        Product,
+        Box,
+        Task
     }
 }

@@ -12,7 +12,7 @@
 
 
 IL2CPP_EXTERN_C const Il2CppMethodSpec g_Il2CppMethodSpecTable[];
-const Il2CppMethodSpec g_Il2CppMethodSpecTable[18437] = 
+const Il2CppMethodSpec g_Il2CppMethodSpecTable[18438] = 
 {
 { 28728, 97, -1 },
 { 28726, 97, -1 },
@@ -16069,8 +16069,8 @@ const Il2CppMethodSpec g_Il2CppMethodSpecTable[18437] =
 { 30661, -1, 13 },
 { 30657, -1, 13 },
 { 30645, -1, 13 },
-{ 34328, -1, 13 },
-{ 34328, -1, 1320 },
+{ 34337, -1, 13 },
+{ 34337, -1, 1320 },
 { 27883, -1, 13 },
 { 29984, -1, 13 },
 { 29984, -1, 1320 },
@@ -17116,6 +17116,7 @@ const Il2CppMethodSpec g_Il2CppMethodSpecTable[18437] =
 { 11418, 198, -1 },
 { 11389, 199, -1 },
 { 11405, 199, -1 },
+{ 11406, 199, -1 },
 { 11419, 199, -1 },
 { 11394, 199, -1 },
 { 11400, 199, -1 },
@@ -18397,8 +18398,8 @@ const Il2CppMethodSpec g_Il2CppMethodSpecTable[18437] =
 { 30645, -1, 1801 },
 { 30645, -1, 1806 },
 { 30645, -1, 1807 },
-{ 34328, -1, 1808 },
-{ 34328, -1, 1809 },
+{ 34337, -1, 1808 },
+{ 34337, -1, 1809 },
 { 27883, -1, 849 },
 { 4172, -1, 1810 },
 { 4174, -1, 309 },

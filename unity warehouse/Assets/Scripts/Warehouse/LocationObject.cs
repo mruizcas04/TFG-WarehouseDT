@@ -40,6 +40,7 @@ namespace WarehouseTwin.Warehouse
         // Cambia el estado del hueco y actualiza su color visualmente
         public void SetState(LocationState newState)
         {
+            Debug.Log($"SetState {LocationId} — {CurrentState} → {newState}");
             CurrentState = newState;
             ApplyColor();
         }
@@ -47,7 +48,7 @@ namespace WarehouseTwin.Warehouse
         // Aplica el color correspondiente al estado actual
         private void ApplyColor()
         {
-            if (_renderer == null) return;
+            if (_renderer == null) { Debug.LogError($"Renderer null en {LocationId}"); return; }
 
             Color color = CurrentState switch
             {
@@ -58,6 +59,7 @@ namespace WarehouseTwin.Warehouse
                 _ => ColorFree
             };
 
+            Debug.Log($"ApplyColor {LocationId} — estado: {CurrentState} — color: {color}");
             _renderer.material.color = color;
         }
 
@@ -66,8 +68,8 @@ namespace WarehouseTwin.Warehouse
         public static LocationState StateFromInventory(InventoryItemDTO inventory)
         {
             if (inventory == null) return LocationState.Free;
-            if (inventory.box_id != null) return LocationState.Box;
-            if (inventory.product_id != null) return LocationState.Product;
+            if (!string.IsNullOrEmpty(inventory.box_id)) return LocationState.Box;
+            if (!string.IsNullOrEmpty(inventory.product_id)) return LocationState.Product;
             return LocationState.Free;
         }
     }

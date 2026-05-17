@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
-from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem
+from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem, Box, Task, TaskStatus
 from app.schemas.schemas import (
     WarehouseCreate, WarehouseNameUpdate, WarehouseResponse, WarehouseFullResponse,
     ShelfFullResponse, LevelFullResponse, LocationFullResponse,
@@ -136,6 +136,12 @@ async def get_warehouse_full(
     )
     inventory_items = inventory_result.scalars().all()
 
+    box_ids = [item.box_id for item in inventory_items if item.box_id]
+    boxes_by_id = {}
+    if box_ids:
+        boxes_result = await db.execute(select(Box).where(Box.id.in_(box_ids)))
+        boxes_by_id = {box.id: box for box in boxes_result.scalars().all()}
+
     inventory_by_location = {item.location_id: item for item in inventory_items}
     locations_by_level = {}
     for loc in locations:
@@ -151,12 +157,18 @@ async def get_warehouse_full(
             locations_full = []
             for loc in locations_by_level.get(level.id, []):
                 inv = inventory_by_location.get(loc.id)
-                inventory_dto = InventoryItemFullResponse(
-                    id=inv.id,
-                    product_id=inv.product_id,
-                    box_id=inv.box_id,
-                    quantity=inv.quantity
-                ) if inv else None
+                if inv:
+                    box = boxes_by_id.get(inv.box_id) if inv.box_id else None
+                    inventory_dto = InventoryItemFullResponse(
+                        id=inv.id,
+                        product_id=inv.product_id,
+                        box_id=inv.box_id,
+                        quantity=inv.quantity,
+                        box_current_quantity=box.current_quantity if box else None,
+                        box_max_capacity=box.max_capacity if box else None,
+                    )
+                else:
+                    inventory_dto = None
 
                 locations_full.append(LocationFullResponse(
                     id=loc.id,
@@ -178,6 +190,20 @@ async def get_warehouse_full(
             levels=levels_full
         ))
 
+    tasks_result = await db.execute(
+        select(Task).where(
+            Task.company_id == current_user.company_id,
+            Task.status.in_([TaskStatus.pendiente, TaskStatus.en_curso])
+        )
+    )
+    active_tasks = tasks_result.scalars().all()
+    active_task_locations = list({
+        str(loc_id)
+        for task in active_tasks
+        for loc_id in (task.origin_location_id, task.destination_location_id)
+        if loc_id is not None
+    })
+
     return WarehouseFullResponse(
         id=warehouse.id,
         name=warehouse.name,
@@ -186,7 +212,8 @@ async def get_warehouse_full(
         num_locations=warehouse.num_locations,
         total_locations=warehouse.total_locations,
         created_at=warehouse.created_at,
-        shelves=shelves_full
+        shelves=shelves_full,
+        active_task_locations=active_task_locations
     )
 
 

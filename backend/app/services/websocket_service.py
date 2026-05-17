@@ -30,10 +30,14 @@ class WebSocketService:
             **data
         })
 
-    async def broadcast_movement_created(self, movement_id: str, data: dict):
+    async def broadcast_movement_created(self, movement_id: str, data: dict,
+                                          origin_inventory: dict | None = None,
+                                          destination_inventory: dict | None = None):
         await self.broadcast("movement_created", {
             "movement_id": movement_id,
-            **data
+            **data,
+            "origin_inventory": origin_inventory,
+            "destination_inventory": destination_inventory,
         })
 
     async def broadcast_task_assigned(self, task_id: str, assigned_to: str, origin_location_id: str | None = None, destination_location_id: str | None = None):

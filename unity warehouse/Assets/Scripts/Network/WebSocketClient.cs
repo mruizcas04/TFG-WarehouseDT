@@ -1,5 +1,5 @@
-using System.Text;
 using System;
+using System.Text;
 using UnityEngine;
 using Newtonsoft.Json;
 using NativeWebSocket;
@@ -13,6 +13,8 @@ namespace WarehouseTwin.Network
 
         public event Action<WebSocketEventDTO> OnInventoryUpdated;
         public event Action<WebSocketEventDTO> OnMovementCreated;
+        public event Action<WebSocketEventDTO> OnTaskAssigned;
+        public event Action<WebSocketEventDTO> OnTaskStatusChanged;
 
         [Header("Configuración")]
         [SerializeField] private string wsUrl = "ws://localhost:8000/ws";
@@ -27,8 +29,6 @@ namespace WarehouseTwin.Network
             DontDestroyOnLoad(gameObject);
         }
 
-        // NativeWebSocket requiere DispatchMessageQueue en Update para entregar
-        // mensajes al hilo principal en WebGL (no-op en editor/standalone).
         private void Update()
         {
 #if !UNITY_WEBGL || UNITY_EDITOR
@@ -89,6 +89,12 @@ namespace WarehouseTwin.Network
                         break;
                     case "movement_created":
                         OnMovementCreated?.Invoke(evt);
+                        break;
+                    case "task_assigned":
+                        OnTaskAssigned?.Invoke(evt);
+                        break;
+                    case "task_status_changed":
+                        OnTaskStatusChanged?.Invoke(evt);
                         break;
                     default:
                         Debug.LogWarning($"Evento WebSocket desconocido: {evt.@event}");

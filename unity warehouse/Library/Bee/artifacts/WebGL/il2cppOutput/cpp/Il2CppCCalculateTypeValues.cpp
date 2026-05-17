@@ -6006,6 +6006,16 @@ struct WWWForm_t0DAE123504AB1B2BC17C18714741B92AB3B3B045  : public RuntimeObject
 struct WWWTranscoder_t551AAF7200BB7381823C52321E9A60A9EE63641B  : public RuntimeObject
 {
 };
+struct WarehouseDTO_t5AA6E4A5C2529E2E144EFEEFC2FBA0D00E163E67  : public RuntimeObject
+{
+	String_t* ___id;
+	String_t* ___name;
+	int32_t ___num_shelves;
+	int32_t ___num_levels;
+	int32_t ___num_locations;
+	List_1_t484E08E8F75E255F235C657C349E68E1405519D7* ___shelves;
+	List_1_tF470A3BE5C1B5B68E1325EF3F109D172E60BD7CD* ___active_task_locations;
+};
 struct WebExceptionMapping_tDDA997889D4DC7BF308F43EE387C07295C096FA8  : public RuntimeObject
 {
 };
@@ -6068,7 +6078,12 @@ struct WebSocketEventData_t35C23D61D17B1C463028CA526AAB71DC5CA97F0D  : public Ru
 	String_t* ___location_id;
 	String_t* ___destination_location_id;
 	String_t* ___origin_location_id;
+	String_t* ___destination_state;
+	String_t* ___origin_state;
 	String_t* ___movement_id;
+	String_t* ___task_id;
+	String_t* ___assigned_to;
+	String_t* ___status;
 	InventoryItemDTO_tE8A2F87BC5D71B4B3B764BCF9373D9668EEF053D* ___inventory;
 };
 struct WebSocketFactory_t2032D2EEA139EAFD0574D7CBE3F9FC08D686E953  : public RuntimeObject
@@ -21509,16 +21524,6 @@ struct WaitHandle_t08F8DB54593B241FE32E0DD0BD3D82785D3AE3D8_marshaled_com : publ
 	void* ___safeWaitHandle;
 	int32_t ___hasThreadAffinity;
 };
-struct WarehouseDTO_t5AA6E4A5C2529E2E144EFEEFC2FBA0D00E163E67  : public RuntimeObject
-{
-	String_t* ___id;
-	String_t* ___name;
-	int32_t ___num_shelves;
-	Nullable_1_tCF32C56A2641879C053C86F273C0C6EC1B40BC28 ___num_levels;
-	Nullable_1_tCF32C56A2641879C053C86F273C0C6EC1B40BC28 ___num_locations;
-	Nullable_1_tCF32C56A2641879C053C86F273C0C6EC1B40BC28 ___total_locations;
-	List_1_t484E08E8F75E255F235C657C349E68E1405519D7* ___shelves;
-};
 struct WebConnection_tA0CBB804ED8C101A5D64C7C17C63949D763C53FC  : public RuntimeObject
 {
 	NetworkCredential_tC8E2931557131BA3E6F42A8E1E2A10EC62567313* ___ntlm_credentials;
@@ -29270,7 +29275,7 @@ struct U3CReadAsyncU3Ed__40_t26006401CB87E1D5F6C3DD5CE927537D70CF48F4
 	ConfiguredTaskAwaiter_t28A5A60199BBE7F1F31159301DD211EFDCF955E2 ___U3CU3Eu__1;
 	ConfiguredTaskAwaiter_t8FC486401D1951F2426478F2050EE290197B6E80 ___U3CU3Eu__2;
 };
-struct U3CConnectAsyncU3Ed__15_t42636CCA793177263666C510613F5B5ADBF5E070 
+struct U3CConnectAsyncU3Ed__21_tF4954C55671F1657CA83D6E81E3548C35564BD34 
 {
 	int32_t ___U3CU3E1__state;
 	AsyncVoidMethodBuilder_t253E37B63E7E7B504878AE6563347C147F98EF2D ___U3CU3Et__builder;
@@ -29278,7 +29283,7 @@ struct U3CConnectAsyncU3Ed__15_t42636CCA793177263666C510613F5B5ADBF5E070
 	String_t* ___authToken;
 	TaskAwaiter_t9B661AC8C2EFA6BAB94C77BB24A5DDA82D61F833 ___U3CU3Eu__1;
 };
-struct U3COnDestroyU3Ed__18_t431DAC7229074DE36DAFC4F76F6B1E5B3763F562 
+struct U3COnDestroyU3Ed__24_tCB015001C314B09957F86ECAC22C6A37B601FB19 
 {
 	int32_t ___U3CU3E1__state;
 	AsyncVoidMethodBuilder_t253E37B63E7E7B504878AE6563347C147F98EF2D ___U3CU3Et__builder;
@@ -33103,6 +33108,8 @@ struct WebSocketClient_tF2D2CE22C50595B910AB06D52D864F56F1E9E1C3  : public MonoB
 {
 	Action_1_tB8F6182051DCEFD24E4AA425C0BA251ECE8E2F93* ___OnInventoryUpdated;
 	Action_1_tB8F6182051DCEFD24E4AA425C0BA251ECE8E2F93* ___OnMovementCreated;
+	Action_1_tB8F6182051DCEFD24E4AA425C0BA251ECE8E2F93* ___OnTaskAssigned;
+	Action_1_tB8F6182051DCEFD24E4AA425C0BA251ECE8E2F93* ___OnTaskStatusChanged;
 	String_t* ___wsUrl;
 	WebSocket_tA854BC697D5FA80EB48E9217EF622E0F9B0E325F* ____socket;
 	bool ____isConnected;
@@ -33176,7 +33183,7 @@ struct Datatype_unsignedByte_t507F8AF976F96D31C4D2AB98A1C2A411769DFA03  : public
 struct U3CPrivateImplementationDetailsU3E_t0F5473E849A5A5185A9F4C5246F0C32816C49FCA_StaticFields
 {
 	__StaticArrayInitTypeSizeU3D389_t8812C6430040A79178D27BCC8EBC1472E220D9B0 ___117607E214E3A5BEE2AC87FED070564E2D84D3B0B7829D36C6928668369C4F71;
-	__StaticArrayInitTypeSizeU3D662_t69AA3CDBDDC632FC51C6C25B2563D27BCE2E59C3 ___3B4C6ABC0A935E9BC2221A4CBF43731B064805BC96B675F570B57B9C483018AB;
+	__StaticArrayInitTypeSizeU3D662_t69AA3CDBDDC632FC51C6C25B2563D27BCE2E59C3 ___FA084164FCC112E3F1B73EFAF4BB141CF8CB3856271070AB20F5B4166B4BAE9B;
 };
 struct U3CPrivateImplementationDetailsU3E_t55FC1D237A87005A39D205736AE27F4711007813_StaticFields
 {
@@ -47966,9 +47973,9 @@ const Il2CppTypeDefinitionSizes g_typeDefinitionSize4943 = { sizeof(ApiClient_t3
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize4944;
 const Il2CppTypeDefinitionSizes g_typeDefinitionSize4944 = { sizeof(UnityMainThreadDispatcher_t771830A178C637798377E04CA3BB73F62C58526D), -1, sizeof(UnityMainThreadDispatcher_t771830A178C637798377E04CA3BB73F62C58526D_StaticFields), 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize4945;
-const Il2CppTypeDefinitionSizes g_typeDefinitionSize4945 = { sizeof(U3CConnectAsyncU3Ed__15_t42636CCA793177263666C510613F5B5ADBF5E070)+ sizeof(RuntimeObject), -1, 0, 0 };
+const Il2CppTypeDefinitionSizes g_typeDefinitionSize4945 = { sizeof(U3CConnectAsyncU3Ed__21_tF4954C55671F1657CA83D6E81E3548C35564BD34)+ sizeof(RuntimeObject), -1, 0, 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize4946;
-const Il2CppTypeDefinitionSizes g_typeDefinitionSize4946 = { sizeof(U3COnDestroyU3Ed__18_t431DAC7229074DE36DAFC4F76F6B1E5B3763F562)+ sizeof(RuntimeObject), -1, 0, 0 };
+const Il2CppTypeDefinitionSizes g_typeDefinitionSize4946 = { sizeof(U3COnDestroyU3Ed__24_tCB015001C314B09957F86ECAC22C6A37B601FB19)+ sizeof(RuntimeObject), -1, 0, 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize4947;
 const Il2CppTypeDefinitionSizes g_typeDefinitionSize4947 = { sizeof(WebSocketClient_tF2D2CE22C50595B910AB06D52D864F56F1E9E1C3), -1, sizeof(WebSocketClient_tF2D2CE22C50595B910AB06D52D864F56F1E9E1C3_StaticFields), 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize4948;
@@ -47982,9 +47989,9 @@ const Il2CppTypeDefinitionSizes g_typeDefinitionSize4951 = { sizeof(ShelfDTO_t92
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize4952;
 const Il2CppTypeDefinitionSizes g_typeDefinitionSize4952 = { sizeof(WarehouseDTO_t5AA6E4A5C2529E2E144EFEEFC2FBA0D00E163E67), -1, 0, 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize4953;
-const Il2CppTypeDefinitionSizes g_typeDefinitionSize4953 = { sizeof(WebSocketEventDTO_t94F9024033BEF1515FB86BC44F7A0A2EAD114E29), -1, 0, 0 };
+const Il2CppTypeDefinitionSizes g_typeDefinitionSize4953 = { sizeof(WebSocketEventData_t35C23D61D17B1C463028CA526AAB71DC5CA97F0D), -1, 0, 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize4954;
-const Il2CppTypeDefinitionSizes g_typeDefinitionSize4954 = { sizeof(WebSocketEventData_t35C23D61D17B1C463028CA526AAB71DC5CA97F0D), -1, 0, 0 };
+const Il2CppTypeDefinitionSizes g_typeDefinitionSize4954 = { sizeof(WebSocketEventDTO_t94F9024033BEF1515FB86BC44F7A0A2EAD114E29), -1, 0, 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize4955;
 const Il2CppTypeDefinitionSizes g_typeDefinitionSize4955 = { sizeof(int32_t)+ sizeof(RuntimeObject), sizeof(int32_t), 0, 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize4956;

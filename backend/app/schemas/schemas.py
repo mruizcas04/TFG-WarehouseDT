@@ -78,6 +78,8 @@ class InventoryItemFullResponse(BaseModel):
     product_id: Optional[UUID]
     box_id: Optional[UUID]
     quantity: Optional[int]
+    box_current_quantity: Optional[int] = None
+    box_max_capacity: Optional[int] = None
 
     model_config = {"from_attributes": True}
 
@@ -113,6 +115,7 @@ class WarehouseFullResponse(BaseModel):
     total_locations: Optional[int] = None
     created_at: datetime
     shelves: list[ShelfFullResponse]
+    active_task_locations: list[str] = []
 
     model_config = {"from_attributes": True}
 
@@ -199,6 +202,7 @@ class TaskCreate(BaseModel):
     assigned_to: UUID
     type: TaskType
     product_id: Optional[UUID] = None
+    quantity: Optional[int] = None
     origin_location_id: Optional[UUID] = None
     destination_location_id: Optional[UUID] = None
 
@@ -213,6 +217,8 @@ class TaskResponse(BaseModel):
     type: TaskType
     status: TaskStatus
     product_id: Optional[UUID]
+    box_id: Optional[UUID]
+    quantity: Optional[int]
     origin_location_id: Optional[UUID]
     destination_location_id: Optional[UUID]
     created_at: datetime
@@ -226,6 +232,7 @@ class MovementCreate(BaseModel):
     type: MovementType
     product_id: Optional[UUID] = None
     box_id: Optional[UUID] = None
+    quantity: Optional[int] = None
     origin_location_id: Optional[UUID] = None
     destination_location_id: Optional[UUID] = None
 
@@ -237,6 +244,7 @@ class MovementResponse(BaseModel):
     type: MovementType
     product_id: Optional[UUID]
     box_id: Optional[UUID]
+    quantity: Optional[int]
     origin_location_id: Optional[UUID]
     destination_location_id: Optional[UUID]
     timestamp: datetime

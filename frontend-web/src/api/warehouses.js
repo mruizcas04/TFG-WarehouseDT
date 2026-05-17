@@ -48,6 +48,7 @@ export const flattenLocations = (warehouse) => {
           shelf_number: shelf.shelf_number,
           level_number: level.level_number,
           position_number: loc.position_number,
+          inventory: loc.inventory || null,
         })
       }
     }
