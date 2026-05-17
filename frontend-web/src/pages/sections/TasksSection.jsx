@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getTasks, createTask } from '../../api/tasks'
+import { getTasks, createTask, deleteTask } from '../../api/tasks'
 import { getUsers } from '../../api/users'
 import { getProducts } from '../../api/products'
 import { getBoxes } from '../../api/boxes'
@@ -125,7 +125,6 @@ function LocationPicker({ allLocations, value, onChange, label }) {
   )
 }
 
-// Badge que indica si la cantidad implica caja o producto suelto
 function QuantityTypeBadge({ quantity }) {
   if (!quantity || quantity <= 1) return null
   return (
@@ -140,7 +139,6 @@ function QuantityTypeBadge({ quantity }) {
   )
 }
 
-// Muestra el contenido actual de una ubicación (para confirmar qué hay antes de una salida)
 function LocationInventoryInfo({ inventory, products, boxes }) {
   if (!inventory) return <span style={{ fontSize: '12px', color: '#B4B2A9' }}>Vacía</span>
 
@@ -169,6 +167,14 @@ function LocationInventoryInfo({ inventory, products, boxes }) {
   return <span style={{ fontSize: '12px', color: '#B4B2A9' }}>Vacía</span>
 }
 
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M1.5 3.5h11M5.5 3.5V2.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1M2.5 3.5l.75 8a1 1 0 0 0 1 .916h5.5a1 1 0 0 0 1-.916l.75-8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 export default function TasksSection() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -183,6 +189,14 @@ export default function TasksSection() {
   const [originLocation, setOriginLocation] = useState(null)
   const [allLocations, setAllLocations] = useState([])
   const [formError, setFormError] = useState(null)
+
+  const [filterType, setFilterType] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState(10)
+  const [productPopup, setProductPopup] = useState(null)
+  const [deleteModal, setDeleteModal] = useState(null)
+  const popupRef = useRef(null)
 
   const updateForm = (patch) => { setFormError(null); setForm(prev => ({ ...prev, ...patch })) }
 
@@ -199,7 +213,19 @@ export default function TasksSection() {
     })
   }, [warehouses])
 
-  // Al seleccionar ubicación de origen, auto-detectar producto y cantidad máxima
+  useEffect(() => {
+    setVisibleCount(10)
+  }, [filterType, filterStatus, searchQuery])
+
+  useEffect(() => {
+    if (!productPopup) return
+    const handleClick = (e) => {
+      if (popupRef.current && !popupRef.current.contains(e.target)) setProductPopup(null)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [productPopup])
+
   const handleOriginChange = (locationId, locationObj) => {
     setOriginLocation(locationObj)
     let patch = { origin_location_id: locationId, product_id: '', quantity: '' }
@@ -238,6 +264,11 @@ export default function TasksSection() {
     onError: (err) => setFormError(err?.response?.data?.detail || 'Error al crear la tarea'),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: deleteTask,
+    onSuccess: () => queryClient.invalidateQueries(['tasks']),
+  })
+
   const handleSubmit = (e) => {
     e.preventDefault()
     createMutation.mutate({
@@ -260,23 +291,36 @@ export default function TasksSection() {
   const getProductName = id => products?.find(p => p.id === id)?.name || '—'
   const getLocationLabel = id => allLocations.find(l => l.id === id)?.label || '—'
 
-  const getTaskContent = (task) => {
-    if (!task.product_id) return '—'
-    const name = getProductName(task.product_id)
-    const qty = task.quantity
-    if (!qty) return name
-    if (qty > 1) return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-        {name}
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#E8EEFF', color: '#2244AA', padding: '1px 6px', borderRadius: '20px', fontSize: '10px', fontWeight: '500' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#3366CC', flexShrink: 0 }} />
-          Caja
-        </span>
-        <span style={{ color: '#888780', fontSize: '12px' }}>{qty} ud.</span>
-      </span>
-    )
-    return `${name} · ${qty} ud.`
+  const handleDeleteTask = (task) => {
+    const name = task.product_id ? getProductName(task.product_id) : null
+    setDeleteModal({ taskId: task.id, name })
   }
+
+  const handleProductClick = (e, product) => {
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const popupWidth = 280
+    const rightX = rect.right + 8
+    const x = rightX + popupWidth > window.innerWidth ? rect.left - popupWidth - 8 : rightX
+    setProductPopup({ product, x, y: rect.top })
+  }
+
+  const filteredTasks = tasks?.filter(task => {
+    if (filterType !== 'all' && task.type !== filterType) return false
+    if (filterStatus !== 'all' && task.status !== filterStatus) return false
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      const productName = task.product_id ? getProductName(task.product_id).toLowerCase() : ''
+      const workerName = getUserName(task.assigned_to).toLowerCase()
+      if (!productName.includes(q) && !workerName.includes(q)) return false
+    }
+    return true
+  }) || []
+
+  const displayedTasks = filteredTasks.slice(0, visibleCount)
+
+  const pillActive = { background: '#185FA5', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }
+  const pillInactive = { background: 'white', color: '#5F5E5A', border: '0.5px solid #D3D1C7', padding: '5px 12px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -316,7 +360,6 @@ export default function TasksSection() {
             </div>
           </div>
 
-          {/* Origen: salida y traslado */}
           {needsOrigin && (
             <div>
               <LocationPicker
@@ -337,7 +380,6 @@ export default function TasksSection() {
             </div>
           )}
 
-          {/* Producto: siempre visible (en salida/traslado se rellena automáticamente) */}
           <div>
             <label style={labelStyle}>
               Producto
@@ -350,7 +392,6 @@ export default function TasksSection() {
             />
           </div>
 
-          {/* Cantidad + badge Caja */}
           {needsQuantity && (
             <div>
               <label style={labelStyle}>
@@ -381,7 +422,6 @@ export default function TasksSection() {
             </div>
           )}
 
-          {/* Destino: entrada y traslado */}
           {needsDestination && (
             <LocationPicker
               allLocations={allLocations}
@@ -409,45 +449,207 @@ export default function TasksSection() {
         </form>
       )}
 
+      {!isLoading && tasks?.length > 0 && (
+        <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          {[['all', 'Todos'], ['entrada', 'Entrada'], ['salida', 'Salida'], ['traslado', 'Traslado']].map(([val, label]) => (
+            <button key={val} onClick={() => setFilterType(val)} style={filterType === val ? pillActive : pillInactive}>{label}</button>
+          ))}
+          <div style={{ width: '1px', height: '20px', background: '#E5E4E0', flexShrink: 0, margin: '0 4px' }} />
+          {[['all', 'Todos'], ['pendiente', 'Pendiente'], ['en_curso', 'En curso'], ['completada', 'Completada']].map(([val, label]) => (
+            <button key={val} onClick={() => setFilterStatus(val)} style={filterStatus === val ? pillActive : pillInactive}>{label}</button>
+          ))}
+          <div style={{ width: '1px', height: '20px', background: '#E5E4E0', flexShrink: 0, margin: '0 4px' }} />
+          <input
+            type="text"
+            placeholder="Buscar por producto o trabajador..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ flex: 1, minWidth: '160px', border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '6px 10px', fontSize: '12px', color: '#1C1C1A', outline: 'none' }}
+          />
+        </div>
+      )}
+
       {isLoading ? (
         <p style={{ color: '#888780', fontSize: '13px' }}>Cargando...</p>
       ) : tasks?.length === 0 ? (
         <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '40px', textAlign: 'center', color: '#888780', fontSize: '13px' }}>
           No hay tareas creadas
         </div>
+      ) : filteredTasks.length === 0 ? (
+        <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '40px', textAlign: 'center', color: '#888780', fontSize: '13px' }}>
+          No hay tareas que coincidan con los filtros
+        </div>
       ) : (
-        <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#FAFAFA' }}>
-                {['Tipo', 'Producto', 'Origen', 'Destino', 'Asignado a', 'Creado por', 'Estado', 'Fecha'].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '10px 16px', color: '#888780', fontWeight: '500', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '0.5px solid #E5E4E0', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tasks?.map(task => {
-                const sb = statusBadge(task.status)
-                const tb = typeBadge(task.type)
-                return (
-                  <tr key={task.id} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{ background: tb.bg, color: tb.color, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap' }}>{typeLabel(task.type)}</span>
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#5F5E5A' }}>{getTaskContent(task)}</td>
-                    <td style={{ padding: '12px 16px', color: '#5F5E5A', fontSize: '12px' }}>{task.origin_location_id ? getLocationLabel(task.origin_location_id) : '—'}</td>
-                    <td style={{ padding: '12px 16px', color: '#5F5E5A', fontSize: '12px' }}>{task.destination_location_id ? getLocationLabel(task.destination_location_id) : '—'}</td>
-                    <td style={{ padding: '12px 16px', color: '#1C1C1A', fontWeight: '500' }}>{getUserName(task.assigned_to)}</td>
-                    <td style={{ padding: '12px 16px', color: '#5F5E5A' }}>{getUserName(task.created_by)}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{ background: sb.bg, color: sb.color, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap' }}>{statusLabel(task.status)}</span>
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#888780', whiteSpace: 'nowrap' }}>{new Date(task.created_at).toLocaleDateString('es-ES')}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: '#FAFAFA' }}>
+                  {['Tipo', 'Producto', 'Asignado a', 'Creado por', 'Estado', 'Fecha', ''].map((h, i) => (
+                    <th key={i} style={{ textAlign: 'left', padding: '10px 16px', color: '#888780', fontWeight: '500', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '0.5px solid #E5E4E0', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {displayedTasks.map(task => {
+                  const sb = statusBadge(task.status)
+                  const tb = typeBadge(task.type)
+                  const product = task.product_id ? products?.find(p => p.id === task.product_id) : null
+                  return (
+                    <tr key={task.id} style={{ borderTop: '0.5px solid #F1EFE8' }}>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                        <span style={{ background: tb.bg, color: tb.color, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap' }}>{typeLabel(task.type)}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px', color: '#5F5E5A', verticalAlign: 'top' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          {product ? (
+                            <span
+                              onClick={(e) => handleProductClick(e, product)}
+                              style={{ cursor: 'pointer', color: '#185FA5', fontWeight: '500', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '5px', width: 'fit-content' }}
+                            >
+                              {product.name}
+                              {task.quantity > 1 && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#E8EEFF', color: '#2244AA', padding: '1px 6px', borderRadius: '20px', fontSize: '10px', fontWeight: '500' }}>
+                                  <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#3366CC', flexShrink: 0 }} />
+                                  Caja
+                                </span>
+                              )}
+                              {task.quantity && <span style={{ color: '#888780', fontSize: '12px', fontWeight: '400' }}>{task.quantity} ud.</span>}
+                            </span>
+                          ) : (
+                            <span>—</span>
+                          )}
+                          {(task.origin_location_id || task.destination_location_id) && (
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                              {task.origin_location_id && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#F1EFE8', color: '#5F5E5A', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                  ← {getLocationLabel(task.origin_location_id)}
+                                </span>
+                              )}
+                              {task.destination_location_id && (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#F1EFE8', color: '#5F5E5A', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                                  → {getLocationLabel(task.destination_location_id)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 16px', color: '#1C1C1A', fontWeight: '500', verticalAlign: 'top' }}>{getUserName(task.assigned_to)}</td>
+                      <td style={{ padding: '12px 16px', color: '#5F5E5A', verticalAlign: 'top' }}>{getUserName(task.created_by)}</td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                        <span style={{ background: sb.bg, color: sb.color, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap' }}>{statusLabel(task.status)}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px', color: '#888780', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{new Date(task.created_at).toLocaleDateString('es-ES')}</td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                        {task.status !== 'en_curso' && (
+                          <button
+                            onClick={() => handleDeleteTask(task)}
+                            disabled={deleteMutation.isLoading}
+                            title="Eliminar tarea"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B4B2A9', padding: '4px', borderRadius: '4px', lineHeight: 1, display: 'flex', alignItems: 'center' }}
+                            onMouseEnter={e => e.currentTarget.style.color = '#A32D2D'}
+                            onMouseLeave={e => e.currentTarget.style.color = '#B4B2A9'}
+                          >
+                            <TrashIcon />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {visibleCount < filteredTasks.length && (
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={() => setVisibleCount(v => v + 10)}
+                style={{ background: 'white', color: '#185FA5', border: '0.5px solid #185FA5', padding: '8px 20px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: '500' }}
+              >
+                Ver más ({filteredTasks.length - visibleCount} restantes)
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {deleteModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(28,28,26,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setDeleteModal(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: 'white', borderRadius: '14px', border: '0.5px solid #E5E4E0', padding: '28px 28px 24px', boxShadow: '0 8px 32px rgba(0,0,0,0.10)', width: '360px', display: 'flex', flexDirection: 'column', gap: '20px' }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '15px', fontWeight: '600', color: '#1C1C1A' }}>Eliminar tarea</span>
+              <span style={{ fontSize: '13px', color: '#5F5E5A', lineHeight: '1.55' }}>
+                {deleteModal.name
+                  ? <>¿Seguro que quieres eliminar <strong style={{ color: '#1C1C1A' }}>{deleteModal.name}</strong>?</>
+                  : '¿Seguro que quieres eliminar esta tarea?'
+                }
+                {' '}Esta acción no se puede deshacer.
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteModal(null)}
+                style={{ background: '#F1EFE8', color: '#5F5E5A', border: 'none', padding: '8px 18px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: '500' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { deleteMutation.mutate(deleteModal.taskId); setDeleteModal(null) }}
+                disabled={deleteMutation.isLoading}
+                style={{ background: '#A32D2D', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {productPopup && (
+        <div
+          ref={popupRef}
+          style={{
+            position: 'fixed',
+            top: productPopup.y,
+            left: productPopup.x,
+            zIndex: 1000,
+            background: 'white',
+            border: '0.5px solid #E5E4E0',
+            borderRadius: '10px',
+            padding: '14px 16px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+            minWidth: '200px',
+            maxWidth: '300px',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+              <span style={{ fontWeight: '600', fontSize: '13px', color: '#1C1C1A' }}>{productPopup.product.name}</span>
+              <button onClick={() => setProductPopup(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#888780', fontSize: '14px', padding: '0', lineHeight: 1, flexShrink: 0 }}>✕</button>
+            </div>
+            {productPopup.product.barcode && (
+              <div style={{ fontSize: '12px', color: '#5F5E5A' }}>
+                <span style={{ color: '#888780' }}>Código de barras: </span>{productPopup.product.barcode}
+              </div>
+            )}
+            {productPopup.product.type && (
+              <div style={{ fontSize: '12px', color: '#5F5E5A' }}>
+                <span style={{ color: '#888780' }}>Tipo: </span>{productPopup.product.type}
+              </div>
+            )}
+            {productPopup.product.description && (
+              <div style={{ fontSize: '12px', color: '#5F5E5A' }}>
+                <span style={{ color: '#888780' }}>Descripción: </span>{productPopup.product.description}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete as sql_delete
 from app.db.database import get_db
-from app.models.models import User, Task, InventoryItem, Box, TaskStatus
+from app.models.models import User, Task, InventoryItem, Box, TaskStatus, Movement
 from app.schemas.schemas import TaskCreate, TaskResponse, TaskStatusUpdate
 from app.api.deps import get_current_admin, get_current_user
 from app.services.websocket_service import websocket_service
@@ -167,6 +167,28 @@ async def get_task(
     if not task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
     return task
+
+
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_task(
+    task_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    result = await db.execute(
+        select(Task).where(
+            Task.id == task_id,
+            Task.company_id == current_user.company_id
+        )
+    )
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Tarea no encontrada")
+    if task.status == TaskStatus.en_curso:
+        raise HTTPException(status_code=400, detail="No se puede eliminar una tarea en curso")
+    await db.execute(sql_delete(Movement).where(Movement.task_id == task_id))
+    await db.delete(task)
+    await db.commit()
 
 
 @router.put("/{task_id}/status", response_model=TaskResponse)
