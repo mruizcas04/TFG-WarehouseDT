@@ -29,7 +29,7 @@ class CompanyResponse(BaseModel):
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
-    password: str
+    password: Optional[str] = None
     role: UserRole
     company_name: Optional[str] = None
 
@@ -39,9 +39,13 @@ class UserResponse(BaseModel):
     name: str
     email: str
     role: UserRole
+    is_active: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+class UserCreateResponse(UserResponse):
+    temporary_password: Optional[str] = None
 
 # --- Warehouse ---
 
