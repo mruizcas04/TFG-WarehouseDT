@@ -40,12 +40,17 @@ class UserResponse(BaseModel):
     email: str
     role: UserRole
     is_active: bool
+    must_change_password: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 class UserCreateResponse(UserResponse):
     temporary_password: Optional[str] = None
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
 
 # --- Warehouse ---
 
@@ -228,6 +233,18 @@ class TaskResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+# --- Inventory Summary ---
+
+class ProductStockSummary(BaseModel):
+    product_id: UUID
+    product_name: str
+    product_type: Optional[str]
+    product_barcode: Optional[str]
+    total_units: int
+    locations_count: int
+    pending_in: int
+    pending_out: int
 
 # --- Movement ---
 

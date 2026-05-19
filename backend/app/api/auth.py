@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.db.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.models.models import User, Company, UserRole
-from app.schemas.schemas import Token, UserCreate, UserResponse, UserCreateResponse
+from app.schemas.schemas import Token, UserCreate, UserResponse, UserCreateResponse, ChangePasswordRequest
 from app.api.deps import get_current_admin, get_current_user, get_user_from_token
 import uuid
 import secrets
@@ -39,6 +39,7 @@ async def login(
         "sub": str(user.id),
         "role": user.role.value,
         "company_id": str(user.company_id) if user.company_id else None,
+        "must_change_password": user.must_change_password,
     })
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -73,6 +74,7 @@ async def register(
         company_id = company.id
         role = UserRole.admin
         password_to_hash = user_data.password
+        must_change_password = False
     else:
         # Alta de usuario en empresa existente: requiere admin autenticado, contraseña generada automáticamente
         try:
@@ -87,6 +89,7 @@ async def register(
         role = user_data.role
         temporary_password = secrets.token_urlsafe(10)
         password_to_hash = temporary_password
+        must_change_password = True
 
     new_user = User(
         id=uuid.uuid4(),
@@ -94,7 +97,8 @@ async def register(
         name=user_data.name,
         email=user_data.email,
         password_hash=get_password_hash(password_to_hash),
-        role=role
+        role=role,
+        must_change_password=must_change_password,
     )
     db.add(new_user)
     await db.commit()
@@ -159,3 +163,33 @@ async def deactivate_user(
 
     user.is_active = False
     await db.commit()
+
+
+@router.post("/change-password", response_model=Token)
+async def change_password(
+    data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Contraseña actual incorrecta",
+        )
+    if len(data.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La nueva contraseña debe tener al menos 8 caracteres",
+        )
+
+    current_user.password_hash = get_password_hash(data.new_password)
+    current_user.must_change_password = False
+    await db.commit()
+
+    access_token = create_access_token(data={
+        "sub": str(current_user.id),
+        "role": current_user.role.value,
+        "company_id": str(current_user.company_id) if current_user.company_id else None,
+        "must_change_password": False,
+    })
+    return {"access_token": access_token, "token_type": "bearer"}

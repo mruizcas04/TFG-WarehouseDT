@@ -48,6 +48,7 @@ export default function LoginScreen() {
         id: payload.sub,
         role: payload.role,
         name: me.name,
+        must_change_password: payload.must_change_password ?? false,
       });
     } catch (e) {
       Alert.alert('Error de conexión', e.message);

@@ -175,6 +175,42 @@ function TrashIcon() {
   )
 }
 
+function BoxIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5.5 1.5L9.5 3.5v4L5.5 9.5l-4-2v-4L5.5 1.5z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
+      <path d="M1.5 3.5l4 2 4-2M5.5 5.5v4" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+function PersonIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="6" cy="4" r="2.2" stroke="currentColor" strokeWidth="1.1"/>
+      <path d="M1.5 10.5c0-2.485 2.015-4 4.5-4s4.5 1.515 4.5 4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+function TypeArrow({ type }) {
+  if (type === 'salida') return (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 8L8 2M8 2H4.5M8 2v3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+  if (type === 'entrada') return (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 2L2 8M2 8h3.5M2 8V4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+  return (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 5h6M6 3l2 2-2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
 export default function TasksSection() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -290,6 +326,15 @@ export default function TasksSection() {
   const getUserName = id => users?.find(u => u.id === id)?.name || '—'
   const getProductName = id => products?.find(p => p.id === id)?.name || '—'
   const getLocationLabel = id => allLocations.find(l => l.id === id)?.label || '—'
+  const getInitials = name => {
+    const parts = name.trim().split(/\s+/)
+    return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase()
+  }
+  const monthsShort = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+  const formatDate = dateStr => {
+    const d = new Date(dateStr)
+    return `${d.getDate()} ${monthsShort[d.getMonth()]} ${d.getFullYear()}`
+  }
 
   const handleDeleteTask = (task) => {
     const name = task.product_id ? getProductName(task.product_id) : null
@@ -485,7 +530,7 @@ export default function TasksSection() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: '#FAFAFA' }}>
-                  {['Tipo', 'Producto', 'Asignado a', 'Creado por', 'Estado', 'Fecha', ''].map((h, i) => (
+                  {['Tipo', 'Producto', 'Ubicación', 'Asignado a', 'Estado', 'Fecha', ''].map((h, i) => (
                     <th key={i} style={{ textAlign: 'left', padding: '10px 16px', color: '#888780', fontWeight: '500', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '0.5px solid #E5E4E0', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -495,53 +540,72 @@ export default function TasksSection() {
                   const sb = statusBadge(task.status)
                   const tb = typeBadge(task.type)
                   const product = task.product_id ? products?.find(p => p.id === task.product_id) : null
+                  const assignedUser = users?.find(u => u.id === task.assigned_to)
                   return (
                     <tr key={task.id} style={{ borderTop: '0.5px solid #F1EFE8' }}>
-                      <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
-                        <span style={{ background: tb.bg, color: tb.color, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap' }}>{typeLabel(task.type)}</span>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                        <span style={{ background: tb.bg, color: tb.color, padding: '3px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <TypeArrow type={task.type} />
+                          {typeLabel(task.type)}
+                        </span>
                       </td>
-                      <td style={{ padding: '12px 16px', color: '#5F5E5A', verticalAlign: 'top' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                          {product ? (
-                            <span
-                              onClick={(e) => handleProductClick(e, product)}
-                              style={{ cursor: 'pointer', color: '#185FA5', fontWeight: '500', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '5px', width: 'fit-content' }}
-                            >
-                              {product.name}
-                              {task.quantity > 1 && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#E8EEFF', color: '#2244AA', padding: '1px 6px', borderRadius: '20px', fontSize: '10px', fontWeight: '500' }}>
-                                  <span style={{ width: '6px', height: '6px', borderRadius: '1px', background: '#3366CC', flexShrink: 0 }} />
-                                  Caja
-                                </span>
-                              )}
-                              {task.quantity && <span style={{ color: '#888780', fontSize: '12px', fontWeight: '400' }}>{task.quantity} ud.</span>}
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span
+                            onClick={(e) => product && handleProductClick(e, product)}
+                            style={{ fontSize: '13px', fontWeight: '500', color: '#1C1C1A', cursor: product ? 'pointer' : 'default' }}
+                          >
+                            {product?.name || '—'}
+                          </span>
+                          {task.quantity > 1 && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#E8EEFF', color: '#2244AA', padding: '2px 7px', borderRadius: '20px', fontSize: '11px', width: 'fit-content' }}>
+                              <BoxIcon />
+                              Caja · {task.quantity} ud.
                             </span>
-                          ) : (
-                            <span>—</span>
-                          )}
-                          {(task.origin_location_id || task.destination_location_id) && (
-                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                              {task.origin_location_id && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#F1EFE8', color: '#5F5E5A', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', whiteSpace: 'nowrap' }}>
-                                  ← {getLocationLabel(task.origin_location_id)}
-                                </span>
-                              )}
-                              {task.destination_location_id && (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#F1EFE8', color: '#5F5E5A', padding: '2px 8px', borderRadius: '20px', fontSize: '11px', whiteSpace: 'nowrap' }}>
-                                  → {getLocationLabel(task.destination_location_id)}
-                                </span>
-                              )}
-                            </div>
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '12px 16px', color: '#1C1C1A', fontWeight: '500', verticalAlign: 'top' }}>{getUserName(task.assigned_to)}</td>
-                      <td style={{ padding: '12px 16px', color: '#5F5E5A', verticalAlign: 'top' }}>{getUserName(task.created_by)}</td>
-                      <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
-                        <span style={{ background: sb.bg, color: sb.color, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', whiteSpace: 'nowrap' }}>{statusLabel(task.status)}</span>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '12px' }}>
+                          <div style={{ display: 'flex', gap: '5px', alignItems: 'baseline' }}>
+                            <span style={{ fontSize: '10px', fontWeight: '600', color: '#B4B2A9', textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>Desde</span>
+                            <span style={{ color: '#5F5E5A' }}>{task.origin_location_id ? getLocationLabel(task.origin_location_id) : 'Exterior'}</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: '5px', alignItems: 'baseline' }}>
+                            <span style={{ fontSize: '10px', fontWeight: '600', color: '#B4B2A9', textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>Hasta</span>
+                            <span style={{ color: '#5F5E5A' }}>{task.destination_location_id ? getLocationLabel(task.destination_location_id) : 'Exterior'}</span>
+                          </div>
+                        </div>
                       </td>
-                      <td style={{ padding: '12px 16px', color: '#888780', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{new Date(task.created_at).toLocaleDateString('es-ES')}</td>
-                      <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {assignedUser ? (
+                            <>
+                              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#7C6DB5', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '600', flexShrink: 0, letterSpacing: '0.03em' }}>
+                                {getInitials(assignedUser.name)}
+                              </div>
+                              <span style={{ fontSize: '13px', color: '#1C1C1A' }}>{assignedUser.name}</span>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#F1EFE8', color: '#B4B2A9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <PersonIcon />
+                              </div>
+                              <span style={{ fontSize: '13px', color: '#B4B2A9', fontStyle: 'italic' }}>Sin asignar</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
+                        <span style={{ background: sb.bg, color: sb.color, padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: sb.color, flexShrink: 0 }} />
+                          {statusLabel(task.status)}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 16px', color: '#888780', verticalAlign: 'middle', whiteSpace: 'nowrap', fontSize: '12px' }}>
+                        {formatDate(task.created_at)}
+                      </td>
+                      <td style={{ padding: '12px 16px', verticalAlign: 'middle' }}>
                         {task.status !== 'en_curso' && (
                           <button
                             onClick={() => handleDeleteTask(task)}
