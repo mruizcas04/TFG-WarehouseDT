@@ -52,6 +52,24 @@ namespace WarehouseTwin.Warehouse
             }
         }
 
+        public void ApplyFilter(string filterType)
+        {
+            foreach (var kvp in _locationObjects)
+            {
+                LocationObject loc = kvp.Value;
+                bool dimmed = filterType switch
+                {
+                    "all"     => false,
+                    "free"    => loc.CurrentState != LocationState.Free,
+                    "product" => loc.CurrentState != LocationState.Product,
+                    "box"     => loc.CurrentState != LocationState.Box,
+                    "task"    => loc.CurrentState != LocationState.Task,
+                    _         => false
+                };
+                loc.SetFilterDim(dimmed);
+            }
+        }
+
         public void GenerateFromDTO(WarehouseDTO warehouse)
         {
             Debug.Log($"Generando almacén: {warehouse.name}");
@@ -59,6 +77,14 @@ namespace WarehouseTwin.Warehouse
             _locationObjects.Clear();
             foreach (Transform child in transform)
                 Destroy(child.gameObject);
+
+            // Precomputar ubicaciones con tarea activa
+            var activeTaskSet = new HashSet<string>();
+            if (warehouse.active_task_locations != null)
+            {
+                foreach (string id in warehouse.active_task_locations)
+                    activeTaskSet.Add(id);
+            }
 
             // --- Primera pasada: calcular dimensiones totales ---
             int maxAisle = 0;
@@ -164,6 +190,22 @@ namespace WarehouseTwin.Warehouse
 
                         LocationObject locObj = locationGO.GetComponent<LocationObject>();
                         locObj.Initialize(location.id, LocationObject.StateFromInventory(location.inventory));
+
+                        bool   hasTask    = activeTaskSet.Contains(location.id);
+                        bool   isBox      = !string.IsNullOrEmpty(location.inventory?.box_id);
+                        int    qty        = location.inventory?.quantity ?? 0;
+                        string prodId     = location.inventory?.product_id ?? "";
+                        string prodName   = location.inventory?.product_name ?? "";
+                        string taskInfo   = "";
+                        if (hasTask)
+                        {
+                            string taskType = null;
+                            warehouse.active_task_info?.TryGetValue(location.id, out taskType);
+                            taskInfo = taskType != null ? $"Tarea activa: {taskType}" : "Tarea activa";
+                        }
+                        locObj.SetMetadata(prodName, qty, isBox, taskInfo, prodId);
+                        locObj.LocationLabel = $"P{shelf.aisle_number} · E{shelf.shelf_number} · B{level.level_number} · H{location.position_number}";
+
                         _locationObjects[location.id] = locObj;
                     }
                 }
@@ -173,15 +215,19 @@ namespace WarehouseTwin.Warehouse
             }
 
             // Pintar en amarillo las ubicaciones con tareas activas
-            if (warehouse.active_task_locations != null)
+            foreach (string locationId in activeTaskSet)
             {
-                foreach (string locationId in warehouse.active_task_locations)
-                {
-                    if (_locationObjects.TryGetValue(locationId, out LocationObject locObj))
-                        locObj.SetState(LocationState.Task);
-                }
+                if (_locationObjects.TryGetValue(locationId, out LocationObject locObj))
+                    locObj.SetState(LocationState.Task);
             }
-            
+
+            // Ajustar cámara al almacén generado
+            float centerX = (boundsMinX + boundsMaxX) / 2f;
+            float centerZ = (boundsMinZ + boundsMaxZ) / 2f;
+            float size    = Mathf.Max(boundsMaxX - boundsMinX, boundsMaxZ - boundsMinZ);
+            OrbitCamera cam = Camera.main != null ? Camera.main.GetComponent<OrbitCamera>() : null;
+            if (cam != null) cam.FitToWarehouse(new Vector3(centerX, 0f, centerZ), size);
+
             Debug.Log($"Almacén generado: {_locationObjects.Count} ubicaciones.");
         }
 
@@ -213,6 +259,24 @@ namespace WarehouseTwin.Warehouse
         private void HandleMovementCreated(WebSocketEventDTO evt)
         {
             HandleInventoryUpdated(evt);
+            UpdateLocationMetadata(evt.data?.destination_location_id, evt.data?.destination_inventory);
+            UpdateLocationMetadata(evt.data?.origin_location_id, evt.data?.origin_inventory);
+        }
+
+        private void UpdateLocationMetadata(string locationId, InventoryItemDTO inv)
+        {
+            if (string.IsNullOrEmpty(locationId)) return;
+            if (!_locationObjects.TryGetValue(locationId, out LocationObject locObj)) return;
+
+            if (inv == null)
+            {
+                locObj.SetMetadata("", 0, false, locObj.TaskInfo, "");
+                return;
+            }
+
+            bool isBox = !string.IsNullOrEmpty(inv.box_id);
+            int qty = inv.quantity ?? 0;
+            locObj.SetMetadata(inv.product_name ?? "", qty, isBox, locObj.TaskInfo, inv.product_id ?? "");
         }
 
         private static LocationState ParseLocationState(string state) => state switch

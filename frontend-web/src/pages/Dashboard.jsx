@@ -70,9 +70,9 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '32px', height: '32px', background: '#185FA5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="1" y="6" width="14" height="9" rx="1" stroke="white" strokeWidth="1.3"/>
-                <path d="M4 6V4a4 4 0 018 0v2" stroke="white" strokeWidth="1.3"/>
-                <line x1="8" y1="9" x2="8" y2="12" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
+                <path d="M1 7L8 2L15 7" stroke="white" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M1 7V14H15V7" stroke="white" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M5 14V11H11V14" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
             <div>

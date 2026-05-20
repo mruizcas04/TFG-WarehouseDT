@@ -13,11 +13,12 @@ router = APIRouter(prefix="/movements", tags=["movements"])
 def _inventory_to_dict(item: InventoryItem | None, box: Box | None = None) -> dict | None:
     if item is None:
         return None
+    effective_quantity = item.quantity if item.product_id else (box.current_quantity if box else None)
     return {
         "id": str(item.id),
         "product_id": str(item.product_id) if item.product_id else None,
         "box_id": str(item.box_id) if item.box_id else None,
-        "quantity": item.quantity,
+        "quantity": effective_quantity,
         "box_current_quantity": box.current_quantity if box else None,
         "box_max_capacity": box.max_capacity if box else None,
     }
@@ -83,7 +84,7 @@ async def create_movement(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    if movement_data.product_id is None and movement_data.box_id is None:
+    if movement_data.type.value != "salida" and movement_data.product_id is None and movement_data.box_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El movimiento debe afectar a un producto o una caja"

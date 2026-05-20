@@ -67,6 +67,7 @@
     <Compile Include="Assets\Scripts\Warehouse\LocationObject.cs" />
     <Compile Include="Assets\Scripts\Network\ApiClient.cs" />
     <Compile Include="Assets\Scripts\Warehouse\WarehouseGenerator.cs" />
+    <Compile Include="Assets\Scripts\Warehouse\WarehouseTooltip.cs" />
     <Compile Include="Assets\Scripts\Network\UnityMainThreadDispatcher.cs" />
     <Compile Include="Assets\Scripts\Warehouse\OrbitCamera.cs" />
     <Compile Include="Assets\Scripts\Bridge\ReactBridge.cs" />

@@ -9153,7 +9153,7 @@ IL_0066:
 		L_23 = VirtualFuncInvoker0< Assembly_t* >::Invoke(27, L_22);
 		String_t* L_24 = ___0_typeName;
 		Type_t* L_25;
-		L_25 = VirtualFuncInvoker1< Type_t*, String_t* >::Invoke(17, L_23, L_24);
+		L_25 = VirtualFuncInvoker1< Type_t*, String_t* >::Invoke(18, L_23, L_24);
 		V_1 = L_25;
 	}
 
@@ -24662,7 +24662,7 @@ IL_000d:
 		L_7 = VirtualFuncInvoker0< Assembly_t* >::Invoke(27, L_6);
 		String_t* L_8 = ___0_typeName;
 		Type_t* L_9;
-		L_9 = VirtualFuncInvoker1< Type_t*, String_t* >::Invoke(17, L_7, L_8);
+		L_9 = VirtualFuncInvoker1< Type_t*, String_t* >::Invoke(18, L_7, L_8);
 		V_1 = L_9;
 	}
 

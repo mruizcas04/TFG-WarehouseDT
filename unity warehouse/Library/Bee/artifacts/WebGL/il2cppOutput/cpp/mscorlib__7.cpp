@@ -5807,7 +5807,7 @@ IL_0135:
 		L_41 = Assembly_Load_mC42733BACCA273EEAA32A341CBF53722A44DCC90(L_40, NULL);
 		String_t* L_42 = __this->___m_data;
 		Type_t* L_43;
-		L_43 = VirtualFuncInvoker3< Type_t*, String_t*, bool, bool >::Invoke(21, L_41, L_42, (bool)1, (bool)0);
+		L_43 = VirtualFuncInvoker3< Type_t*, String_t*, bool, bool >::Invoke(22, L_41, L_42, (bool)1, (bool)0);
 		return L_43;
 	}
 
@@ -5853,7 +5853,7 @@ IL_0181:
 		L_49 = Assembly_Load_mC42733BACCA273EEAA32A341CBF53722A44DCC90(L_48, NULL);
 		String_t* L_50 = __this->___m_data;
 		Module_tABB9217F7F2BA3E0F4277D03C2B234A7313BB8D0* L_51;
-		L_51 = VirtualFuncInvoker1< Module_tABB9217F7F2BA3E0F4277D03C2B234A7313BB8D0*, String_t* >::Invoke(22, L_49, L_50);
+		L_51 = VirtualFuncInvoker1< Module_tABB9217F7F2BA3E0F4277D03C2B234A7313BB8D0*, String_t* >::Invoke(23, L_49, L_50);
 		V_2 = L_51;
 		Module_tABB9217F7F2BA3E0F4277D03C2B234A7313BB8D0* L_52 = V_2;
 		il2cpp_codegen_runtime_class_init_inline(Module_tABB9217F7F2BA3E0F4277D03C2B234A7313BB8D0_il2cpp_TypeInfo_var);
@@ -12622,7 +12622,7 @@ IL_0026:
 		L_15 = Assembly_Load_mC42733BACCA273EEAA32A341CBF53722A44DCC90(L_14, NULL);
 		String_t* L_16 = __this->___type;
 		Type_t* L_17;
-		L_17 = VirtualFuncInvoker1< Type_t*, String_t* >::Invoke(17, L_15, L_16);
+		L_17 = VirtualFuncInvoker1< Type_t*, String_t* >::Invoke(18, L_15, L_16);
 		V_3 = L_17;
 		RuntimeObject* L_18 = V_0;
 		if (!L_18)
@@ -12684,7 +12684,7 @@ IL_009b:
 		L_36 = Assembly_Load_mC42733BACCA273EEAA32A341CBF53722A44DCC90(L_35, NULL);
 		String_t* L_37 = __this->___targetTypeName;
 		Type_t* L_38;
-		L_38 = VirtualFuncInvoker1< Type_t*, String_t* >::Invoke(17, L_36, L_37);
+		L_38 = VirtualFuncInvoker1< Type_t*, String_t* >::Invoke(18, L_36, L_37);
 		V_4 = L_38;
 		Type_t* L_39 = V_3;
 		Type_t* L_40 = V_4;
@@ -19712,7 +19712,7 @@ IL_0077:
 		bool L_27 = ___1_throwOnError;
 		bool L_28 = ___2_ignoreCase;
 		Type_t* L_29;
-		L_29 = VirtualFuncInvoker3< Type_t*, String_t*, bool, bool >::Invoke(21, L_23, L_26, L_27, L_28);
+		L_29 = VirtualFuncInvoker3< Type_t*, String_t*, bool, bool >::Invoke(22, L_23, L_26, L_27, L_28);
 		return ((RuntimeType_tB1A69257E7A00D07AB0CABD8D5BA7D83E0DC9EC1*)CastclassClass((RuntimeObject*)L_29, RuntimeType_tB1A69257E7A00D07AB0CABD8D5BA7D83E0DC9EC1_il2cpp_TypeInfo_var));
 	}
 
@@ -27422,7 +27422,7 @@ IL_008a:
 		L_30 = InterfaceFuncInvoker0< String_t* >::Invoke(0, TypeName_t9386CB856591884A3661A524EAB864E809292866_il2cpp_TypeInfo_var, L_29);
 		bool L_31 = ___3_ignoreCase;
 		Type_t* L_32;
-		L_32 = VirtualFuncInvoker3< Type_t*, String_t*, bool, bool >::Invoke(21, L_28, L_30, (bool)0, L_31);
+		L_32 = VirtualFuncInvoker3< Type_t*, String_t*, bool, bool >::Invoke(22, L_28, L_30, (bool)0, L_31);
 		V_1 = L_32;
 	}
 

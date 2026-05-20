@@ -297,6 +297,7 @@
 "Assets/Scripts/Warehouse/LocationObject.cs"
 "Assets/Scripts/Warehouse/OrbitCamera.cs"
 "Assets/Scripts/Warehouse/WarehouseGenerator.cs"
+"Assets/Scripts/Warehouse/WarehouseTooltip.cs"
 -langversion:9.0
 /deterministic
 /optimize+

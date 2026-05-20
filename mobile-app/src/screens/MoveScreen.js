@@ -186,9 +186,10 @@ export default function MoveScreen() {
     setSubmitting(true);
     try {
       const body = { task_id: task.id, type: task.type };
-      if (product)        body.product_id           = product.id;
-      if (originLocation) body.origin_location_id    = originLocation.id;
+      if (product)        body.product_id             = product.id;
+      if (originLocation) body.origin_location_id     = originLocation.id;
       if (destLocation)   body.destination_location_id = destLocation.id;
+      if (task.quantity)  body.quantity               = task.quantity;
 
       await apiFetch('/movements', { method: 'POST', body: JSON.stringify(body) }, user.token);
       await apiFetch(`/tasks/${task.id}/status`, { method: 'PUT', body: JSON.stringify({ status: 'completada' }) }, user.token);

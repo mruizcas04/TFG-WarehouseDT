@@ -102,6 +102,28 @@ namespace WarehouseTwin.Bridge
                 warehouseGenerator.ClearTaskHighlight(locationId);
         }
 
+        // React llama a este método para aplicar un filtro visual.
+        // Formato: {"type": "all"|"free"|"product"|"box"|"task"}
+        //          {"type": "product_id", "value": "uuid"}
+        public void SetFilter(string filterJson)
+        {
+            FilterPayload payload = JsonUtility.FromJson<FilterPayload>(filterJson);
+            if (payload == null || string.IsNullOrEmpty(payload.type)) return;
+
+            if (payload.type == "product_id")
+            {
+                LocationObject[] locs = FindObjectsOfType<LocationObject>();
+                foreach (LocationObject loc in locs)
+                {
+                    bool dimmed = string.IsNullOrEmpty(payload.value) || loc.ProductId != payload.value;
+                    loc.SetFilterDim(dimmed);
+                }
+                return;
+            }
+
+            warehouseGenerator.ApplyFilter(payload.type);
+        }
+
         // Clases auxiliares para deserializar los JSON que manda React
         [System.Serializable]
         private class InitPayload
@@ -114,6 +136,13 @@ namespace WarehouseTwin.Bridge
         private class TaskHighlightPayload
         {
             public string[] locationIds;
+        }
+
+        [System.Serializable]
+        private class FilterPayload
+        {
+            public string type;
+            public string value;
         }
     }
 }

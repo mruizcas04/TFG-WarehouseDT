@@ -8,6 +8,7 @@ namespace WarehouseTwin.Data
     {
         public string id;
         public string product_id;
+        public string product_name;
         public string box_id;
         public int? quantity;
     }
@@ -44,10 +45,11 @@ namespace WarehouseTwin.Data
         public string id;
         public string name;
         public int num_shelves;
-        public int num_levels;
-        public int num_locations;
+        public int? num_levels;
+        public int? num_locations;
         public List<ShelfDTO> shelves;
         public List<string> active_task_locations;
+        public Dictionary<string, string> active_task_info;
     }
 
     [Serializable]
@@ -56,13 +58,15 @@ namespace WarehouseTwin.Data
         public string location_id;
         public string destination_location_id;
         public string origin_location_id;
-        public string destination_state;   // "free" | "product" | "box"
-        public string origin_state;        // "free" | "product" | "box"
+        public string destination_state;        // "free" | "product" | "box"
+        public string origin_state;             // "free" | "product" | "box"
         public string movement_id;
         public string task_id;
         public string assigned_to;
         public string status;
         public InventoryItemDTO inventory;
+        public InventoryItemDTO destination_inventory;
+        public InventoryItemDTO origin_inventory;
     }
 
     [Serializable]

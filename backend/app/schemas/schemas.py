@@ -85,6 +85,7 @@ class WarehouseResponse(BaseModel):
 class InventoryItemFullResponse(BaseModel):
     id: UUID
     product_id: Optional[UUID]
+    product_name: Optional[str] = None
     box_id: Optional[UUID]
     quantity: Optional[int]
     box_current_quantity: Optional[int] = None
@@ -125,6 +126,7 @@ class WarehouseFullResponse(BaseModel):
     created_at: datetime
     shelves: list[ShelfFullResponse]
     active_task_locations: list[str] = []
+    active_task_info: dict[str, str] = {}
 
     model_config = {"from_attributes": True}
 

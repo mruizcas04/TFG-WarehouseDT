@@ -45,9 +45,9 @@ export default function Register() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
             <div style={{ width: '36px', height: '36px', background: '#185FA5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <rect x="1" y="7" width="16" height="10" rx="1.5" stroke="white" strokeWidth="1.4"/>
-                <path d="M5 7V5a4 4 0 018 0v2" stroke="white" strokeWidth="1.4"/>
-                <line x1="9" y1="10" x2="9" y2="14" stroke="white" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M1 8L9 2L17 8" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M1 8V16H17V8" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M6 16V12H12V16" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
             <div>

@@ -21,8 +21,16 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float minVertical   = 10f;  // ángulo mínimo vertical
         [SerializeField] private float maxVertical   = 80f;  // ángulo máximo vertical
 
-        private float _yaw   = 0f;    // rotación horizontal
-        private float _pitch = 35f;   // rotación vertical
+        private float _yaw   = 0f;
+        private float _pitch = 35f;
+
+        public void FitToWarehouse(Vector3 center, float size)
+        {
+            target      = center;
+            distance    = size * 1.5f;
+            maxDistance = size * 3f;
+            minDistance = size * 0.3f;
+        }
 
         private void LateUpdate()
         {

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from app.db.database import get_db
 from app.models.models import User, Location, Level, Shelf, Warehouse
 from app.schemas.schemas import LocationResponse, LocationNFCUpdate
@@ -79,6 +80,13 @@ async def update_location_nfc(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ubicación no encontrada")
 
     location.nfc_tag = nfc_data.nfc_tag
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este tag NFC ya está asignado a otra ubicación"
+        )
     await db.refresh(location)
     return location

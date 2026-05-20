@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getWarehouses, createWarehouse } from '../../api/warehouses'
+import { getProducts } from '../../api/products'
 import DigitalTwin from '../../components/DigitalTwin'
 import { useAuthStore } from '../../store/authStore'
 
@@ -17,14 +18,43 @@ const inputStyle = {
 }
 const numInputStyle = { ...inputStyle, width: '80px' }
 
+const FILTERS = [
+  { key: 'all',     label: 'Todo' },
+  { key: 'free',    label: 'Libre' },
+  { key: 'product', label: 'Producto' },
+  { key: 'box',     label: 'Caja' },
+  { key: 'task',    label: 'Tarea activa' },
+]
+
 export default function WarehouseSection() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [aisles, setAisles] = useState([DEFAULT_AISLE()])
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [selectedProduct, setSelectedProduct] = useState('')
+  const digitalTwinRef = useRef(null)
   const { token } = useAuthStore()
 
+  const handleFilter = (key) => {
+    setActiveFilter(key)
+    setSelectedProduct('')
+    digitalTwinRef.current?.setFilter(key)
+  }
+
+  const handleProductFilter = (e) => {
+    const productId = e.target.value
+    setSelectedProduct(productId)
+    if (productId) {
+      setActiveFilter('all')
+      digitalTwinRef.current?.setProductFilter(productId)
+    } else {
+      digitalTwinRef.current?.setFilter('all')
+    }
+  }
+
   const { data: warehouses, isLoading } = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
+  const { data: products } = useQuery({ queryKey: ['products'], queryFn: getProducts })
 
   const mutation = useMutation({
     mutationFn: createWarehouse,
@@ -215,8 +245,7 @@ export default function WarehouseSection() {
             <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
               {[
                 { color: '#999', label: 'Libre' },
-                { color: '#33cc33', label: 'Producto' },
-                { color: '#3366ee', label: 'Caja' },
+                { color: '#33cc33', label: 'Producto / Caja' },
                 { color: '#ffdd00', label: 'Tarea activa' },
               ].map(({ color, label }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -225,7 +254,49 @@ export default function WarehouseSection() {
                 </div>
               ))}
             </div>
-            <DigitalTwin warehouseId={warehouse.id} token={token} />
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+              {FILTERS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => handleFilter(key)}
+                  style={{
+                    padding: '5px 14px',
+                    borderRadius: '20px',
+                    border: activeFilter === key ? 'none' : '0.5px solid #D3D1C7',
+                    background: activeFilter === key ? '#185FA5' : '#F1EFE8',
+                    color: activeFilter === key ? 'white' : '#5F5E5A',
+                    fontSize: '12px',
+                    fontWeight: activeFilter === key ? '500' : '400',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <select
+                value={selectedProduct}
+                onChange={handleProductFilter}
+                style={{
+                  border: '0.5px solid #D3D1C7',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  color: selectedProduct ? '#1C1C1A' : '#888780',
+                  background: 'white',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  minWidth: '200px',
+                }}
+              >
+                <option value="">Todos los productos</option>
+                {products?.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            <DigitalTwin ref={digitalTwinRef} warehouseId={warehouse.id} token={token} />
           </div>
         </>
       )}

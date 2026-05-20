@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
-from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem, Box, Task, TaskStatus
+from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem, Box, Product, Task, TaskStatus
 from app.schemas.schemas import (
     WarehouseCreate, WarehouseNameUpdate, WarehouseResponse, WarehouseFullResponse,
     ShelfFullResponse, LevelFullResponse, LocationFullResponse,
@@ -142,6 +142,14 @@ async def get_warehouse_full(
         boxes_result = await db.execute(select(Box).where(Box.id.in_(box_ids)))
         boxes_by_id = {box.id: box for box in boxes_result.scalars().all()}
 
+    direct_product_ids = [item.product_id for item in inventory_items if item.product_id]
+    box_product_ids = [box.product_id for box in boxes_by_id.values() if box.product_id]
+    all_product_ids = list(set(direct_product_ids + box_product_ids))
+    products_by_id = {}
+    if all_product_ids:
+        products_result = await db.execute(select(Product).where(Product.id.in_(all_product_ids)))
+        products_by_id = {p.id: p for p in products_result.scalars().all()}
+
     inventory_by_location = {item.location_id: item for item in inventory_items}
     locations_by_level = {}
     for loc in locations:
@@ -159,11 +167,15 @@ async def get_warehouse_full(
                 inv = inventory_by_location.get(loc.id)
                 if inv:
                     box = boxes_by_id.get(inv.box_id) if inv.box_id else None
+                    effective_product_id = inv.product_id or (box.product_id if box else None)
+                    product = products_by_id.get(effective_product_id) if effective_product_id else None
+                    effective_quantity = inv.quantity if inv.product_id else (box.current_quantity if box else None)
                     inventory_dto = InventoryItemFullResponse(
                         id=inv.id,
                         product_id=inv.product_id,
+                        product_name=product.name if product else None,
                         box_id=inv.box_id,
-                        quantity=inv.quantity,
+                        quantity=effective_quantity,
                         box_current_quantity=box.current_quantity if box else None,
                         box_max_capacity=box.max_capacity if box else None,
                     )
@@ -203,6 +215,12 @@ async def get_warehouse_full(
         for loc_id in (task.origin_location_id, task.destination_location_id)
         if loc_id is not None
     })
+    active_task_info = {}
+    for task in active_tasks:
+        if task.origin_location_id:
+            active_task_info[str(task.origin_location_id)] = task.type.value
+        if task.destination_location_id:
+            active_task_info[str(task.destination_location_id)] = task.type.value
 
     return WarehouseFullResponse(
         id=warehouse.id,
@@ -213,7 +231,8 @@ async def get_warehouse_full(
         total_locations=warehouse.total_locations,
         created_at=warehouse.created_at,
         shelves=shelves_full,
-        active_task_locations=active_task_locations
+        active_task_locations=active_task_locations,
+        active_task_info=active_task_info,
     )
 
 

@@ -1,15 +1,28 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 
-const DigitalTwin = ({ warehouseId, token }) => {
+const DigitalTwin = forwardRef(({ warehouseId, token }, ref) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const unityInstanceRef = useRef(null);
   const scriptLoadedRef = useRef(false);
 
+  useImperativeHandle(ref, () => ({
+    setFilter(type) {
+      if (unityInstanceRef.current) {
+        unityInstanceRef.current.SendMessage("WarehouseManager", "SetFilter", JSON.stringify({ type }));
+      }
+    },
+    setProductFilter(productId) {
+      if (unityInstanceRef.current) {
+        unityInstanceRef.current.SendMessage("WarehouseManager", "SetFilter", JSON.stringify({ type: "product_id", value: productId }));
+      }
+    },
+  }));
+
 useEffect(() => {
   if (scriptLoadedRef.current) return;
   scriptLoadedRef.current = true;
-  
+
     const buildUrl = "/unity";
     const config = {
       dataUrl:            `${buildUrl}/WebGL.data`,
@@ -90,6 +103,6 @@ useEffect(() => {
       )}
     </div>
   );
-};
+});
 
 export default DigitalTwin;
