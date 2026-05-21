@@ -12,7 +12,16 @@
       "Bash(Select-Object -First 20)",
       "Bash(Format-Table FullName)",
       "Bash(Get-ChildItem -Path . -Directory)",
-      "Bash(Select-Object -ExpandProperty Name)"
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\mruiz\\\\TFG\\\\backend\\\\app\\\\services\" -File)",
+      "Bash(python -m py_compile tests/conftest.py tests/unit/test_inventory_service.py tests/unit/test_movement_service.py tests/unit/test_task_service.py tests/integration/test_auth.py tests/integration/test_movements_api.py tests/integration/test_roles_access.py)",
+      "Bash(cd \"/mnt/c/Users/mruiz/TFG/backend\" && python -m py_compile tests/conftest.py tests/unit/test_inventory_service.py tests/unit/test_movement_service.py tests/unit/test_task_service.py tests/integration/test_auth.py tests/integration/test_movements_api.py tests/integration/test_roles_access.py && echo \"Syntax OK\")",
+      "Read(//mnt/c/Users/mruiz/TFG/**)",
+      "PowerShell(python --version)",
+      "PowerShell(python -m pip --version)",
+      "PowerShell(python -m pip install -r \"c:\\\\Users\\\\mruiz\\\\TFG\\\\backend\\\\requirements-test.txt\" 2>&1)",
+      "Bash(.\\\\venv\\\\Scripts\\\\python.exe -m pytest --tb=no -q)",
+      "Bash(./venv/Scripts/python.exe -m pytest --tb=no -q)"
     ]
   }
 }
