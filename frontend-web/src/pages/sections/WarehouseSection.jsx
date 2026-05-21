@@ -126,22 +126,22 @@ export default function WarehouseSection() {
               style={{ ...inputStyle, maxWidth: '320px' }} required />
           </div>
 
-          {/* Pasillos */}
+          {/* Filas */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <label style={labelStyle}>Pasillos ({aisles.length})</label>
+              <label style={labelStyle}>Filas ({aisles.length})</label>
               <button type="button" onClick={addAisle}
                 style={{ background: '#F1EFE8', color: '#185FA5', border: 'none', padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
-                + Añadir pasillo
+                + Añadir fila
               </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {aisles.map((aisle, ai) => (
                 <div key={ai} style={{ border: '0.5px solid #E5E4E0', borderRadius: '10px', overflow: 'hidden' }}>
-                  {/* Cabecera del pasillo */}
+                  {/* Cabecera de la fila */}
                   <div style={{ background: '#F8F8F6', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '500', color: '#5F5E5A' }}>Pasillo {ai + 1}</span>
+                    <span style={{ fontSize: '12px', fontWeight: '500', color: '#5F5E5A' }}>Fila {ai + 1}</span>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <button type="button" onClick={() => addShelf(ai)}
                         style={{ background: 'none', border: '0.5px solid #D3D1C7', color: '#185FA5', padding: '3px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}>
@@ -154,7 +154,7 @@ export default function WarehouseSection() {
                     </div>
                   </div>
 
-                  {/* Estanterías del pasillo */}
+                  {/* Estanterías de la fila */}
                   <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {/* Cabecera columnas */}
                     <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 36px', gap: '8px', padding: '0 4px' }}>
@@ -191,7 +191,7 @@ export default function WarehouseSection() {
             <div style={{ marginTop: '10px', fontSize: '12px', color: '#888780' }}>
               Total: <strong style={{ color: '#1C1C1A' }}>{totalLocations}</strong> ubicaciones en{' '}
               <strong style={{ color: '#1C1C1A' }}>{totalShelves}</strong> estantería{totalShelves !== 1 ? 's' : ''} y{' '}
-              <strong style={{ color: '#1C1C1A' }}>{aisles.length}</strong> pasillo{aisles.length !== 1 ? 's' : ''}
+              <strong style={{ color: '#1C1C1A' }}>{aisles.length}</strong> fila{aisles.length !== 1 ? 's' : ''}
             </div>
           </div>
 

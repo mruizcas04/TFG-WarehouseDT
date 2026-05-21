@@ -42,7 +42,7 @@ export const flattenLocations = (warehouse) => {
       for (const loc of level.locations || []) {
         result.push({
           id: loc.id,
-          label: `Pasillo ${shelf.aisle_number} · Est. ${shelf.shelf_number} · Nivel ${level.level_number} · Pos. ${loc.position_number}`,
+          label: `Fila ${shelf.aisle_number} · Est. ${shelf.shelf_number} · Nivel ${level.level_number} · Pos. ${loc.position_number}`,
           nfc_tag: loc.nfc_tag,
           aisle_number: shelf.aisle_number,
           shelf_number: shelf.shelf_number,

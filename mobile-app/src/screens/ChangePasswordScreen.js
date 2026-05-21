@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../api/client';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../theme';
@@ -12,6 +13,9 @@ export default function ChangePasswordScreen() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleChangePassword = async () => {
@@ -79,37 +83,52 @@ export default function ChangePasswordScreen() {
           </View>
 
           <Text style={styles.label}>CONTRASEÑA TEMPORAL</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Introduce la contraseña temporal"
-            placeholderTextColor={COLORS.textSecondary}
-            secureTextEntry
-            value={currentPassword}
-            onChangeText={setCurrentPassword}
-            autoCapitalize="none"
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={[styles.input, styles.inputWithEye]}
+              placeholder="Introduce la contraseña temporal"
+              placeholderTextColor={COLORS.textSecondary}
+              secureTextEntry={!showCurrent}
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowCurrent(v => !v)}>
+              <Ionicons name={showCurrent ? 'eye-off' : 'eye'} size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.label}>NUEVA CONTRASEÑA</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Mínimo 8 caracteres"
-            placeholderTextColor={COLORS.textSecondary}
-            secureTextEntry
-            value={newPassword}
-            onChangeText={setNewPassword}
-            autoCapitalize="none"
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={[styles.input, styles.inputWithEye]}
+              placeholder="Mínimo 8 caracteres"
+              placeholderTextColor={COLORS.textSecondary}
+              secureTextEntry={!showNew}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowNew(v => !v)}>
+              <Ionicons name={showNew ? 'eye-off' : 'eye'} size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.label}>CONFIRMAR NUEVA CONTRASEÑA</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Repite la nueva contraseña"
-            placeholderTextColor={COLORS.textSecondary}
-            secureTextEntry
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            autoCapitalize="none"
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={[styles.input, styles.inputWithEye]}
+              placeholder="Repite la nueva contraseña"
+              placeholderTextColor={COLORS.textSecondary}
+              secureTextEntry={!showConfirm}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirm(v => !v)}>
+              <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -196,6 +215,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
     marginTop: SPACING.sm,
   },
+  inputWrapper: {
+    position: 'relative',
+  },
   input: {
     backgroundColor: COLORS.surface,
     color: COLORS.textPrimary,
@@ -204,6 +226,16 @@ const styles = StyleSheet.create({
     borderColor: COLORS.borderInput,
     padding: SPACING.md,
     fontSize: TYPOGRAPHY.body,
+  },
+  inputWithEye: {
+    paddingRight: 44,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: SPACING.md,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
   },
   button: {
     backgroundColor: COLORS.accent,

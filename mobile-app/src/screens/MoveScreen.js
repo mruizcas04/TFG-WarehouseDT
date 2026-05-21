@@ -16,7 +16,7 @@ import {
 
 const STEPS = {
   entrada:  ['nfc_dest',   'barcode', 'confirm'],
-  salida:   ['nfc_origin', 'confirm'],
+  salida:   ['nfc_origin', 'barcode', 'confirm'],
   traslado: ['nfc_origin', 'barcode', 'nfc_dest', 'confirm'],
 };
 

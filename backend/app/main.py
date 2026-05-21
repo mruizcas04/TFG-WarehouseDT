@@ -1,8 +1,12 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import auth, warehouses, shelves, locations, products, boxes, inventory, tasks, movements
+from fastapi.staticfiles import StaticFiles
+from app.api import auth, warehouses, shelves, locations, products, boxes, inventory, tasks, movements, categories
 from app.services.websocket_service import websocket_service
 from app.core.security import decode_access_token
+import os
+
+os.makedirs("uploads/products", exist_ok=True)
 
 app = FastAPI(
     title="Warehouse Digital Twin API",
@@ -23,10 +27,13 @@ app.include_router(warehouses.router)
 app.include_router(shelves.router)
 app.include_router(locations.router)
 app.include_router(products.router)
+app.include_router(categories.router)
 app.include_router(boxes.router)
 app.include_router(inventory.router)
 app.include_router(tasks.router)
 app.include_router(movements.router)
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/health")
 async def health_check():

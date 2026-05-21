@@ -162,6 +162,20 @@ class LocationResponse(BaseModel):
 class LocationNFCUpdate(BaseModel):
     nfc_tag: str
 
+# --- Category ---
+
+class CategoryCreate(BaseModel):
+    name: str
+    color: str = "#888780"
+
+class CategoryResponse(BaseModel):
+    id: UUID
+    company_id: Optional[UUID]
+    name: str
+    color: str
+
+    model_config = {"from_attributes": True}
+
 # --- Product ---
 
 class ProductCreate(BaseModel):
@@ -169,6 +183,7 @@ class ProductCreate(BaseModel):
     description: Optional[str] = None
     type: Optional[str] = None
     barcode: Optional[str] = None
+    category_id: Optional[UUID] = None
 
 class ProductResponse(BaseModel):
     id: UUID
@@ -177,6 +192,9 @@ class ProductResponse(BaseModel):
     description: Optional[str]
     type: Optional[str]
     barcode: Optional[str]
+    category_id: Optional[UUID]
+    category: Optional[CategoryResponse] = None
+    image_url: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

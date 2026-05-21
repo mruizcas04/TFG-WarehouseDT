@@ -204,7 +204,7 @@ namespace WarehouseTwin.Warehouse
                             taskInfo = taskType != null ? $"Tarea activa: {taskType}" : "Tarea activa";
                         }
                         locObj.SetMetadata(prodName, qty, isBox, taskInfo, prodId);
-                        locObj.LocationLabel = $"P{shelf.aisle_number} · E{shelf.shelf_number} · B{level.level_number} · H{location.position_number}";
+                        locObj.LocationLabel = $"F{shelf.aisle_number} · E{shelf.shelf_number} · B{level.level_number} · H{location.position_number}";
 
                         _locationObjects[location.id] = locObj;
                     }

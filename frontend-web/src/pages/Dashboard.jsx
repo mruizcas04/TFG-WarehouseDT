@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import HomeSection from './sections/HomeSection'
@@ -37,8 +37,13 @@ const menuItems = [
 
 export default function Dashboard() {
   const [activeSection, setActiveSection] = useState('home')
+  const [warehouseLoaded, setWarehouseLoaded] = useState(false)
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (activeSection === 'warehouse') setWarehouseLoaded(true)
+  }, [activeSection])
 
   const handleLogout = () => {
     logout()
@@ -48,7 +53,6 @@ export default function Dashboard() {
   const renderSection = () => {
     switch (activeSection) {
       case 'home': return <HomeSection />
-      case 'warehouse': return <WarehouseSection />
       case 'products': return <ProductsSection />
       case 'tasks': return <TasksSection />
       case 'movements': return <MovementsSection />
@@ -126,7 +130,12 @@ export default function Dashboard() {
 
         {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '28px' }}>
-          {renderSection()}
+          {warehouseLoaded && (
+            <div style={{ display: activeSection === 'warehouse' ? 'block' : 'none' }}>
+              <WarehouseSection />
+            </div>
+          )}
+          {activeSection !== 'warehouse' && renderSection()}
         </div>
       </main>
     </div>

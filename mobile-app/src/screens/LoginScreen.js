@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { API_URL, apiFetch } from '../api/client';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../theme';
@@ -11,6 +12,7 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -83,14 +85,19 @@ export default function LoginScreen() {
         />
 
         <Text style={styles.label}>CONTRASEÑA</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="••••••••"
-          placeholderTextColor={COLORS.textSecondary}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={[styles.input, styles.inputWithEye]}
+            placeholder="••••••••"
+            placeholderTextColor={COLORS.textSecondary}
+            secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
+            <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
@@ -159,6 +166,9 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xs,
     marginTop: SPACING.sm,
   },
+  inputWrapper: {
+    position: 'relative',
+  },
   input: {
     backgroundColor: COLORS.surface,
     color: COLORS.textPrimary,
@@ -167,6 +177,16 @@ const styles = StyleSheet.create({
     borderColor: COLORS.borderInput,
     padding: SPACING.md,
     fontSize: TYPOGRAPHY.body,
+  },
+  inputWithEye: {
+    paddingRight: 44,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: SPACING.md,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
   },
   button: {
     backgroundColor: COLORS.accent,

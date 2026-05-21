@@ -99,14 +99,14 @@ function LocationPicker({ allLocations, value, onChange, label }) {
 
   useEffect(() => { if (!value) { setAisle(''); setShelf(''); setLevel(''); setPos('') } }, [value])
 
-  const preview = (aisle && shelf && level && pos) ? `P${aisle} · Est. ${shelf} · Balda ${level} · Hueco ${pos}` : null
+  const preview = (aisle && shelf && level && pos) ? `F${aisle} · Est. ${shelf} · Balda ${level} · Hueco ${pos}` : null
 
   return (
     <div>
       <label style={labelStyle}>{label}</label>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
         {[
-          { label: 'Pasillo', value: aisle, options: shelves, onChange: v => { setAisle(v); setShelf(''); setLevel(''); setPos('') }, disabled: false },
+          { label: 'Fila', value: aisle, options: shelves, onChange: v => { setAisle(v); setShelf(''); setLevel(''); setPos('') }, disabled: false },
           { label: 'Estantería', value: shelf, options: shelfNumbers, onChange: v => { setShelf(v); setLevel(''); setPos('') }, disabled: !aisle },
           { label: 'Balda', value: level, options: levelNumbers, onChange: v => { setLevel(v); setPos('') }, disabled: !shelf },
           { label: 'Hueco', value: pos, options: posNumbers, onChange: v => setPos(v), disabled: !level },
@@ -330,10 +330,20 @@ export default function TasksSection() {
     const parts = name.trim().split(/\s+/)
     return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase()
   }
+  const hexToRgba = (hex, alpha) => {
+    if (!hex || hex.length < 7) return `rgba(136,135,128,${alpha})`
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgba(${r},${g},${b},${alpha})`
+  }
+
   const monthsShort = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
   const formatDate = dateStr => {
     const d = new Date(dateStr)
-    return `${d.getDate()} ${monthsShort[d.getMonth()]} ${d.getFullYear()}`
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mm = String(d.getMinutes()).padStart(2, '0')
+    return `${d.getDate()} ${monthsShort[d.getMonth()]} ${d.getFullYear()} · ${hh}:${mm}`
   }
 
   const handleDeleteTask = (task) => {
@@ -557,6 +567,17 @@ export default function TasksSection() {
                           >
                             {product?.name || '—'}
                           </span>
+                          {product?.category && (
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '4px',
+                              background: hexToRgba(product.category.color, 0.12),
+                              color: product.category.color,
+                              padding: '2px 7px', borderRadius: '20px', fontSize: '11px', fontWeight: '500', width: 'fit-content',
+                            }}>
+                              <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: product.category.color, flexShrink: 0 }} />
+                              {product.category.name}
+                            </span>
+                          )}
                           {task.quantity > 1 && (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#E8EEFF', color: '#2244AA', padding: '2px 7px', borderRadius: '20px', fontSize: '11px', width: 'fit-content' }}>
                               <BoxIcon />
@@ -703,9 +724,18 @@ export default function TasksSection() {
                 <span style={{ color: '#888780' }}>Código de barras: </span>{productPopup.product.barcode}
               </div>
             )}
-            {productPopup.product.type && (
-              <div style={{ fontSize: '12px', color: '#5F5E5A' }}>
-                <span style={{ color: '#888780' }}>Tipo: </span>{productPopup.product.type}
+            {productPopup.product.category && (
+              <div style={{ fontSize: '12px', color: '#5F5E5A', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <span style={{ color: '#888780' }}>Categoría:</span>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  background: hexToRgba(productPopup.product.category.color, 0.12),
+                  color: productPopup.product.category.color,
+                  padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500',
+                }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: productPopup.product.category.color, flexShrink: 0 }} />
+                  {productPopup.product.category.name}
+                </span>
               </div>
             )}
             {productPopup.product.description && (

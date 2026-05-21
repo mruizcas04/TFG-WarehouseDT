@@ -36,7 +36,7 @@ function TypeIcon({ type }) {
 
 function compact(loc) {
   if (!loc) return null
-  return `P${loc.aisle_number}·E${loc.shelf_number}·B${loc.level_number}·H${loc.position_number}`
+  return `F${loc.aisle_number}·E${loc.shelf_number}·B${loc.level_number}·H${loc.position_number}`
 }
 
 function LocationLine({ movement, allLocations }) {

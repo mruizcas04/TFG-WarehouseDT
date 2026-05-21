@@ -39,6 +39,7 @@ class Company(Base):
     users: Mapped[list["User"]] = relationship("User", back_populates="company")
     warehouses: Mapped[list["Warehouse"]] = relationship("Warehouse", back_populates="company")
     products: Mapped[list["Product"]] = relationship("Product", back_populates="company")
+    categories: Mapped[list["Category"]] = relationship("Category", back_populates="company")
     boxes: Mapped[list["Box"]] = relationship("Box", back_populates="company")
     tasks: Mapped[list["Task"]] = relationship("Task", back_populates="company")
     movements: Mapped[list["Movement"]] = relationship("Movement", back_populates="company")
@@ -95,6 +96,18 @@ class Location(Base):
     inventory_item: Mapped["InventoryItem | None"] = relationship("InventoryItem", back_populates="location", uselist=False)
 
 
+class Category(Base):
+    __tablename__ = "categories"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    color: Mapped[str] = mapped_column(String, nullable=False, default="#888780")
+
+    company: Mapped["Company | None"] = relationship("Company", back_populates="categories")
+    products: Mapped[list["Product"]] = relationship("Product", back_populates="category")
+
+
 class Product(Base):
     __tablename__ = "products"
     __table_args__ = (UniqueConstraint("company_id", "barcode", name="uq_product_company_barcode"),)
@@ -105,8 +118,11 @@ class Product(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     type: Mapped[str | None] = mapped_column(String, nullable=True)
     barcode: Mapped[str | None] = mapped_column(String, nullable=True)
+    category_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String, nullable=True)
 
     company: Mapped["Company | None"] = relationship("Company", back_populates="products")
+    category: Mapped["Category | None"] = relationship("Category", back_populates="products")
     boxes: Mapped[list["Box"]] = relationship("Box", back_populates="product")
 
 
