@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { API_URL, apiFetch } from '../api/client';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../theme';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -109,6 +109,13 @@ export default function LoginScreen() {
             : <Text style={styles.buttonText}>Entrar</Text>
           }
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.forgotLink}
+          onPress={() => navigation.navigate('ForgotPassword')}
+        >
+          <Text style={styles.forgotLinkText}>¿Olvidaste tu contraseña?</Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -202,5 +209,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '500',
     fontSize: TYPOGRAPHY.body,
+  },
+  forgotLink: {
+    alignItems: 'center',
+    marginTop: SPACING.md,
+    padding: SPACING.sm,
+  },
+  forgotLinkText: {
+    fontSize: TYPOGRAPHY.small,
+    color: COLORS.textSecondary,
   },
 });

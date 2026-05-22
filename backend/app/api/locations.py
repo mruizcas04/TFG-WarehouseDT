@@ -3,9 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from app.db.database import get_db
-from app.models.models import User, Location, Level, Shelf, Warehouse
-from app.schemas.schemas import LocationResponse, LocationNFCUpdate
+from app.models.models import User, Location, Level, Shelf, Warehouse, InventoryItem, Box, Product
+from app.schemas.schemas import LocationResponse, LocationNFCUpdate, LocationInventorySetup
 from app.api.deps import get_current_admin, get_current_user
+from app.services.websocket_service import websocket_service
 import uuid
 
 router = APIRouter(tags=["locations"])
@@ -90,3 +91,80 @@ async def update_location_nfc(
         )
     await db.refresh(location)
     return location
+
+
+@router.post("/locations/{location_id}/inventory", status_code=status.HTTP_201_CREATED)
+async def setup_location_inventory(
+    location_id: uuid.UUID,
+    data: LocationInventorySetup,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    result = await db.execute(
+        _location_company_query(current_user.company_id)
+        .where(Location.id == location_id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ubicación no encontrada")
+
+    existing = await db.execute(
+        select(InventoryItem).where(InventoryItem.location_id == location_id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Esta ubicación ya tiene inventario")
+
+    prod_result = await db.execute(
+        select(Product).where(Product.id == data.product_id, Product.company_id == current_user.company_id)
+    )
+    if not prod_result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
+
+    if data.quantity > 1:
+        new_box = Box(
+            id=uuid.uuid4(),
+            company_id=current_user.company_id,
+            product_id=data.product_id,
+            current_quantity=data.quantity,
+            max_capacity=data.quantity,
+        )
+        db.add(new_box)
+        await db.flush()
+        item = InventoryItem(
+            id=uuid.uuid4(),
+            location_id=location_id,
+            product_id=None,
+            box_id=new_box.id,
+            quantity=None,
+        )
+    else:
+        item = InventoryItem(
+            id=uuid.uuid4(),
+            location_id=location_id,
+            product_id=data.product_id,
+            box_id=None,
+            quantity=1,
+        )
+
+    db.add(item)
+    await db.commit()
+
+    destination_inventory = {
+        "id": str(item.id),
+        "product_id": str(data.product_id) if data.quantity == 1 else None,
+        "box_id": str(new_box.id) if data.quantity > 1 else None,
+        "quantity": data.quantity,
+    }
+    await websocket_service.broadcast_movement_created(
+        movement_id=str(uuid.uuid4()),
+        data={
+            "type": "entrada",
+            "origin_location_id": None,
+            "destination_location_id": str(location_id),
+            "origin_state": "free",
+            "destination_state": "box" if data.quantity > 1 else "product",
+        },
+        origin_inventory=None,
+        destination_inventory=destination_inventory,
+    )
+
+    return {"success": True}

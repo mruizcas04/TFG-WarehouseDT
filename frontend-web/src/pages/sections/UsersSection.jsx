@@ -8,8 +8,7 @@ export default function UsersSection() {
   const currentUser = useAuthStore((s) => s.user)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', role: 'worker' })
-  const [tempPassword, setTempPassword] = useState(null)
-  const [copied, setCopied] = useState(false)
+  const [createdUserEmail, setCreatedUserEmail] = useState(null)
   const [deactivateModal, setDeactivateModal] = useState(null)
   const [showInactive, setShowInactive] = useState(false)
 
@@ -24,12 +23,9 @@ export default function UsersSection() {
     mutationFn: createUser,
     onSuccess: (data) => {
       queryClient.invalidateQueries(['users'])
+      setCreatedUserEmail(data.email)
       setShowForm(false)
       setForm({ name: '', email: '', role: 'worker' })
-      if (data.temporary_password) {
-        setTempPassword(data.temporary_password)
-        setCopied(false)
-      }
     },
   })
 
@@ -48,11 +44,6 @@ export default function UsersSection() {
 
   const handleDeactivate = (user) => {
     setDeactivateModal({ userId: user.id, name: user.name })
-  }
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(tempPassword)
-    setCopied(true)
   }
 
   const inputStyle = { width: '100%', border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: '#1C1C1A', outline: 'none', boxSizing: 'border-box' }
@@ -123,39 +114,26 @@ export default function UsersSection() {
         </button>
       </div>
 
-      {/* Modal contraseña temporal */}
-      {tempPassword && (
+      {/* Modal confirmación email enviado */}
+      {createdUserEmail && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: '14px', padding: '32px', maxWidth: '420px', width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#FFF3CD', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>
-                🔑
-              </div>
-              <div>
-                <p style={{ fontSize: '14px', fontWeight: '600', color: '#1C1C1A', margin: 0 }}>Contraseña temporal generada</p>
-                <p style={{ fontSize: '12px', color: '#888780', margin: 0 }}>Usuario creado correctamente</p>
-              </div>
+          <div style={{ background: 'white', borderRadius: '14px', padding: '32px', maxWidth: '400px', width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'center' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#EDFAF3', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A9A5A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
             </div>
-            <div style={{ background: '#F8F6F0', borderRadius: '8px', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <span style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: '600', color: '#1C1C1A', letterSpacing: '0.06em', wordBreak: 'break-all' }}>{tempPassword}</span>
-              <button
-                onClick={handleCopy}
-                style={{ flexShrink: 0, background: copied ? '#EAF3DE' : '#185FA5', color: copied ? '#3B6D11' : 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', whiteSpace: 'nowrap' }}
-              >
-                {copied ? '✓ Copiado' : 'Copiar'}
-              </button>
-            </div>
-            <div style={{ background: '#FFF3CD', borderRadius: '8px', padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-              <span style={{ fontSize: '13px', flexShrink: 0 }}>⚠️</span>
-              <p style={{ margin: 0, fontSize: '12px', color: '#856404', lineHeight: '1.5' }}>
-                <strong>Guarda esta contraseña</strong> — no se mostrará de nuevo. Compártela de forma segura con el nuevo usuario.
+            <div>
+              <p style={{ fontSize: '15px', fontWeight: '600', color: '#1C1C1A', margin: '0 0 6px 0' }}>Usuario creado</p>
+              <p style={{ fontSize: '13px', color: '#5F5E5A', margin: 0, lineHeight: '1.5' }}>
+                Se ha enviado un email con las credenciales de acceso a <strong>{createdUserEmail}</strong>.
               </p>
             </div>
             <button
-              onClick={() => setTempPassword(null)}
+              onClick={() => setCreatedUserEmail(null)}
               style={{ background: '#1C1C1A', color: 'white', border: 'none', padding: '10px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}
             >
-              Entendido, cerrar
+              Entendido
             </button>
           </div>
         </div>
@@ -181,7 +159,7 @@ export default function UsersSection() {
               </select>
             </div>
           </div>
-          <p style={{ margin: 0, fontSize: '12px', color: '#888780' }}>La contraseña se generará automáticamente y se mostrará una sola vez tras crear el usuario.</p>
+          <p style={{ margin: 0, fontSize: '12px', color: '#888780' }}>Se generará una contraseña temporal y se enviará por email al usuario junto con sus credenciales de acceso.</p>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" disabled={createMutation.isLoading}
               style={{ background: '#185FA5', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>

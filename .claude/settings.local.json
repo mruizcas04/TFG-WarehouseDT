@@ -27,7 +27,9 @@
       "Bash(Format-Table Name, FullName)",
       "Bash(pip install *)",
       "PowerShell(docker exec -i $\\(docker ps --filter \"publish=5434\" --format \"{{.Names}}\"\\) psql -U warehouse_user -d warehouse_db -c \"DELETE FROM users WHERE email = 'mruizcas04@gmail.com'; SELECT 'borrado' as resultado;\")",
-      "PowerShell(docker exec -i $\\(docker ps --filter \"publish=5434\" --format \"{{.Names}}\"\\) psql -U warehouse_user -d warehouse_db -c \"DELETE FROM users WHERE email = 'mruizcas04@gmail.com';\")"
+      "PowerShell(docker exec -i $\\(docker ps --filter \"publish=5434\" --format \"{{.Names}}\"\\) psql -U warehouse_user -d warehouse_db -c \"DELETE FROM users WHERE email = 'mruizcas04@gmail.com';\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\mruiz\\\\TFG\" -Force)",
+      "Bash(Select-Object -Property Name, Mode)"
     ]
   }
 }

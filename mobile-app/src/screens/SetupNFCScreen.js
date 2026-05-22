@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, SafeAreaView, StatusBar,
+  Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import NfcManager, { NfcTech } from 'react-native-nfc-manager';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../api/client';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../theme';
@@ -13,14 +15,23 @@ export default function SetupNFCScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
 
-  const [locations, setLocations]           = useState([]);   // untagged locations (flat list)
-  const [loading, setLoading]               = useState(true);
-  const [scanningId, setScanningId]         = useState(null); // location being tagged
-  const [doneCount, setDoneCount]           = useState(0);
+  const [locations, setLocations]   = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [scanningId, setScanningId] = useState(null);
+  const [doneCount, setDoneCount]   = useState(0);
+
+  // Inventory setup modal
+  const [modalVisible, setModalVisible]       = useState(false);
+  const [pendingLocation, setPendingLocation] = useState(null);
+  const [invStep, setInvStep]                 = useState('ask'); // 'ask' | 'scan' | 'product' | 'saving'
+  const [scannedProduct, setScannedProduct]   = useState(null);
+  const [quantityText, setQuantityText]       = useState('');
+  const [barcodeScanned, setBarcodeScanned]   = useState(false);
+
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const nfcStarted = useRef(false);
 
-  // Flatten warehouse full response into a list of locations with labels
   const flattenLocations = (warehouse) => {
     const result = [];
     for (const shelf of warehouse.shelves) {
@@ -30,10 +41,6 @@ export default function SetupNFCScreen() {
             result.push({
               id: loc.id,
               label: `Fila ${shelf.aisle_number} · Est. ${shelf.shelf_number} · Nivel ${level.level_number} · Pos. ${loc.position_number}`,
-              aisle: shelf.aisle_number,
-              shelf: shelf.shelf_number,
-              level: level.level_number,
-              position: loc.position_number,
             });
           }
         }
@@ -51,7 +58,6 @@ export default function SetupNFCScreen() {
         navigation.goBack();
         return;
       }
-      // Use the first warehouse (most setups have one)
       const full = await apiFetch(`/warehouses/${warehouses[0].id}/full`, {}, user.token);
       setLocations(flattenLocations(full));
     } catch (e) {
@@ -73,6 +79,17 @@ export default function SetupNFCScreen() {
       NfcManager.cancelTechnologyRequest().catch(() => {});
     };
   }, [loadLocations]);
+
+  const finishLocation = useCallback((locationId) => {
+    setLocations(prev => prev.filter(l => l.id !== locationId));
+    setDoneCount(c => c + 1);
+    setModalVisible(false);
+    setPendingLocation(null);
+    setInvStep('ask');
+    setScannedProduct(null);
+    setQuantityText('');
+    setBarcodeScanned(false);
+  }, []);
 
   const associateTag = async (location) => {
     setScanningId(location.id);
@@ -96,9 +113,9 @@ export default function SetupNFCScreen() {
         body: JSON.stringify({ nfc_tag: tagId }),
       }, user.token);
 
-      // Remove from list
-      setLocations(prev => prev.filter(l => l.id !== location.id));
-      setDoneCount(c => c + 1);
+      setPendingLocation(location);
+      setInvStep('ask');
+      setModalVisible(true);
     } catch (e) {
       const msg = e.message || '';
       if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('usercancel')) {
@@ -108,6 +125,50 @@ export default function SetupNFCScreen() {
       }
     } finally {
       setScanningId(null);
+    }
+  };
+
+  const handleStartScan = async () => {
+    if (!cameraPermission?.granted) {
+      const result = await requestCameraPermission();
+      if (!result.granted) {
+        Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara para escanear códigos de barras.');
+        return;
+      }
+    }
+    setBarcodeScanned(false);
+    setInvStep('scan');
+  };
+
+  const handleBarcodeScanned = useCallback(async ({ data }) => {
+    if (barcodeScanned) return;
+    setBarcodeScanned(true);
+    try {
+      const product = await apiFetch(`/products/barcode/${data}`, {}, user.token);
+      setScannedProduct(product);
+      setInvStep('product');
+    } catch {
+      Alert.alert('Producto no encontrado', 'No existe ningún producto con ese código de barras. Inténtalo de nuevo.');
+      setBarcodeScanned(false);
+    }
+  }, [barcodeScanned, user]);
+
+  const handleSaveInventory = async () => {
+    const qty = parseInt(quantityText, 10);
+    if (!qty || qty < 1) {
+      Alert.alert('Cantidad inválida', 'Introduce un número de unidades mayor que cero.');
+      return;
+    }
+    setInvStep('saving');
+    try {
+      await apiFetch(`/locations/${pendingLocation.id}/inventory`, {
+        method: 'POST',
+        body: JSON.stringify({ product_id: scannedProduct.id, quantity: qty }),
+      }, user.token);
+      finishLocation(pendingLocation.id);
+    } catch (e) {
+      Alert.alert('Error', e.message || 'No se pudo guardar el inventario.');
+      setInvStep('product');
     }
   };
 
@@ -187,6 +248,92 @@ export default function SetupNFCScreen() {
           <Text style={styles.scanningBannerText}>Acerca la etiqueta NFC al móvil...</Text>
         </View>
       )}
+
+      {/* Inventory setup modal */}
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => {}}>
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalCard}
+          >
+            {invStep === 'ask' && (
+              <>
+                <Text style={styles.modalTitle}>Etiqueta asociada</Text>
+                <Text style={styles.modalLocation}>{pendingLocation?.label}</Text>
+                <Text style={styles.modalDesc}>
+                  ¿Ya hay productos almacenados en esta ubicación? Puedes registrar el inventario inicial ahora.
+                </Text>
+                <TouchableOpacity style={styles.primaryButton} onPress={handleStartScan}>
+                  <Text style={styles.primaryButtonText}>Sí, registrar inventario</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => finishLocation(pendingLocation.id)}
+                >
+                  <Text style={styles.secondaryButtonText}>No, continuar</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {invStep === 'scan' && (
+              <>
+                <Text style={styles.modalTitle}>Escanear producto</Text>
+                <Text style={styles.modalLocation}>{pendingLocation?.label}</Text>
+                <View style={styles.cameraContainer}>
+                  <CameraView
+                    style={styles.camera}
+                    onBarcodeScanned={barcodeScanned ? undefined : handleBarcodeScanned}
+                    barcodeScannerSettings={{
+                      barcodeTypes: ['ean13', 'ean8', 'code128', 'qr', 'code39', 'upc_a'],
+                    }}
+                  />
+                </View>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => setInvStep('ask')}>
+                  <Text style={styles.secondaryButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {invStep === 'product' && (
+              <>
+                <Text style={styles.modalTitle}>Producto encontrado</Text>
+                <View style={styles.productCard}>
+                  <Text style={styles.productName}>{scannedProduct?.name}</Text>
+                  {scannedProduct?.barcode && (
+                    <Text style={styles.productBarcode}>{scannedProduct.barcode}</Text>
+                  )}
+                </View>
+                <Text style={styles.inputLabel}>Unidades en esta ubicación</Text>
+                <TextInput
+                  style={styles.quantityInput}
+                  value={quantityText}
+                  onChangeText={setQuantityText}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor={COLORS.textSecondary}
+                  autoFocus
+                />
+                <TouchableOpacity style={styles.primaryButton} onPress={handleSaveInventory}>
+                  <Text style={styles.primaryButtonText}>Guardar inventario</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => { setBarcodeScanned(false); setInvStep('scan'); }}
+                >
+                  <Text style={styles.secondaryButtonText}>Escanear otro producto</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {invStep === 'saving' && (
+              <View style={styles.savingContainer}>
+                <ActivityIndicator color={COLORS.accent} size="large" />
+                <Text style={styles.savingText}>Guardando inventario...</Text>
+              </View>
+            )}
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -269,11 +416,13 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: TYPOGRAPHY.large,  fontWeight: '500', color: COLORS.textPrimary, textAlign: 'center' },
   emptyText:  { fontSize: TYPOGRAPHY.body, color: COLORS.textSecondary, textAlign: 'center' },
+
   primaryButton: {
     backgroundColor: COLORS.accent,
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.xl,
+    alignItems: 'center',
     marginTop: SPACING.sm,
   },
   primaryButtonText: { color: '#fff', fontWeight: '500', fontSize: TYPOGRAPHY.body },
@@ -287,4 +436,91 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
   },
   scanningBannerText: { color: '#fff', fontSize: TYPOGRAPHY.body, fontWeight: '500' },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    paddingBottom: SPACING.xxl,
+    gap: SPACING.sm,
+  },
+  modalTitle: {
+    fontSize: TYPOGRAPHY.large,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
+  },
+  modalLocation: {
+    fontSize: TYPOGRAPHY.small,
+    color: COLORS.accent,
+    fontWeight: '500',
+    marginBottom: SPACING.xs,
+  },
+  modalDesc: {
+    fontSize: TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+    marginBottom: SPACING.md,
+  },
+  secondaryButton: {
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xl,
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+    borderWidth: 0.5,
+    borderColor: COLORS.border,
+  },
+  secondaryButtonText: { color: COLORS.textSecondary, fontWeight: '500', fontSize: TYPOGRAPHY.body },
+
+  cameraContainer: {
+    height: 240,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+    marginVertical: SPACING.md,
+  },
+  camera: { flex: 1 },
+
+  productCard: {
+    backgroundColor: COLORS.bg,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderWidth: 0.5,
+    borderColor: COLORS.border,
+  },
+  productName:    { fontSize: TYPOGRAPHY.body, fontWeight: '600', color: COLORS.textPrimary },
+  productBarcode: { fontSize: TYPOGRAPHY.small, color: COLORS.textSecondary, fontFamily: 'monospace', marginTop: 2 },
+
+  inputLabel: {
+    fontSize: TYPOGRAPHY.small,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+    marginBottom: SPACING.xs,
+  },
+  quantityInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: TYPOGRAPHY.large,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+
+  savingContainer: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xl,
+    gap: SPACING.md,
+  },
+  savingText: { fontSize: TYPOGRAPHY.body, color: COLORS.textSecondary },
 });

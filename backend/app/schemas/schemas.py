@@ -169,6 +169,10 @@ class LocationResponse(BaseModel):
 class LocationNFCUpdate(BaseModel):
     nfc_tag: str
 
+class LocationInventorySetup(BaseModel):
+    product_id: UUID
+    quantity: int
+
 # --- Category ---
 
 class CategoryCreate(BaseModel):

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
-from app.core.email import send_verification_email, send_reset_password_email
+from app.core.email import send_verification_email, send_temp_password_email, send_reset_password_email
 from app.models.models import User, Company, UserRole
 from app.schemas.schemas import (
     Token, UserCreate, UserResponse, UserCreateResponse, ChangePasswordRequest,
@@ -97,11 +97,12 @@ async def register(
             )
         current_admin = await get_user_from_token(token, db)
         company_id = current_admin.company_id
+        company_result = await db.execute(select(Company).where(Company.id == company_id))
+        company_name_for_email = company_result.scalar_one().name
         role = user_data.role
         temporary_password = secrets.token_urlsafe(10)
         password_to_hash = temporary_password
         must_change_password = True
-        # Employees added by admin don't need email verification
         is_email_verified = True
         verification_token = None
 
@@ -123,8 +124,10 @@ async def register(
     if verification_token:
         await send_verification_email(new_user.email, new_user.name, verification_token)
 
+    if temporary_password:
+        await send_temp_password_email(new_user.email, new_user.name, temporary_password, company_name_for_email)
+
     response = UserCreateResponse.model_validate(new_user)
-    response.temporary_password = temporary_password
     return response
 
 
