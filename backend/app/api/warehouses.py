@@ -31,11 +31,15 @@ async def create_warehouse(
     current_user: User = Depends(get_current_admin)
 ):
     total_locations = sum(
-        s.num_levels * s.num_locations
+        (2 if s.is_double else 1) * s.num_levels * s.num_locations
         for aisle in warehouse_data.aisles
         for s in aisle.shelves
     )
-    num_shelves = sum(len(aisle.shelves) for aisle in warehouse_data.aisles)
+    num_shelves = sum(
+        (2 if s.is_double else 1)
+        for aisle in warehouse_data.aisles
+        for s in aisle.shelves
+    )
 
     warehouse = Warehouse(
         id=uuid.uuid4(),
@@ -48,31 +52,43 @@ async def create_warehouse(
     )
     db.add(warehouse)
 
-    for aisle_num, aisle_cfg in enumerate(warehouse_data.aisles, start=1):
-        for shelf_num, shelf_cfg in enumerate(aisle_cfg.shelves, start=1):
+    db_aisle = 1
+    for aisle_cfg in warehouse_data.aisles:
+        # --- Estanterías frontales (o simples) ---
+        for front_num, shelf_cfg in enumerate(aisle_cfg.shelves, start=1):
             shelf = Shelf(
                 id=uuid.uuid4(),
                 warehouse_id=warehouse.id,
-                aisle_number=aisle_num,
-                shelf_number=shelf_num
+                aisle_number=db_aisle,
+                shelf_number=front_num,
+                is_double=shelf_cfg.is_double,
             )
             db.add(shelf)
-
             for level_num in range(1, shelf_cfg.num_levels + 1):
-                level = Level(
-                    id=uuid.uuid4(),
-                    shelf_id=shelf.id,
-                    level_number=level_num
-                )
+                level = Level(id=uuid.uuid4(), shelf_id=shelf.id, level_number=level_num)
                 db.add(level)
-
                 for pos in range(1, shelf_cfg.num_locations + 1):
-                    location = Location(
-                        id=uuid.uuid4(),
-                        level_id=level.id,
-                        position_number=pos
-                    )
-                    db.add(location)
+                    db.add(Location(id=uuid.uuid4(), level_id=level.id, position_number=pos))
+        db_aisle += 1
+
+        # --- Estanterías traseras: fila propia con shelf_number desde 1 ---
+        double_shelves = [s for s in aisle_cfg.shelves if s.is_double]
+        if double_shelves:
+            for back_num, shelf_cfg in enumerate(double_shelves, start=1):
+                back_shelf = Shelf(
+                    id=uuid.uuid4(),
+                    warehouse_id=warehouse.id,
+                    aisle_number=db_aisle,
+                    shelf_number=back_num,
+                    is_double=False,
+                )
+                db.add(back_shelf)
+                for level_num in range(1, shelf_cfg.num_levels + 1):
+                    level = Level(id=uuid.uuid4(), shelf_id=back_shelf.id, level_number=level_num)
+                    db.add(level)
+                    for pos in range(1, shelf_cfg.num_locations + 1):
+                        db.add(Location(id=uuid.uuid4(), level_id=level.id, position_number=pos))
+            db_aisle += 1
 
     await db.commit()
     await db.refresh(warehouse)
@@ -115,6 +131,7 @@ async def get_warehouse_full(
 
     shelves_result = await db.execute(
         select(Shelf).where(Shelf.warehouse_id == warehouse_id)
+        .order_by(Shelf.aisle_number, Shelf.shelf_number)
     )
     shelves = shelves_result.scalars().all()
 
@@ -199,6 +216,7 @@ async def get_warehouse_full(
             id=shelf.id,
             aisle_number=shelf.aisle_number,
             shelf_number=shelf.shelf_number,
+            is_double=shelf.is_double,
             levels=levels_full
         ))
 

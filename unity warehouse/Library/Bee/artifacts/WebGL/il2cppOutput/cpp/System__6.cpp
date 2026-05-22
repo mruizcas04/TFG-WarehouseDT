@@ -2101,6 +2101,10 @@ struct NetworkStreamWrapper_tE8C6B35509D3406DFB51F2D36E52CF6C5EFAB029  : public 
 	TcpClient_t753B702EE06B59897564F75CEBFB6C8AFF10BD58* ____client;
 	NetworkStream_tF39C3684B6D572BF47F518AD1DB1F4B12CEE4AE0* ____networkStream;
 };
+struct NodeColor_t3C462CF5E46B843CC52B1FF46B6488BC18768F4F 
+{
+	uint8_t ___value__;
+};
 struct NotifyCollectionChangedAction_tA580EA64F38D1FB2B1470FDD8266E5F32666D9FF 
 {
 	int32_t ___value__;
@@ -2171,6 +2175,10 @@ struct StringComparison_tE14A55CCFA001A5AC85D754179BF2888F45CC94D
 struct TokenImpersonationLevel_t2DEE263354E7DBC241ED96A71C632A3FAB92013D 
 {
 	int32_t ___value__;
+};
+struct TreeRotation_t8E73F08A08D4DC4DA6DA17D92767DE6997B01A0A 
+{
+	uint8_t ___value__;
 };
 struct TriState_t15D16D38BC003CBFB1E6439DDA92A6BDE400F81F 
 {
@@ -13770,6 +13778,22 @@ IL_001a:
 		return L_3;
 	}
 }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif

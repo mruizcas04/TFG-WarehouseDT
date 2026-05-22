@@ -5,7 +5,7 @@ import { getProducts } from '../../api/products'
 import DigitalTwin from '../../components/DigitalTwin'
 import { useAuthStore } from '../../store/authStore'
 
-const DEFAULT_SHELF = { num_levels: 3, num_locations: 5 }
+const DEFAULT_SHELF = { num_levels: 3, num_locations: 5, is_double: false }
 const DEFAULT_AISLE = () => ({ shelves: [{ ...DEFAULT_SHELF }] })
 
 const labelStyle = {
@@ -84,7 +84,10 @@ export default function WarehouseSection() {
       if (i !== ai) return aisle
       return {
         shelves: aisle.shelves.map((shelf, j) =>
-          j !== si ? shelf : { ...shelf, [field]: Math.max(1, parseInt(value) || 1) }
+          j !== si ? shelf : {
+            ...shelf,
+            [field]: field === 'is_double' ? value : Math.max(1, parseInt(value) || 1),
+          }
         ),
       }
     })
@@ -92,9 +95,12 @@ export default function WarehouseSection() {
   }
 
   const totalLocations = aisles.reduce(
-    (acc, aisle) => acc + aisle.shelves.reduce((a, s) => a + s.num_levels * s.num_locations, 0), 0
+    (acc, aisle) => acc + aisle.shelves.reduce((a, s) => a + (s.is_double ? 2 : 1) * s.num_levels * s.num_locations, 0), 0
   )
-  const totalShelves = aisles.reduce((acc, aisle) => acc + aisle.shelves.length, 0)
+  const totalShelves = aisles.reduce(
+    (acc, aisle) => acc + aisle.shelves.reduce((a, s) => a + (s.is_double ? 2 : 1), 0), 0
+  )
+  const totalRows = aisles.reduce((acc, aisle) => acc + 1 + (aisle.shelves.some(s => s.is_double) ? 1 : 0), 0)
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -157,24 +163,32 @@ export default function WarehouseSection() {
                   {/* Estanterías de la fila */}
                   <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {/* Cabecera columnas */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 36px', gap: '8px', padding: '0 4px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 80px 36px', gap: '8px', padding: '0 4px' }}>
                       <span style={{ fontSize: '11px', color: '#B4B2A9' }}>#</span>
                       <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Estantería</span>
                       <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Niveles</span>
                       <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ubic./nivel</span>
+                      <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>Doble</span>
                       <span />
                     </div>
 
                     {aisle.shelves.map((shelf, si) => (
-                      <div key={si} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 36px', gap: '8px', alignItems: 'center', background: '#FAFAF8', borderRadius: '8px', padding: '8px 10px' }}>
+                      <div key={si} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 80px 36px', gap: '8px', alignItems: 'center', background: shelf.is_double ? '#EEF4FF' : '#FAFAF8', borderRadius: '8px', padding: '8px 10px' }}>
                         <span style={{ fontSize: '12px', color: '#888780', textAlign: 'center' }}>{si + 1}</span>
-                        <span style={{ fontSize: '13px', color: '#5F5E5A' }}>Estantería {si + 1}</span>
+                        <span style={{ fontSize: '13px', color: shelf.is_double ? '#185FA5' : '#5F5E5A' }}>
+                          Estantería {si + 1}{shelf.is_double ? ' (doble)' : ''}
+                        </span>
                         <input type="number" min="1" value={shelf.num_levels}
                           onChange={(e) => updateShelf(ai, si, 'num_levels', e.target.value)}
                           style={numInputStyle} />
                         <input type="number" min="1" value={shelf.num_locations}
                           onChange={(e) => updateShelf(ai, si, 'num_locations', e.target.value)}
                           style={numInputStyle} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <input type="checkbox" checked={shelf.is_double}
+                            onChange={(e) => updateShelf(ai, si, 'is_double', e.target.checked)}
+                            style={{ cursor: 'pointer', width: '16px', height: '16px' }} />
+                        </div>
                         <button type="button" onClick={() => removeShelf(ai, si)}
                           disabled={aisle.shelves.length === 1}
                           style={{ background: 'none', border: 'none', color: aisle.shelves.length === 1 ? '#D3D1C7' : '#C0392B', cursor: aisle.shelves.length === 1 ? 'default' : 'pointer', fontSize: '16px', lineHeight: 1, padding: '2px' }}>
@@ -191,7 +205,7 @@ export default function WarehouseSection() {
             <div style={{ marginTop: '10px', fontSize: '12px', color: '#888780' }}>
               Total: <strong style={{ color: '#1C1C1A' }}>{totalLocations}</strong> ubicaciones en{' '}
               <strong style={{ color: '#1C1C1A' }}>{totalShelves}</strong> estantería{totalShelves !== 1 ? 's' : ''} y{' '}
-              <strong style={{ color: '#1C1C1A' }}>{aisles.length}</strong> fila{aisles.length !== 1 ? 's' : ''}
+              <strong style={{ color: '#1C1C1A' }}>{totalRows}</strong> fila{totalRows !== 1 ? 's' : ''}
             </div>
           </div>
 

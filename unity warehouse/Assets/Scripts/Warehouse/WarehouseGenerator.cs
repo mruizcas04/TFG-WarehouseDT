@@ -86,6 +86,29 @@ namespace WarehouseTwin.Warehouse
                     activeTaskSet.Add(id);
             }
 
+            // --- Pre-pasada: posición X por pasillo (dobles pegados, normales con aisleSpacing) ---
+            var aislesWithDouble = new HashSet<int>();
+            var sortedAisleNums  = new SortedSet<int>();
+            foreach (ShelfDTO s in warehouse.shelves)
+            {
+                sortedAisleNums.Add(s.aisle_number);
+                if (s.is_double) aislesWithDouble.Add(s.aisle_number);
+            }
+            var aisleXPos = new Dictionary<int, float>();
+            float xCursor = 0f;
+            int prevA = -1;
+            foreach (int a in sortedAisleNums)
+            {
+                if (prevA < 0)
+                    aisleXPos[a] = 0f;
+                else if (aislesWithDouble.Contains(prevA))
+                    aisleXPos[a] = xCursor + shelfDepth + locationPadding;
+                else
+                    aisleXPos[a] = xCursor + aisleSpacing;
+                xCursor = aisleXPos[a];
+                prevA = a;
+            }
+
             // --- Primera pasada: calcular dimensiones totales ---
             int maxAisle = 0;
             int maxLevels = 0;
@@ -152,20 +175,40 @@ namespace WarehouseTwin.Warehouse
             // Offset Y para que el nivel 1 apoye en el suelo (pivot de los cubos en centro)
             float groundOffset = (shelfHeight - locationPadding) / 2f;
             Dictionary<int, float> aisleZOffset = new();
+            // Almacena las Z de las estanterías dobles del pasillo frontal para sincronizar la trasera
+            var frontDoubleZ = new Dictionary<int, List<float>>();
+            var backShelfIdx = new Dictionary<int, int>();
 
             foreach (ShelfDTO shelf in warehouse.shelves)
             {
-                float shelfX = (shelf.aisle_number - 1) * aisleSpacing;
+                int aisle = shelf.aisle_number;
 
-                if (!aisleZOffset.ContainsKey(shelf.aisle_number))
-                    aisleZOffset[shelf.aisle_number] = 0f;
-                float shelfZ = aisleZOffset[shelf.aisle_number];
+                if (!aisleZOffset.ContainsKey(aisle))
+                    aisleZOffset[aisle] = 0f;
 
-                GameObject shelfGO = new GameObject($"Shelf_Aisle{shelf.aisle_number}_Shelf{shelf.shelf_number}");
-                shelfGO.transform.SetParent(transform);
-                shelfGO.transform.localPosition = new Vector3(shelfX, groundOffset, shelfZ);
+                bool isDoubleBack = aislesWithDouble.Contains(aisle - 1);
+
+                float placedX = aisleXPos[aisle];
+                float placedZ;
+                if (isDoubleBack)
+                {
+                    if (!backShelfIdx.ContainsKey(aisle)) backShelfIdx[aisle] = 0;
+                    placedZ = frontDoubleZ[aisle - 1][backShelfIdx[aisle]];
+                    backShelfIdx[aisle]++;
+                }
+                else
+                {
+                    placedZ = aisleZOffset[aisle];
+                }
 
                 int numLocations = shelf.levels.Count > 0 ? shelf.levels[0].locations.Count : 0;
+                float shelfLength = numLocations * (shelfWidth + locationPadding);
+
+                GameObject shelfGO = new GameObject($"Shelf_Aisle{aisle}_Shelf{shelf.shelf_number}");
+                shelfGO.transform.SetParent(transform);
+                shelfGO.transform.localPosition = new Vector3(placedX, groundOffset, placedZ);
+                if (isDoubleBack)
+                    shelfGO.transform.localRotation = Quaternion.Euler(0, 180f, 0);
 
                 foreach (LevelDTO level in shelf.levels)
                 {
@@ -183,7 +226,7 @@ namespace WarehouseTwin.Warehouse
                         locationGO.name = $"Location_{location.position_number}";
                         locationGO.transform.localPosition = new Vector3(0, 0, locationZ);
                         locationGO.transform.localScale = new Vector3(
-                            shelfDepth,
+                            shelfDepth - locationPadding,
                             shelfHeight - locationPadding,
                             shelfWidth - locationPadding
                         );
@@ -191,12 +234,12 @@ namespace WarehouseTwin.Warehouse
                         LocationObject locObj = locationGO.GetComponent<LocationObject>();
                         locObj.Initialize(location.id, LocationObject.StateFromInventory(location.inventory));
 
-                        bool   hasTask    = activeTaskSet.Contains(location.id);
-                        bool   isBox      = !string.IsNullOrEmpty(location.inventory?.box_id);
-                        int    qty        = location.inventory?.quantity ?? 0;
-                        string prodId     = location.inventory?.product_id ?? "";
-                        string prodName   = location.inventory?.product_name ?? "";
-                        string taskInfo   = "";
+                        bool   hasTask  = activeTaskSet.Contains(location.id);
+                        bool   isBox    = !string.IsNullOrEmpty(location.inventory?.box_id);
+                        int    qty      = location.inventory?.quantity ?? 0;
+                        string prodId   = location.inventory?.product_id ?? "";
+                        string prodName = location.inventory?.product_name ?? "";
+                        string taskInfo = "";
                         if (hasTask)
                         {
                             string taskType = null;
@@ -204,14 +247,22 @@ namespace WarehouseTwin.Warehouse
                             taskInfo = taskType != null ? $"Tarea activa: {taskType}" : "Tarea activa";
                         }
                         locObj.SetMetadata(prodName, qty, isBox, taskInfo, prodId);
-                        locObj.LocationLabel = $"F{shelf.aisle_number} · E{shelf.shelf_number} · B{level.level_number} · H{location.position_number}";
+                        locObj.LocationLabel = $"F{aisle} · E{shelf.shelf_number} · B{level.level_number} · H{location.position_number}";
 
                         _locationObjects[location.id] = locObj;
                     }
                 }
 
-                float shelfLength = numLocations * (shelfWidth + locationPadding);
-                aisleZOffset[shelf.aisle_number] += shelfLength + shelfGap;
+                if (!isDoubleBack)
+                {
+                    // Guardar Z de estanterías dobles frontales para sincronizar la trasera
+                    if (shelf.is_double)
+                    {
+                        if (!frontDoubleZ.ContainsKey(aisle)) frontDoubleZ[aisle] = new List<float>();
+                        frontDoubleZ[aisle].Add(placedZ);
+                    }
+                    aisleZOffset[aisle] += shelfLength + shelfGap;
+                }
             }
 
             // Pintar en amarillo las ubicaciones con tareas activas

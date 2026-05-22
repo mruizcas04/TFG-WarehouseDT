@@ -64,6 +64,7 @@ class ResetPasswordRequest(BaseModel):
 class ShelfConfig(BaseModel):
     num_levels: int
     num_locations: int
+    is_double: bool = False
 
 class AisleConfig(BaseModel):
     shelves: list[ShelfConfig]
@@ -119,6 +120,7 @@ class ShelfFullResponse(BaseModel):
     id: UUID
     aisle_number: int
     shelf_number: int
+    is_double: bool = False
     levels: list[LevelFullResponse]
 
     model_config = {"from_attributes": True}
@@ -144,6 +146,7 @@ class ShelfResponse(BaseModel):
     warehouse_id: UUID
     aisle_number: int
     shelf_number: int
+    is_double: bool = False
 
     model_config = {"from_attributes": True}
 

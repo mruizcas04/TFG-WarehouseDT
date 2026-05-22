@@ -68,6 +68,7 @@ class Shelf(Base):
     warehouse_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("warehouses.id"), nullable=False)
     aisle_number: Mapped[int] = mapped_column(Integer, nullable=False)
     shelf_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_double: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")
 
     warehouse: Mapped["Warehouse"] = relationship("Warehouse", back_populates="shelves")
     levels: Mapped[list["Level"]] = relationship("Level", back_populates="shelf", cascade="all, delete-orphan")

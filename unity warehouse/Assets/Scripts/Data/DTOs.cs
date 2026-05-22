@@ -36,6 +36,7 @@ namespace WarehouseTwin.Data
         public string id;
         public int aisle_number;
         public int shelf_number;
+        public bool is_double;
         public List<LevelDTO> levels;
     }
 
