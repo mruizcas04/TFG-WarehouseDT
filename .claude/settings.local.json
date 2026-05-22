@@ -21,7 +21,13 @@
       "PowerShell(python -m pip --version)",
       "PowerShell(python -m pip install -r \"c:\\\\Users\\\\mruiz\\\\TFG\\\\backend\\\\requirements-test.txt\" 2>&1)",
       "Bash(.\\\\venv\\\\Scripts\\\\python.exe -m pytest --tb=no -q)",
-      "Bash(./venv/Scripts/python.exe -m pytest --tb=no -q)"
+      "Bash(./venv/Scripts/python.exe -m pytest --tb=no -q)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\mruiz\\\\TFG\" -Recurse -Force)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Format-Table Name, FullName)",
+      "Bash(pip install *)",
+      "PowerShell(docker exec -i $\\(docker ps --filter \"publish=5434\" --format \"{{.Names}}\"\\) psql -U warehouse_user -d warehouse_db -c \"DELETE FROM users WHERE email = 'mruizcas04@gmail.com'; SELECT 'borrado' as resultado;\")",
+      "PowerShell(docker exec -i $\\(docker ps --filter \"publish=5434\" --format \"{{.Names}}\"\\) psql -U warehouse_user -d warehouse_db -c \"DELETE FROM users WHERE email = 'mruizcas04@gmail.com';\")"
     ]
   }
 }

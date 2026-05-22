@@ -164,7 +164,11 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    is_email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="false")
+    verification_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    reset_password_token: Mapped[str | None] = mapped_column(String, nullable=True)
+    reset_token_expires: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     company: Mapped["Company | None"] = relationship("Company", back_populates="users")

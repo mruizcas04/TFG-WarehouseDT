@@ -4,9 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
+from app.core.email import send_verification_email, send_reset_password_email
 from app.models.models import User, Company, UserRole
-from app.schemas.schemas import Token, UserCreate, UserResponse, UserCreateResponse, ChangePasswordRequest
+from app.schemas.schemas import (
+    Token, UserCreate, UserResponse, UserCreateResponse, ChangePasswordRequest,
+    ForgotPasswordRequest, ResetPasswordRequest,
+)
 from app.api.deps import get_current_admin, get_current_user, get_user_from_token
+from datetime import datetime, timedelta
 import uuid
 import secrets
 
@@ -35,6 +40,13 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if not user.is_email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Debes verificar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     access_token = create_access_token(data={
         "sub": str(user.id),
         "role": user.role.value,
@@ -50,7 +62,6 @@ async def register(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    # Comprobar email duplicado
     result = await db.execute(select(User).where(User.email == user_data.email))
     existing = result.scalar_one_or_none()
     if existing:
@@ -62,7 +73,6 @@ async def register(
     temporary_password = None
 
     if user_data.company_name is not None:
-        # Registro de empresa nueva: el usuario aporta su propia contraseña
         if not user_data.password:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -75,8 +85,9 @@ async def register(
         role = UserRole.admin
         password_to_hash = user_data.password
         must_change_password = False
+        is_email_verified = False
+        verification_token = secrets.token_urlsafe(32)
     else:
-        # Alta de usuario en empresa existente: requiere admin autenticado, contraseña generada automáticamente
         try:
             token = await _extract_token(request)
         except HTTPException:
@@ -90,6 +101,9 @@ async def register(
         temporary_password = secrets.token_urlsafe(10)
         password_to_hash = temporary_password
         must_change_password = True
+        # Employees added by admin don't need email verification
+        is_email_verified = True
+        verification_token = None
 
     new_user = User(
         id=uuid.uuid4(),
@@ -99,14 +113,77 @@ async def register(
         password_hash=get_password_hash(password_to_hash),
         role=role,
         must_change_password=must_change_password,
+        is_email_verified=is_email_verified,
+        verification_token=verification_token,
     )
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
 
+    if verification_token:
+        await send_verification_email(new_user.email, new_user.name, verification_token)
+
     response = UserCreateResponse.model_validate(new_user)
     response.temporary_password = temporary_password
     return response
+
+
+@router.post("/verify-email", status_code=status.HTTP_200_OK)
+async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.verification_token == token))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token de verificación inválido o ya utilizado"
+        )
+
+    user.is_email_verified = True
+    user.verification_token = None
+    await db.commit()
+    return {"message": "Email verificado correctamente. Ya puedes iniciar sesión."}
+
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == data.email))
+    user = result.scalar_one_or_none()
+
+    # Always return the same response to avoid revealing registered emails
+    if user and user.is_active and user.is_email_verified:
+        reset_token = secrets.token_urlsafe(32)
+        user.reset_password_token = reset_token
+        user.reset_token_expires = datetime.utcnow() + timedelta(minutes=30)
+        await db.commit()
+        await send_reset_password_email(user.email, user.name, reset_token)
+
+    return {"message": "Si el email está registrado, recibirás un enlace para restablecer tu contraseña."}
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.reset_password_token == data.token))
+    user = result.scalar_one_or_none()
+
+    if not user or user.reset_token_expires is None or user.reset_token_expires < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El enlace de recuperación no es válido o ha expirado"
+        )
+
+    if len(data.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="La contraseña debe tener al menos 8 caracteres"
+        )
+
+    user.password_hash = get_password_hash(data.new_password)
+    user.reset_password_token = None
+    user.reset_token_expires = None
+    user.must_change_password = False
+    await db.commit()
+    return {"message": "Contraseña restablecida correctamente. Ya puedes iniciar sesión."}
 
 
 async def _extract_token(request: Request) -> str:
