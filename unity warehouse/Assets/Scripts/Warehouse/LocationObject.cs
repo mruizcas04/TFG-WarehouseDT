@@ -1,4 +1,5 @@
 using UnityEngine;
+using WarehouseTwin.Bridge;
 using WarehouseTwin.Data;
 
 namespace WarehouseTwin.Warehouse
@@ -11,18 +12,26 @@ namespace WarehouseTwin.Warehouse
         public string LocationLabel { get; set; } = "";
         public string ProductName   { get; private set; } = "";
         public string ProductId     { get; private set; } = "";
+        public string Barcode         { get; private set; } = "";
+        public string Category        { get; private set; } = "";
+        public string CategoryColor   { get; private set; } = "";
         public string TaskInfo      { get; private set; } = "";
         public int    Quantity      { get; private set; }
         public bool   IsBox         { get; private set; }
 
         private Renderer _renderer;
         private bool     _dimmed;
+        private bool     _hoverHighlight;
+        private Color    _savedColor;
+        private bool     _selectionHighlight;
+        private Color    _selectionSavedColor;
 
-        private static readonly Color ColorFree    = new Color(0.6f,  0.6f,  0.6f);
-        private static readonly Color ColorProduct = new Color(0.2f,  0.8f,  0.2f);
-        private static readonly Color ColorBox     = new Color(0.2f,  0.8f,  0.2f); // mismo verde que producto
-        private static readonly Color ColorTask    = new Color(1.0f,  0.85f, 0.0f);
-        private static readonly Color ColorDimmed  = new Color(0.15f, 0.15f, 0.15f, 0.4f);
+        private static readonly Color ColorFree     = new Color(0.6f,  0.6f,  0.6f);
+        private static readonly Color ColorProduct  = new Color(0.2f,  0.8f,  0.2f);
+        private static readonly Color ColorBox      = new Color(0.2f,  0.8f,  0.2f);
+        private static readonly Color ColorTask     = new Color(1.0f,  0.85f, 0.0f);
+        private static readonly Color ColorDimmed   = new Color(0.15f, 0.15f, 0.15f, 0.4f);
+        private static readonly Color ColorSelected = new Color(0.2f,  0.6f,  1.0f);
 
         private void Awake()
         {
@@ -35,13 +44,16 @@ namespace WarehouseTwin.Warehouse
             SetState(initialState);
         }
 
-        public void SetMetadata(string productName, int quantity, bool isBox, string taskInfo, string productId = "")
+        public void SetMetadata(string productName, int quantity, bool isBox, string taskInfo, string productId = "", string barcode = "", string category = "", string categoryColor = "")
         {
-            ProductName = productName;
-            ProductId   = productId;
-            Quantity    = quantity;
-            IsBox       = isBox;
-            TaskInfo    = taskInfo;
+            ProductName   = productName;
+            ProductId     = productId;
+            Barcode       = barcode;
+            Category      = category;
+            CategoryColor = categoryColor;
+            Quantity      = quantity;
+            IsBox         = isBox;
+            TaskInfo      = taskInfo;
         }
 
         public void SetState(LocationState newState)
@@ -86,16 +98,54 @@ namespace WarehouseTwin.Warehouse
             _renderer.material.color = color;
         }
 
+        public void SetSelectionHighlight(bool highlighted)
+        {
+            if (highlighted && !_selectionHighlight && _renderer != null)
+            {
+                _selectionHighlight = true;
+                _hoverHighlight = false;
+                _renderer.material.color = ColorSelected;
+            }
+            else if (!highlighted && _selectionHighlight && _renderer != null)
+            {
+                _selectionHighlight = false;
+                _hoverHighlight = false;
+                if (!_dimmed) ApplyColor();
+            }
+        }
+
+        private void OnMouseDown()
+        {
+            ReactBridge.NotifyLocationSelected(LocationId, LocationLabel);
+        }
+
         private void OnMouseEnter()
         {
             WarehouseTooltip tooltip = WarehouseTooltip.Instance;
             if (tooltip != null)
-                tooltip.Show(LocationLabel, ProductName, Quantity, TaskInfo, CurrentState);
+                tooltip.Show(LocationLabel, ProductName, Quantity, TaskInfo, CurrentState, Barcode, Category, CategoryColor);
+
+            if (ReactBridge.Instance != null && ReactBridge.Instance.IsInSelectionMode && _renderer != null && !_dimmed)
+            {
+                _savedColor = _renderer.material.color;
+                _hoverHighlight = true;
+                Color c = _savedColor;
+                _renderer.material.color = new Color(
+                    Mathf.Min(c.r + 0.3f, 1f),
+                    Mathf.Min(c.g + 0.3f, 1f),
+                    Mathf.Min(c.b + 0.3f, 1f),
+                    c.a);
+            }
         }
 
         private void OnMouseExit()
         {
             WarehouseTooltip.Instance?.Hide();
+            if (_hoverHighlight && _renderer != null)
+            {
+                _renderer.material.color = _selectionHighlight ? ColorSelected : _savedColor;
+                _hoverHighlight = false;
+            }
         }
 
         public static LocationState StateFromInventory(InventoryItemDTO inventory)

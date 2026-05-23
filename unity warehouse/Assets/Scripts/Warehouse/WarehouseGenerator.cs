@@ -239,6 +239,9 @@ namespace WarehouseTwin.Warehouse
                         int    qty      = location.inventory?.quantity ?? 0;
                         string prodId   = location.inventory?.product_id ?? "";
                         string prodName = location.inventory?.product_name ?? "";
+                        string barcode       = location.inventory?.product_barcode ?? "";
+                        string category      = location.inventory?.product_category ?? "";
+                        string categoryColor = location.inventory?.product_category_color ?? "";
                         string taskInfo = "";
                         if (hasTask)
                         {
@@ -246,7 +249,7 @@ namespace WarehouseTwin.Warehouse
                             warehouse.active_task_info?.TryGetValue(location.id, out taskType);
                             taskInfo = taskType != null ? $"Tarea activa: {taskType}" : "Tarea activa";
                         }
-                        locObj.SetMetadata(prodName, qty, isBox, taskInfo, prodId);
+                        locObj.SetMetadata(prodName, qty, isBox, taskInfo, prodId, barcode, category, categoryColor);
                         locObj.LocationLabel = $"F{aisle} · E{shelf.shelf_number} · B{level.level_number} · H{location.position_number}";
 
                         _locationObjects[location.id] = locObj;
@@ -327,7 +330,7 @@ namespace WarehouseTwin.Warehouse
 
             bool isBox = !string.IsNullOrEmpty(inv.box_id);
             int qty = inv.quantity ?? 0;
-            locObj.SetMetadata(inv.product_name ?? "", qty, isBox, locObj.TaskInfo, inv.product_id ?? "");
+            locObj.SetMetadata(inv.product_name ?? "", qty, isBox, locObj.TaskInfo, inv.product_id ?? "", inv.product_barcode ?? "", inv.product_category ?? "", inv.product_category_color ?? "");
         }
 
         private static LocationState ParseLocationState(string state) => state switch

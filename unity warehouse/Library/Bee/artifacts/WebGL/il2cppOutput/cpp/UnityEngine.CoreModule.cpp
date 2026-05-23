@@ -449,6 +449,7 @@ IL2CPP_EXTERN_C String_t* _stringLiteral8E2EB1751B013C482084A249B3B1831BF63B5179
 IL2CPP_EXTERN_C String_t* _stringLiteral8F7C0FCFFDB01ADC850C35CA8C4F4AE5C1CE81F1;
 IL2CPP_EXTERN_C String_t* _stringLiteral91DF309DA88B9454DFBC07AF84C4914C819841F5;
 IL2CPP_EXTERN_C String_t* _stringLiteral9473CB7CEA17DFB4E0023B876687EF7E88D40143;
+IL2CPP_EXTERN_C String_t* _stringLiteral951CCB49640C8F9E81FB4E0D82730321F4E15BB3;
 IL2CPP_EXTERN_C String_t* _stringLiteral95CF3B69C023D371FAC50A9369688398DB92B4EF;
 IL2CPP_EXTERN_C String_t* _stringLiteral9B4B59F47AEE9C3CF1FDBD720F98630A45A0AD7D;
 IL2CPP_EXTERN_C String_t* _stringLiteral9E395738B33ECECDACCC4B9E4F28E112460C1F3A;
@@ -3357,6 +3358,8 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool Type_op_Equality_m99930A0E44E420A685FABA
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool AnimationCurve_Equals_mC44657401804A22DCA648BD8495FC4E8A2F088A3 (AnimationCurve_tCBFFAAD05CEBB35EF8D8631BD99914BE1A6BB354* __this, AnimationCurve_tCBFFAAD05CEBB35EF8D8631BD99914BE1A6BB354* ___0_other, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool IntPtr_Equals_m0F39AB64A7BBD67190E745FF8334A5FC766CB26E (intptr_t* __this, RuntimeObject* ___0_obj, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool AnimationCurve_Internal_Equals_mEBA61732FE57654C4E3AF5B317918D1641E36050 (AnimationCurve_tCBFFAAD05CEBB35EF8D8631BD99914BE1A6BB354* __this, intptr_t ___0_other, const RuntimeMethod* method) ;
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* String_Concat_m9E3155FB84015C823606188F53B47CB44C444991 (String_t* ___0_str0, String_t* ___1_str1, const RuntimeMethod* method) ;
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Application_Internal_ExternalCall_m7F811353BC9ADF24B38D9D587F9676297576505A (String_t* ___0_script, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void ApplicationMemoryUsageChange__ctor_mD1B7299FCDDF14B479AF66AFDDFC2D710AC6A3C0 (ApplicationMemoryUsageChange_t6D0E5F815818103331E6C5B0D42E006408D4FFC1* __this, int32_t ___0_usage, const RuntimeMethod* method) ;
 IL2CPP_MANAGED_FORCE_INLINE IL2CPP_METHOD_ATTR void MemoryUsageChangedCallback_Invoke_m3C0E629B4D924D71D84DED6B9C78BD62263F9F1F_inline (MemoryUsageChangedCallback_t2C3B85C19E7620327958BA77A7B603C544AD1188* __this, ApplicationMemoryUsageChange_t6D0E5F815818103331E6C5B0D42E006408D4FFC1* ___0_usage, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* String_Format_mA8DBB4C2516B9723C5A41E6CB1E2FAF4BBE96DD8 (String_t* ___0_format, RuntimeObject* ___1_arg0, const RuntimeMethod* method) ;
@@ -3517,7 +3520,6 @@ inline void List_1_Add_mF10DB1D3CBB0B14215F0E4F8AB4934A1955E5351_inline (List_1_
 {
 	((  void (*) (List_1_tF470A3BE5C1B5B68E1325EF3F109D172E60BD7CD*, String_t*, const RuntimeMethod*))List_1_Add_mEBCF994CC3814631017F46A387B1A192ED6C85C7_gshared_inline)(__this, ___0_item, method);
 }
-IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* String_Concat_m9E3155FB84015C823606188F53B47CB44C444991 (String_t* ___0_str0, String_t* ___1_str1, const RuntimeMethod* method) ;
 inline void Func_2__ctor_m247D5044A4E1F518CA84A38B9A9F30E66BDD8184 (Func_2_tAB9727E0C937894E19032D575D98A8A9AB5EE47D* __this, RuntimeObject* ___0_object, intptr_t ___1_method, const RuntimeMethod* method)
 {
 	((  void (*) (Func_2_tAB9727E0C937894E19032D575D98A8A9AB5EE47D*, RuntimeObject*, intptr_t, const RuntimeMethod*))Func_2__ctor_m13C0A7F33154D861E2A041B52E88461832DA1697_gshared)(__this, ___0_object, ___1_method, method);
@@ -3764,6 +3766,8 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_CreateWithShader_m3AFA4A4172FE7
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_CreateWithMaterial_m11AFA8AF4CF07621B8F872D231F52287D510E49B (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* ___0_self, Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* ___1_source, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_CreateWithString_m95D6FADE4506835842E09A7E26513252F560C87A (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* ___0_self, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR int32_t Material_GetFirstPropertyNameIdByAttribute_mCBB72749633F7B8A879D33F0B34DB4F54F8C2439 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_attributeFlag, const RuntimeMethod* method) ;
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Color_tD001788D726C3A7F1379BEED0260B9591F440C1F Material_GetColor_mCCC62F29234C5D2D9B19EE2D7DA46A4573AFA765 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_nameID, const RuntimeMethod* method) ;
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Color_tD001788D726C3A7F1379BEED0260B9591F440C1F Material_GetColor_mAC702C70081A597DD2AA2F4627B1A1C65DDF6609 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, String_t* ___0_name, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_SetColor_m573C88F2FB1B5A978C53A197B414F9E9C6AC5B9A (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_nameID, Color_tD001788D726C3A7F1379BEED0260B9591F440C1F ___1_value, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_SetColor_mFAB32FAA44461E46FD707B34184EC080CBB3539F (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, String_t* ___0_name, Color_tD001788D726C3A7F1379BEED0260B9591F440C1F ___1_value, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Texture_t791CBB51219779964E0E8A2ED7C1AA5F92A4A700* Material_GetTexture_mE5D02B13E7AF35ABAE4FFC49E69FAF8F36F91191 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_nameID, const RuntimeMethod* method) ;
@@ -3774,10 +3778,12 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* Material_GetTagImpl_m0A15070E738DE3
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR StringU5BU5D_t7674CD946EC0CE7B3AE0BE70E6EE85F2ECD9F248* Material_GetShaderKeywords_mEEE6AA1A327A7D63B8CD31306B70AAED6F7B7456 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_SetShaderKeywords_mB0751FC936E7546A20DD6531B52E3B0EAF5BB3A8 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, StringU5BU5D_t7674CD946EC0CE7B3AE0BE70E6EE85F2ECD9F248* ___0_names, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_SetColorImpl_Injected_m7AF196BB00E62E5B47067FD643740884C692694A (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, Color_tD001788D726C3A7F1379BEED0260B9591F440C1F* ___1_value, const RuntimeMethod* method) ;
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_GetColorImpl_Injected_mC524E0342AAF07A17E22CDBA0FAA0BAC0689CED4 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, Color_tD001788D726C3A7F1379BEED0260B9591F440C1F* ___1_ret, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_SetFloatImpl_m78678CE6EBB67BA3E9D58AD37CE3BDA3789F43AB (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, float ___1_value, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_SetColorImpl_mC2AF99ED12166A5219C0E8B79D0D17C0FCFC0E3D (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, Color_tD001788D726C3A7F1379BEED0260B9591F440C1F ___1_value, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_SetTextureImpl_mC5772481EBD0F0A488C564B424446514DF34CBD9 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, Texture_t791CBB51219779964E0E8A2ED7C1AA5F92A4A700* ___1_value, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR float Material_GetFloatImpl_m39798817949E201E1CF85DBBD416C746F3D64794 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, const RuntimeMethod* method) ;
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Color_tD001788D726C3A7F1379BEED0260B9591F440C1F Material_GetColorImpl_m44455DBA8C6391B5638D11934B8E4CC0713B4EFF (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Texture_t791CBB51219779964E0E8A2ED7C1AA5F92A4A700* Material_GetTextureImpl_m0363E7A333009D2FBEEBA51FC5D6E219563FF288 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Light_get_color_Injected_m7B1E67B800788DF5DAF6C3114CBACA3B029A900A (Light_t1E68479B7782AF2050FAA02A5DC612FD034F18F3* __this, Color_tD001788D726C3A7F1379BEED0260B9591F440C1F* ___0_ret, const RuntimeMethod* method) ;
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Light_get_bakingOutput_Injected_m587C60162C878716DF9310258756C2F587E35185 (Light_t1E68479B7782AF2050FAA02A5DC612FD034F18F3* __this, LightBakingOutput_t6212AB0B6B34C94F1982FE964FC48201854B5B90* ___0_ret, const RuntimeMethod* method) ;
@@ -7185,6 +7191,74 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR String_t* Application_get_absoluteURL_m7B3AC0
 	_il2cpp_icall_func = (Application_get_absoluteURL_m7B3AC06DEEC40D224CF33271EC046368A9EC8FAD_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.Application::get_absoluteURL()");
 	String_t* icallRetVal = _il2cpp_icall_func();
 	return icallRetVal;
+}
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Application_ExternalEval_mA50995C00123ABBE75E6E3213CAED04895023FE9 (String_t* ___0_script, const RuntimeMethod* method) 
+{
+	static bool s_Il2CppMethodInitialized;
+	if (!s_Il2CppMethodInitialized)
+	{
+		il2cpp_codegen_initialize_runtime_metadata((uintptr_t*)&Application_tDB03BE91CDF0ACA614A5E0B67CFB77C44EB19B21_il2cpp_TypeInfo_var);
+		il2cpp_codegen_initialize_runtime_metadata((uintptr_t*)&_stringLiteral951CCB49640C8F9E81FB4E0D82730321F4E15BB3);
+		s_Il2CppMethodInitialized = true;
+	}
+	bool V_0 = false;
+	int32_t G_B3_0 = 0;
+	{
+		String_t* L_0 = ___0_script;
+		int32_t L_1;
+		L_1 = String_get_Length_m42625D67623FA5CC7A44D47425CE86FB946542D2_inline(L_0, NULL);
+		if ((((int32_t)L_1) <= ((int32_t)0)))
+		{
+			goto IL_0021;
+		}
+	}
+	{
+		String_t* L_2 = ___0_script;
+		String_t* L_3 = ___0_script;
+		int32_t L_4;
+		L_4 = String_get_Length_m42625D67623FA5CC7A44D47425CE86FB946542D2_inline(L_3, NULL);
+		Il2CppChar L_5;
+		L_5 = String_get_Chars_mC49DF0CD2D3BE7BE97B3AD9C995BE3094F8E36D3(L_2, ((int32_t)il2cpp_codegen_subtract(L_4, 1)), NULL);
+		G_B3_0 = ((((int32_t)((((int32_t)L_5) == ((int32_t)((int32_t)59)))? 1 : 0)) == ((int32_t)0))? 1 : 0);
+		goto IL_0022;
+	}
+
+IL_0021:
+	{
+		G_B3_0 = 0;
+	}
+
+IL_0022:
+	{
+		V_0 = (bool)G_B3_0;
+		bool L_6 = V_0;
+		if (!L_6)
+		{
+			goto IL_0033;
+		}
+	}
+	{
+		String_t* L_7 = ___0_script;
+		String_t* L_8;
+		L_8 = String_Concat_m9E3155FB84015C823606188F53B47CB44C444991(L_7, _stringLiteral951CCB49640C8F9E81FB4E0D82730321F4E15BB3, NULL);
+		___0_script = L_8;
+	}
+
+IL_0033:
+	{
+		String_t* L_9 = ___0_script;
+		il2cpp_codegen_runtime_class_init_inline(Application_tDB03BE91CDF0ACA614A5E0B67CFB77C44EB19B21_il2cpp_TypeInfo_var);
+		Application_Internal_ExternalCall_m7F811353BC9ADF24B38D9D587F9676297576505A(L_9, NULL);
+		return;
+	}
+}
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Application_Internal_ExternalCall_m7F811353BC9ADF24B38D9D587F9676297576505A (String_t* ___0_script, const RuntimeMethod* method) 
+{
+	typedef void (*Application_Internal_ExternalCall_m7F811353BC9ADF24B38D9D587F9676297576505A_ftn) (String_t*);
+	static Application_Internal_ExternalCall_m7F811353BC9ADF24B38D9D587F9676297576505A_ftn _il2cpp_icall_func;
+	if (!_il2cpp_icall_func)
+	_il2cpp_icall_func = (Application_Internal_ExternalCall_m7F811353BC9ADF24B38D9D587F9676297576505A_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.Application::Internal_ExternalCall(System.String)");
+	_il2cpp_icall_func(___0_script);
 }
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Application_OpenURL_mE748FA4D503715DEE12BCA4BDD8A5305AE41DB89 (String_t* ___0_url, const RuntimeMethod* method) 
 {
@@ -17872,6 +17946,52 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_set_shader_mBD3A0D9AB14DE2F7CD5
 	_il2cpp_icall_func = (Material_set_shader_mBD3A0D9AB14DE2F7CD5F2775E9AD58E15424C171_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.Material::set_shader(UnityEngine.Shader)");
 	_il2cpp_icall_func(__this, ___0_value);
 }
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Color_tD001788D726C3A7F1379BEED0260B9591F440C1F Material_get_color_mA4B7D4B96200D9D8B4F36BF19957E9DA81071DBB (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, const RuntimeMethod* method) 
+{
+	static bool s_Il2CppMethodInitialized;
+	if (!s_Il2CppMethodInitialized)
+	{
+		il2cpp_codegen_initialize_runtime_metadata((uintptr_t*)&_stringLiteral47A3FAF17D89549FD0F0ECA7370B81F7C80DFCDE);
+		s_Il2CppMethodInitialized = true;
+	}
+	int32_t V_0 = 0;
+	bool V_1 = false;
+	Color_tD001788D726C3A7F1379BEED0260B9591F440C1F V_2;
+	memset((&V_2), 0, sizeof(V_2));
+	{
+		int32_t L_0;
+		L_0 = Material_GetFirstPropertyNameIdByAttribute_mCBB72749633F7B8A879D33F0B34DB4F54F8C2439(__this, ((int32_t)256), NULL);
+		V_0 = L_0;
+		int32_t L_1 = V_0;
+		V_1 = (bool)((((int32_t)((((int32_t)L_1) < ((int32_t)0))? 1 : 0)) == ((int32_t)0))? 1 : 0);
+		bool L_2 = V_1;
+		if (!L_2)
+		{
+			goto IL_0022;
+		}
+	}
+	{
+		int32_t L_3 = V_0;
+		Color_tD001788D726C3A7F1379BEED0260B9591F440C1F L_4;
+		L_4 = Material_GetColor_mCCC62F29234C5D2D9B19EE2D7DA46A4573AFA765(__this, L_3, NULL);
+		V_2 = L_4;
+		goto IL_0030;
+	}
+
+IL_0022:
+	{
+		Color_tD001788D726C3A7F1379BEED0260B9591F440C1F L_5;
+		L_5 = Material_GetColor_mAC702C70081A597DD2AA2F4627B1A1C65DDF6609(__this, _stringLiteral47A3FAF17D89549FD0F0ECA7370B81F7C80DFCDE, NULL);
+		V_2 = L_5;
+		goto IL_0030;
+	}
+
+IL_0030:
+	{
+		Color_tD001788D726C3A7F1379BEED0260B9591F440C1F L_6 = V_2;
+		return L_6;
+	}
+}
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_set_color_m5C32DEBB215FF9EE35E7B575297D8C2F29CC2A2D (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, Color_tD001788D726C3A7F1379BEED0260B9591F440C1F ___0_value, const RuntimeMethod* method) 
 {
 	static bool s_Il2CppMethodInitialized;
@@ -18143,6 +18263,17 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR float Material_GetFloatImpl_m39798817949E201E
 	float icallRetVal = _il2cpp_icall_func(__this, ___0_name);
 	return icallRetVal;
 }
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Color_tD001788D726C3A7F1379BEED0260B9591F440C1F Material_GetColorImpl_m44455DBA8C6391B5638D11934B8E4CC0713B4EFF (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, const RuntimeMethod* method) 
+{
+	Color_tD001788D726C3A7F1379BEED0260B9591F440C1F V_0;
+	memset((&V_0), 0, sizeof(V_0));
+	{
+		int32_t L_0 = ___0_name;
+		Material_GetColorImpl_Injected_mC524E0342AAF07A17E22CDBA0FAA0BAC0689CED4(__this, L_0, (&V_0), NULL);
+		Color_tD001788D726C3A7F1379BEED0260B9591F440C1F L_1 = V_0;
+		return L_1;
+	}
+}
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Texture_t791CBB51219779964E0E8A2ED7C1AA5F92A4A700* Material_GetTextureImpl_m0363E7A333009D2FBEEBA51FC5D6E219563FF288 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, const RuntimeMethod* method) 
 {
 	typedef Texture_t791CBB51219779964E0E8A2ED7C1AA5F92A4A700* (*Material_GetTextureImpl_m0363E7A333009D2FBEEBA51FC5D6E219563FF288_ftn) (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3*, int32_t);
@@ -18218,6 +18349,44 @@ IL_000b:
 		return L_2;
 	}
 }
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Color_tD001788D726C3A7F1379BEED0260B9591F440C1F Material_GetColor_mAC702C70081A597DD2AA2F4627B1A1C65DDF6609 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, String_t* ___0_name, const RuntimeMethod* method) 
+{
+	Color_tD001788D726C3A7F1379BEED0260B9591F440C1F V_0;
+	memset((&V_0), 0, sizeof(V_0));
+	{
+		String_t* L_0 = ___0_name;
+		int32_t L_1;
+		L_1 = Shader_PropertyToID_mE98523D50F5656CAE89B30695C458253EB8956CA(L_0, NULL);
+		Color_tD001788D726C3A7F1379BEED0260B9591F440C1F L_2;
+		L_2 = Material_GetColorImpl_m44455DBA8C6391B5638D11934B8E4CC0713B4EFF(__this, L_1, NULL);
+		V_0 = L_2;
+		goto IL_0010;
+	}
+
+IL_0010:
+	{
+		Color_tD001788D726C3A7F1379BEED0260B9591F440C1F L_3 = V_0;
+		return L_3;
+	}
+}
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Color_tD001788D726C3A7F1379BEED0260B9591F440C1F Material_GetColor_mCCC62F29234C5D2D9B19EE2D7DA46A4573AFA765 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_nameID, const RuntimeMethod* method) 
+{
+	Color_tD001788D726C3A7F1379BEED0260B9591F440C1F V_0;
+	memset((&V_0), 0, sizeof(V_0));
+	{
+		int32_t L_0 = ___0_nameID;
+		Color_tD001788D726C3A7F1379BEED0260B9591F440C1F L_1;
+		L_1 = Material_GetColorImpl_m44455DBA8C6391B5638D11934B8E4CC0713B4EFF(__this, L_0, NULL);
+		V_0 = L_1;
+		goto IL_000b;
+	}
+
+IL_000b:
+	{
+		Color_tD001788D726C3A7F1379BEED0260B9591F440C1F L_2 = V_0;
+		return L_2;
+	}
+}
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR Texture_t791CBB51219779964E0E8A2ED7C1AA5F92A4A700* Material_GetTexture_mBA07A377A7DDD29CD53E6F687DE6D49A42C0C719 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, String_t* ___0_name, const RuntimeMethod* method) 
 {
 	Texture_t791CBB51219779964E0E8A2ED7C1AA5F92A4A700* V_0 = NULL;
@@ -18261,6 +18430,14 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_SetColorImpl_Injected_m7AF196BB
 	if (!_il2cpp_icall_func)
 	_il2cpp_icall_func = (Material_SetColorImpl_Injected_m7AF196BB00E62E5B47067FD643740884C692694A_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.Material::SetColorImpl_Injected(System.Int32,UnityEngine.Color&)");
 	_il2cpp_icall_func(__this, ___0_name, ___1_value);
+}
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Material_GetColorImpl_Injected_mC524E0342AAF07A17E22CDBA0FAA0BAC0689CED4 (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3* __this, int32_t ___0_name, Color_tD001788D726C3A7F1379BEED0260B9591F440C1F* ___1_ret, const RuntimeMethod* method) 
+{
+	typedef void (*Material_GetColorImpl_Injected_mC524E0342AAF07A17E22CDBA0FAA0BAC0689CED4_ftn) (Material_t18053F08F347D0DCA5E1140EC7EC4533DD8A14E3*, int32_t, Color_tD001788D726C3A7F1379BEED0260B9591F440C1F*);
+	static Material_GetColorImpl_Injected_mC524E0342AAF07A17E22CDBA0FAA0BAC0689CED4_ftn _il2cpp_icall_func;
+	if (!_il2cpp_icall_func)
+	_il2cpp_icall_func = (Material_GetColorImpl_Injected_mC524E0342AAF07A17E22CDBA0FAA0BAC0689CED4_ftn)il2cpp_codegen_resolve_icall ("UnityEngine.Material::GetColorImpl_Injected(System.Int32,UnityEngine.Color&)");
+	_il2cpp_icall_func(__this, ___0_name, ___1_ret);
 }
 #ifdef __clang__
 #pragma clang diagnostic pop

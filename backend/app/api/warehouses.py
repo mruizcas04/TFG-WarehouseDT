@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
-from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem, Box, Product, Task, TaskStatus
+from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem, Box, Product, Category, Task, TaskStatus
 from app.schemas.schemas import (
     WarehouseCreate, WarehouseNameUpdate, WarehouseResponse, WarehouseFullResponse,
     ShelfFullResponse, LevelFullResponse, LocationFullResponse,
@@ -167,6 +167,12 @@ async def get_warehouse_full(
         products_result = await db.execute(select(Product).where(Product.id.in_(all_product_ids)))
         products_by_id = {p.id: p for p in products_result.scalars().all()}
 
+    category_ids = list({p.category_id for p in products_by_id.values() if p.category_id})
+    categories_by_id = {}
+    if category_ids:
+        categories_result = await db.execute(select(Category).where(Category.id.in_(category_ids)))
+        categories_by_id = {c.id: c for c in categories_result.scalars().all()}
+
     inventory_by_location = {item.location_id: item for item in inventory_items}
     locations_by_level = {}
     for loc in locations:
@@ -187,10 +193,14 @@ async def get_warehouse_full(
                     effective_product_id = inv.product_id or (box.product_id if box else None)
                     product = products_by_id.get(effective_product_id) if effective_product_id else None
                     effective_quantity = inv.quantity if inv.product_id else (box.current_quantity if box else None)
+                    category = categories_by_id.get(product.category_id) if product and product.category_id else None
                     inventory_dto = InventoryItemFullResponse(
                         id=inv.id,
                         product_id=inv.product_id,
                         product_name=product.name if product else None,
+                        product_barcode=product.barcode if product else None,
+                        product_category=category.name if category else None,
+                        product_category_color=category.color if category else None,
                         box_id=inv.box_id,
                         quantity=effective_quantity,
                         box_current_quantity=box.current_quantity if box else None,

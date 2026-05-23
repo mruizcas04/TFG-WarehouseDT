@@ -29,7 +29,11 @@
       "PowerShell(docker exec -i $\\(docker ps --filter \"publish=5434\" --format \"{{.Names}}\"\\) psql -U warehouse_user -d warehouse_db -c \"DELETE FROM users WHERE email = 'mruizcas04@gmail.com'; SELECT 'borrado' as resultado;\")",
       "PowerShell(docker exec -i $\\(docker ps --filter \"publish=5434\" --format \"{{.Names}}\"\\) psql -U warehouse_user -d warehouse_db -c \"DELETE FROM users WHERE email = 'mruizcas04@gmail.com';\")",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\mruiz\\\\TFG\" -Force)",
-      "Bash(Select-Object -Property Name, Mode)"
+      "Bash(Select-Object -Property Name, Mode)",
+      "Bash(xargs grep -l \"OnMouseEnter\\\\|OnMouseExit\\\\|EventTrigger\\\\|PointerEnter\\\\|PointerExit\")",
+      "Bash(xargs grep -l \"Canvas\\\\|RectTransform\\\\|GraphicRaycaster\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\mruiz\\\\TFG\\\\frontend-web\" -Force)",
+      "Bash(Select-Object Name, Mode)"
     ]
   }
 }

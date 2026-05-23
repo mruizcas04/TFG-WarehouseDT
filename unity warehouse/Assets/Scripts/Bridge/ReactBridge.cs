@@ -20,6 +20,9 @@ namespace WarehouseTwin.Bridge
         // Singleton
         public static ReactBridge Instance { get; private set; }
 
+        private bool _selectionMode = false;
+        public bool IsInSelectionMode => _selectionMode;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -100,6 +103,46 @@ namespace WarehouseTwin.Bridge
 
             foreach (string locationId in payload.locationIds)
                 warehouseGenerator.ClearTaskHighlight(locationId);
+        }
+
+        public void EnterLocationSelectionMode(string filterJson)
+        {
+            _selectionMode = true;
+            SetFilter(filterJson);
+        }
+
+        public void ExitLocationSelectionMode(string _)
+        {
+            _selectionMode = false;
+            warehouseGenerator.ApplyFilter("all");
+        }
+
+        public static void NotifyLocationSelected(string locationId, string locationLabel)
+        {
+            if (Instance == null || !Instance._selectionMode) return;
+            string payload = (locationId + "|" + locationLabel).Replace("'", "\\'");
+#pragma warning disable CS0618
+            Application.ExternalEval($"if(window.onUnityLocationSelected){{window.onUnityLocationSelected('{payload}');}}");
+#pragma warning restore CS0618
+        }
+
+        public void SetSelectionHighlight(string locationId)
+        {
+            LocationObject loc = FindLocationObject(locationId);
+            if (loc != null) loc.SetSelectionHighlight(true);
+        }
+
+        public void ClearSelectionHighlight(string locationId)
+        {
+            LocationObject loc = FindLocationObject(locationId);
+            if (loc != null) loc.SetSelectionHighlight(false);
+        }
+
+        private LocationObject FindLocationObject(string locationId)
+        {
+            foreach (LocationObject loc in FindObjectsOfType<LocationObject>())
+                if (loc.LocationId == locationId) return loc;
+            return null;
         }
 
         // React llama a este método para aplicar un filtro visual.

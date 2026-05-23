@@ -9,6 +9,9 @@ namespace WarehouseTwin.Data
         public string id;
         public string product_id;
         public string product_name;
+        public string product_barcode;
+        public string product_category;
+        public string product_category_color;
         public string box_id;
         public int? quantity;
     }

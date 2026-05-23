@@ -97,13 +97,22 @@ function LocationPicker({ allLocations, value, onChange, label }) {
     }
   }, [aisle, shelf, level, pos])
 
-  useEffect(() => { if (!value) { setAisle(''); setShelf(''); setLevel(''); setPos('') } }, [value])
+  useEffect(() => {
+    if (!value) { setAisle(''); setShelf(''); setLevel(''); setPos(''); return }
+    const loc = allLocations.find(l => l.id === value)
+    if (loc) {
+      setAisle(String(loc.aisle_number))
+      setShelf(String(loc.shelf_number))
+      setLevel(String(loc.level_number))
+      setPos(String(loc.position_number))
+    }
+  }, [value, allLocations])
 
   const preview = (aisle && shelf && level && pos) ? `F${aisle} · Est. ${shelf} · Balda ${level} · Hueco ${pos}` : null
 
   return (
     <div>
-      <label style={labelStyle}>{label}</label>
+      {label && <label style={labelStyle}>{label}</label>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
         {[
           { label: 'Fila', value: aisle, options: shelves, onChange: v => { setAisle(v); setShelf(''); setLevel(''); setPos('') }, disabled: false },
@@ -125,19 +134,6 @@ function LocationPicker({ allLocations, value, onChange, label }) {
   )
 }
 
-function QuantityTypeBadge({ quantity }) {
-  if (!quantity || quantity <= 1) return null
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: '4px',
-      background: '#E8EEFF', color: '#2244AA',
-      padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500',
-    }}>
-      <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#3366CC', flexShrink: 0 }} />
-      Caja
-    </span>
-  )
-}
 
 function LocationInventoryInfo({ inventory, products, boxes }) {
   if (!inventory) return <span style={{ fontSize: '12px', color: '#B4B2A9' }}>Vacía</span>
@@ -150,7 +146,7 @@ function LocationInventoryInfo({ inventory, products, boxes }) {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#E8EEFF', color: '#2244AA', padding: '3px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '500' }}>
         <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#3366CC', flexShrink: 0 }} />
-        Caja · {productName} · {qty}/{max} ud.
+        {productName} · {qty}/{max} ud.
       </span>
     )
   }
@@ -211,7 +207,13 @@ function TypeArrow({ type }) {
   )
 }
 
-export default function TasksSection() {
+const twinButtonStyle = {
+  background: '#F1EFE8', color: '#185FA5', border: '0.5px solid #D3D1C7',
+  borderRadius: '8px', padding: '7px 12px', fontSize: '12px', cursor: 'pointer',
+  marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+}
+
+export default function TasksSection({ onRequestLocationSelection }) {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
@@ -279,14 +281,39 @@ export default function TasksSection() {
   const workers = users?.filter(u => u.role === 'worker')
   const needsOrigin = form.type === 'salida' || form.type === 'traslado'
   const needsDestination = form.type === 'entrada' || form.type === 'traslado'
-  const needsQuantity = form.type === 'entrada' || form.type === 'salida'
+  const needsQuantity = form.type === 'entrada' || form.type === 'salida' || form.type === 'traslado'
 
   const originInv = originLocation?.inventory
-  const originBoxMaxQty = originInv?.box_id
+  const originMaxQty = originInv?.box_id
     ? (originInv.box_current_quantity ?? boxes?.find(b => b.id === originInv.box_id)?.current_quantity)
+    : originInv?.product_id
+    ? originInv.quantity
     : null
 
   const quantity = Number(form.quantity) || 0
+
+  const validateDestination = (locationId) => {
+    const loc = allLocations.find(l => l.id === locationId)
+    if (!loc) return 'Ubicación no encontrada'
+    if (loc.inventory) return 'Esta ubicación ya está ocupada'
+    const hasTask = tasks?.some(t =>
+      t.status !== 'completada' &&
+      (t.destination_location_id === locationId || t.origin_location_id === locationId)
+    )
+    if (hasTask) return 'Esta ubicación ya tiene una tarea activa asignada'
+    return null
+  }
+
+  const validateOrigin = (locationId) => {
+    const loc = allLocations.find(l => l.id === locationId)
+    if (!loc) return 'Ubicación no encontrada'
+    const hasTask = tasks?.some(t =>
+      t.status !== 'completada' &&
+      (t.destination_location_id === locationId || t.origin_location_id === locationId)
+    )
+    if (hasTask) return 'Esta ubicación ya tiene una tarea activa asignada'
+    return null
+  }
 
   const createMutation = useMutation({
     mutationFn: createTask,
@@ -417,11 +444,26 @@ export default function TasksSection() {
 
           {needsOrigin && (
             <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Ubicación origen</label>
+                <button
+                  type="button"
+                  style={{ ...twinButtonStyle, marginTop: 0 }}
+                  onClick={() => {
+                    onRequestLocationSelection?.('origin', { type: 'all' }, (locationId) => {
+                      const loc = allLocations.find(l => l.id === locationId)
+                      handleOriginChange(locationId, loc || null)
+                    }, validateOrigin)
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.1"/><path d="M3.5 5.5h4M5.5 3.5v4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>
+                  Seleccionar en almacén 3D
+                </button>
+              </div>
               <LocationPicker
                 allLocations={allLocations}
                 value={form.origin_location_id}
                 onChange={handleOriginChange}
-                label="Ubicación origen"
               />
               {form.origin_location_id && (
                 <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -450,40 +492,48 @@ export default function TasksSection() {
           {needsQuantity && (
             <div>
               <label style={labelStyle}>
-                {form.type === 'entrada' ? 'Cantidad a introducir' : 'Unidades a extraer'}
-                {originBoxMaxQty != null && form.type === 'salida' && (
-                  <span style={{ color: '#B4B2A9', fontWeight: '400', marginLeft: '6px' }}>máx. {originBoxMaxQty}</span>
+                {form.type === 'entrada' ? 'Cantidad a introducir' : form.type === 'traslado' ? 'Unidades a trasladar' : 'Unidades a extraer'}
+                {originMaxQty != null && (form.type === 'salida' || form.type === 'traslado') && (
+                  <span style={{ color: '#B4B2A9', fontWeight: '400', marginLeft: '6px' }}>máx. {originMaxQty}</span>
                 )}
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <input
                   type="number"
                   min="1"
-                  max={form.type === 'salida' && originBoxMaxQty != null ? originBoxMaxQty : undefined}
+                  max={(form.type === 'salida' || form.type === 'traslado') && originMaxQty != null ? originMaxQty : undefined}
                   value={form.quantity}
                   onChange={e => updateForm({ quantity: e.target.value })}
                   placeholder="1"
                   style={{ ...inputStyle, width: '120px' }}
                 />
-                <QuantityTypeBadge quantity={quantity} />
-                {quantity > 1 && (
-                  <span style={{ fontSize: '11px', color: '#888780' }}>
-                    {form.type === 'entrada'
-                      ? 'Se almacenará como caja en el gemelo digital'
-                      : 'Extracción parcial de caja'}
-                  </span>
-                )}
               </div>
             </div>
           )}
 
           {needsDestination && (
-            <LocationPicker
-              allLocations={allLocations}
-              value={form.destination_location_id}
-              onChange={v => updateForm({ destination_location_id: v })}
-              label="Ubicación destino"
-            />
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Ubicación destino</label>
+                <button
+                  type="button"
+                  style={{ ...twinButtonStyle, marginTop: 0 }}
+                  onClick={() => {
+                    onRequestLocationSelection?.('destination', { type: 'all' }, (locationId) => {
+                      updateForm({ destination_location_id: locationId })
+                    }, validateDestination)
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.1"/><path d="M3.5 5.5h4M5.5 3.5v4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>
+                  Seleccionar en almacén 3D
+                </button>
+              </div>
+              <LocationPicker
+                allLocations={allLocations}
+                value={form.destination_location_id}
+                onChange={v => updateForm({ destination_location_id: v })}
+              />
+            </div>
           )}
 
           {formError && (
@@ -578,10 +628,9 @@ export default function TasksSection() {
                               {product.category.name}
                             </span>
                           )}
-                          {task.quantity > 1 && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#E8EEFF', color: '#2244AA', padding: '2px 7px', borderRadius: '20px', fontSize: '11px', width: 'fit-content' }}>
-                              <BoxIcon />
-                              Caja · {task.quantity} ud.
+                          {task.quantity != null && (
+                            <span style={{ fontSize: '12px', color: '#888780' }}>
+                              {task.quantity} {task.quantity === 1 ? 'unidad' : 'unidades'}
                             </span>
                           )}
                         </div>

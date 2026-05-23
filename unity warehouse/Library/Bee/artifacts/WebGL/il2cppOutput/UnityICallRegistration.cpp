@@ -162,6 +162,10 @@ void RegisterAllStrippedInternalCalls()
 		void Register_UnityEngine_Application_get_absoluteURL();
 		Register_UnityEngine_Application_get_absoluteURL();
 
+		//System.Void UnityEngine.Application::Internal_ExternalCall(System.String)
+		void Register_UnityEngine_Application_Internal_ExternalCall();
+		Register_UnityEngine_Application_Internal_ExternalCall();
+
 		//System.Void UnityEngine.Application::OpenURL(System.String)
 		void Register_UnityEngine_Application_OpenURL();
 		Register_UnityEngine_Application_OpenURL();
@@ -1485,6 +1489,10 @@ void RegisterAllStrippedInternalCalls()
 		//System.Void UnityEngine.Material::EnableKeyword(System.String)
 		void Register_UnityEngine_Material_EnableKeyword();
 		Register_UnityEngine_Material_EnableKeyword();
+
+		//System.Void UnityEngine.Material::GetColorImpl_Injected(System.Int32,UnityEngine.Color&)
+		void Register_UnityEngine_Material_GetColorImpl_Injected();
+		Register_UnityEngine_Material_GetColorImpl_Injected();
 
 		//System.Void UnityEngine.Material::SetColorImpl_Injected(System.Int32,UnityEngine.Color&)
 		void Register_UnityEngine_Material_SetColorImpl_Injected();

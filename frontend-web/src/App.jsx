@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import VerifyEmail from './pages/VerifyEmail'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import WelcomePage from './pages/WelcomePage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 const queryClient = new QueryClient()
@@ -15,6 +16,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
+          <Route path="/welcome" element={<WelcomePage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
@@ -28,7 +30,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/welcome" replace />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

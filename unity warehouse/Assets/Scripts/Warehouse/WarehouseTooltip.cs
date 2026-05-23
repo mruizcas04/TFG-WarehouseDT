@@ -111,7 +111,7 @@ namespace WarehouseTwin.Warehouse
             }
         }
 
-        public void Show(string locationLabel, string productName, int quantity, string taskInfo, LocationState state)
+        public void Show(string locationLabel, string productName, int quantity, string taskInfo, LocationState state, string barcode = "", string category = "", string categoryColor = "")
         {
             if (_borderRect == null) return;
 
@@ -119,32 +119,44 @@ namespace WarehouseTwin.Warehouse
             string label = string.IsNullOrEmpty(locationLabel) ? "—" : locationLabel.ToUpper();
             string content = $"<size=13><color={HexText}>{label}</color></size>";
 
-            // Line 2 — product / state (12px, dark)
+            // Line 2 — product name · barcode / state (12px, dark)
             // Box locations have box_id but no product_id → productName="" and quantity=0;
             // use state to detect them. Task-destino vacío → state=Task pero sin inventario → "Libre".
             bool hasInventory = !string.IsNullOrEmpty(productName)
                              || quantity > 0
                              || state == LocationState.Box
                              || state == LocationState.Product;
-            string line2;
+            string namePart;
             if (!string.IsNullOrEmpty(productName))
-                line2 = productName;
+                namePart = productName;
             else if (hasInventory)
-                line2 = "Ocupado";
+                namePart = "Ocupado";
             else
-                line2 = "Libre";
+                namePart = "Libre";
+
+            string line2 = !string.IsNullOrEmpty(barcode) && !string.IsNullOrEmpty(productName)
+                ? $"{namePart} · {barcode}"
+                : namePart;
             content += $"\n<size=12><color={HexText}>{line2}</color></size>";
 
             int lineCount = 2;
 
-            // Line 3 — quantity (11px, gray)
+            // Line 3 — category with its color (11px)
+            if (!string.IsNullOrEmpty(category))
+            {
+                string hexColor = !string.IsNullOrEmpty(categoryColor) ? categoryColor : HexGray;
+                content += $"\n<size=11><color={hexColor}>{category}</color></size>";
+                lineCount++;
+            }
+
+            // Line 4 — quantity (11px, gray)
             if (quantity > 0)
             {
                 content += $"\n<size=11><color={HexGray}>{quantity} unidades</color></size>";
                 lineCount++;
             }
 
-            // Line 4 — active task (11px, amber)
+            // Line 5 — active task (11px, amber)
             if (!string.IsNullOrEmpty(taskInfo))
             {
                 content += $"\n<size=11><color={HexAmber}>⚑ {taskInfo}</color></size>";

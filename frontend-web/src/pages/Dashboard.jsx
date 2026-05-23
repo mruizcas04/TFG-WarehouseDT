@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import HomeSection from './sections/HomeSection'
@@ -38,12 +38,66 @@ const menuItems = [
 export default function Dashboard() {
   const [activeSection, setActiveSection] = useState('home')
   const [warehouseLoaded, setWarehouseLoaded] = useState(false)
+  // { field, filter, resolve, validate }
+  const [pendingLocationSelection, setPendingLocationSelection] = useState(null)
+  // { locationId, locationLabel, error: string|null }
+  const [selectedLocationPreview, setSelectedLocationPreview] = useState(null)
+  const digitalTwinRef = useRef(null)
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
 
   useEffect(() => {
     if (activeSection === 'warehouse') setWarehouseLoaded(true)
   }, [activeSection])
+
+  useEffect(() => {
+    if (!pendingLocationSelection || !warehouseLoaded) return
+    digitalTwinRef.current?.enterSelectionMode(pendingLocationSelection.filter)
+  }, [pendingLocationSelection, warehouseLoaded])
+
+  const handleRequestLocationSelection = (field, filter, resolve, validate) => {
+    setSelectedLocationPreview(null)
+    setPendingLocationSelection({ field, filter, resolve, validate })
+    setWarehouseLoaded(true)
+  }
+
+  const handleLocationSelected = (locationId, locationLabel) => {
+    if (!pendingLocationSelection) return
+    if (selectedLocationPreview && !selectedLocationPreview.error) {
+      digitalTwinRef.current?.clearSelectionHighlight(selectedLocationPreview.locationId)
+    }
+    const error = pendingLocationSelection.validate?.(locationId) ?? null
+    if (!error) {
+      digitalTwinRef.current?.highlightSelection(locationId)
+      setTimeout(() => digitalTwinRef.current?.highlightSelection(locationId), 150)
+    }
+    setSelectedLocationPreview({ locationId, locationLabel, error })
+  }
+
+  const handleConfirmLocation = () => {
+    if (!pendingLocationSelection || !selectedLocationPreview || selectedLocationPreview.error) return
+    digitalTwinRef.current?.clearSelectionHighlight(selectedLocationPreview.locationId)
+    digitalTwinRef.current?.exitSelectionMode()
+    pendingLocationSelection.resolve(selectedLocationPreview.locationId, selectedLocationPreview.locationLabel)
+    setSelectedLocationPreview(null)
+    setPendingLocationSelection(null)
+  }
+
+  const handleDeselectLocation = () => {
+    if (selectedLocationPreview && !selectedLocationPreview.error) {
+      digitalTwinRef.current?.clearSelectionHighlight(selectedLocationPreview.locationId)
+    }
+    setSelectedLocationPreview(null)
+  }
+
+  const handleCancelLocationSelection = () => {
+    if (selectedLocationPreview && !selectedLocationPreview.error) {
+      digitalTwinRef.current?.clearSelectionHighlight(selectedLocationPreview.locationId)
+    }
+    digitalTwinRef.current?.exitSelectionMode()
+    setSelectedLocationPreview(null)
+    setPendingLocationSelection(null)
+  }
 
   const handleLogout = () => {
     logout()
@@ -54,14 +108,12 @@ export default function Dashboard() {
     switch (activeSection) {
       case 'home': return <HomeSection />
       case 'products': return <ProductsSection />
-      case 'tasks': return <TasksSection />
+      case 'tasks': return <TasksSection onRequestLocationSelection={handleRequestLocationSelection} />
       case 'movements': return <MovementsSection />
       case 'users': return <UsersSection />
       default: return null
     }
   }
-
-  const sectionTitle = menuItems.find(i => i.id === activeSection)?.label
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#F8F8F6' }}>
@@ -127,17 +179,49 @@ export default function Dashboard() {
 
       {/* Main */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-        {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '28px' }}>
+
+          {/* WarehouseSection: siempre montada una vez cargada.
+              Cuando hay pendingLocationSelection, el contenedor cambia a position:fixed
+              para actuar como modal — Unity no se remonta porque es el mismo nodo DOM. */}
           {warehouseLoaded && (
-            <div style={{ display: activeSection === 'warehouse' ? 'block' : 'none' }}>
-              <WarehouseSection />
+            <div style={
+              pendingLocationSelection
+                ? {
+                    position: 'fixed', top: '50%', left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 1000,
+                    width: 'min(820px, calc(100vw - 32px))',
+                    height: 'min(560px, calc(100vh - 60px))',
+                    background: 'white', borderRadius: '16px',
+                    boxShadow: '0 24px 60px rgba(0,0,0,0.28)',
+                    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                  }
+                : { display: activeSection === 'warehouse' ? 'block' : 'none' }
+            }>
+              <WarehouseSection
+                digitalTwinRef={digitalTwinRef}
+                onLocationSelected={handleLocationSelected}
+                selectionModeConfig={pendingLocationSelection}
+                selectedLocationPreview={selectedLocationPreview}
+                onConfirmLocation={handleConfirmLocation}
+                onDeselectLocation={handleDeselectLocation}
+                onCancelSelection={handleCancelLocationSelection}
+              />
             </div>
           )}
+
           {activeSection !== 'warehouse' && renderSection()}
         </div>
       </main>
+
+      {/* Backdrop semitransparente cuando el modal de selección está abierto */}
+      {pendingLocationSelection && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(28,28,26,0.48)' }}
+          onClick={handleCancelLocationSelection}
+        />
+      )}
     </div>
   )
 }

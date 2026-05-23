@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 
-const DigitalTwin = forwardRef(({ warehouseId, token }, ref) => {
+const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, containerStyle }, ref) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const unityInstanceRef = useRef(null);
@@ -17,7 +17,27 @@ const DigitalTwin = forwardRef(({ warehouseId, token }, ref) => {
         unityInstanceRef.current.SendMessage("WarehouseManager", "SetFilter", JSON.stringify({ type: "product_id", value: productId }));
       }
     },
+    enterSelectionMode(filter) {
+      unityInstanceRef.current?.SendMessage("WarehouseManager", "EnterLocationSelectionMode", JSON.stringify(filter));
+    },
+    exitSelectionMode() {
+      unityInstanceRef.current?.SendMessage("WarehouseManager", "ExitLocationSelectionMode", "");
+    },
+    highlightSelection(locationId) {
+      unityInstanceRef.current?.SendMessage("WarehouseManager", "SetSelectionHighlight", locationId);
+    },
+    clearSelectionHighlight(locationId) {
+      unityInstanceRef.current?.SendMessage("WarehouseManager", "ClearSelectionHighlight", locationId);
+    },
   }));
+
+  useEffect(() => {
+    window.onUnityLocationSelected = (data) => {
+      const [locationId, locationLabel] = data.split('|');
+      if (onLocationSelected) onLocationSelected(locationId, locationLabel);
+    };
+    return () => { delete window.onUnityLocationSelected; };
+  }, [onLocationSelected]);
 
 useEffect(() => {
   if (scriptLoadedRef.current) return;
@@ -82,7 +102,7 @@ useEffect(() => {
   }, [warehouseId, token]);
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "500px", borderRadius: "12px", overflow: "hidden", background: "#1a1a2e" }}>
+    <div style={{ position: "relative", width: "100%", height: "500px", borderRadius: "12px", overflow: "hidden", background: "#1a1a2e", ...containerStyle }}>
       <canvas
         id="unity-canvas"
         style={{ width: "100%", height: "100%" }}

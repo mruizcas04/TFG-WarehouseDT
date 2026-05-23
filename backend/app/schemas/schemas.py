@@ -94,6 +94,9 @@ class InventoryItemFullResponse(BaseModel):
     id: UUID
     product_id: Optional[UUID]
     product_name: Optional[str] = None
+    product_barcode: Optional[str] = None
+    product_category: Optional[str] = None
+    product_category_color: Optional[str] = None
     box_id: Optional[UUID]
     quantity: Optional[int]
     box_current_quantity: Optional[int] = None
