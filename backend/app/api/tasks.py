@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete as sql_delete
 from app.db.database import get_db
-from app.models.models import User, Task, InventoryItem, Box, TaskStatus, Movement
+from app.models.models import User, Task, InventoryItem, Box, TaskStatus, Movement, Product
 from app.schemas.schemas import TaskCreate, TaskResponse, TaskStatusUpdate
 from app.api.deps import get_current_admin, get_current_user
 from app.services.websocket_service import websocket_service
@@ -48,8 +48,49 @@ async def create_task(
     elif task_data.type.value == "salida" and not task_data.origin_location_id:
         raise HTTPException(status_code=400, detail="Las tareas de salida requieren ubicación de origen")
 
-    # Destino debe estar vacío (entrada / traslado)
-    if task_data.type.value in ("entrada", "traslado"):
+    # Destino debe estar vacío para traslados; para entradas permite acumulación si el producto lo admite
+    if task_data.type.value == "entrada":
+        dest_inv_result = await db.execute(
+            select(InventoryItem).where(InventoryItem.location_id == task_data.destination_location_id)
+        )
+        dest_inv = dest_inv_result.scalar_one_or_none()
+        if dest_inv:
+            dest_product_id = dest_inv.product_id
+            dest_box = None
+            if dest_inv.box_id:
+                box_r = await db.execute(select(Box).where(Box.id == dest_inv.box_id))
+                dest_box = box_r.scalar_one_or_none()
+                if dest_box:
+                    dest_product_id = dest_box.product_id
+
+            if dest_product_id != task_data.product_id:
+                raise HTTPException(status_code=400, detail="La ubicación de destino ya contiene un producto diferente")
+
+            prod_r = await db.execute(select(Product).where(Product.id == task_data.product_id))
+            prod = prod_r.scalar_one_or_none()
+            if not prod or prod.units_per_location is None:
+                raise HTTPException(status_code=400, detail="La ubicación de destino ya tiene inventario y el producto no permite acumulación")
+
+            current_qty = dest_inv.quantity if dest_inv.product_id else (dest_box.current_quantity if dest_box else 0)
+            incoming_qty = task_data.quantity or 1
+            if current_qty + incoming_qty > prod.units_per_location:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"La cantidad solicitada supera la capacidad máxima de la ubicación ({prod.units_per_location - current_qty} ud. disponibles)"
+                )
+        elif task_data.product_id:
+            # Ubicación vacía — verificar igualmente que la cantidad no supera units_per_location
+            prod_r = await db.execute(select(Product).where(Product.id == task_data.product_id))
+            prod = prod_r.scalar_one_or_none()
+            if prod and prod.units_per_location is not None:
+                incoming_qty = task_data.quantity or 1
+                if incoming_qty > prod.units_per_location:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"La cantidad solicitada supera la capacidad máxima de este producto por ubicación ({prod.units_per_location} ud.)"
+                    )
+
+    if task_data.type.value == "traslado":
         dest_inv = await db.execute(
             select(InventoryItem).where(InventoryItem.location_id == task_data.destination_location_id)
         )

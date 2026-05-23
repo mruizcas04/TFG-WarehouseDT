@@ -201,6 +201,7 @@ class ProductCreate(BaseModel):
     type: Optional[str] = None
     barcode: Optional[str] = None
     category_id: Optional[UUID] = None
+    units_per_location: Optional[int] = None
 
 class ProductResponse(BaseModel):
     id: UUID
@@ -212,6 +213,7 @@ class ProductResponse(BaseModel):
     category_id: Optional[UUID]
     category: Optional[CategoryResponse] = None
     image_url: Optional[str] = None
+    units_per_location: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

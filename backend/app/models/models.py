@@ -121,6 +121,7 @@ class Product(Base):
     barcode: Mapped[str | None] = mapped_column(String, nullable=True)
     category_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=True)
     image_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    units_per_location: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
 
     company: Mapped["Company | None"] = relationship("Company", back_populates="products")
     category: Mapped["Category | None"] = relationship("Category", back_populates="products")

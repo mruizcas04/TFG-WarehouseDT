@@ -188,7 +188,7 @@ function CategoryPicker({ categories, value, onChange, onCreateCategory }) {
 export default function ProductsSection() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', description: '', barcode: '', category_id: '' })
+  const [form, setForm] = useState({ name: '', description: '', barcode: '', category_id: '', units_per_location: '' })
   const [formImage, setFormImage] = useState(null)
   const [imageModal, setImageModal] = useState(null)
   const [deleteModal, setDeleteModal] = useState(null)
@@ -222,13 +222,14 @@ export default function ProductsSection() {
         description: form.description || null,
         barcode: form.barcode || null,
         category_id: form.category_id || null,
+        units_per_location: form.units_per_location ? parseInt(form.units_per_location) : null,
       })
       if (formImage) {
         await uploadProductImage({ productId: created.id, file: formImage })
         queryClient.invalidateQueries(['products'])
       }
       setShowForm(false)
-      setForm({ name: '', description: '', barcode: '', category_id: '' })
+      setForm({ name: '', description: '', barcode: '', category_id: '', units_per_location: '' })
       setFormImage(null)
     } catch {}
   }
@@ -296,6 +297,17 @@ export default function ProductsSection() {
               <label style={labelStyle}>Descripción</label>
               <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={inputStyle} />
             </div>
+            <div>
+              <label style={labelStyle}>Unidades máx. por ubicación</label>
+              <input
+                type="number"
+                min="1"
+                value={form.units_per_location}
+                onChange={(e) => setForm({ ...form, units_per_location: e.target.value })}
+                placeholder="1"
+                style={{ ...inputStyle, width: '160px' }}
+              />
+            </div>
           </div>
           <div>
             <label style={labelStyle}>Foto (opcional)</label>
@@ -352,7 +364,7 @@ export default function ProductsSection() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ background: '#FAFAFA' }}>
-                {['Nombre', 'Categoría', 'Código de barras', 'Descripción', 'Unidades', 'Entradas pend.', 'Salidas pend.', ''].map((h) => (
+                {['Nombre', 'Categoría', 'Código de barras', 'Descripción', 'Máx./ubic.', 'Unidades', 'Entradas pend.', 'Salidas pend.', ''].map((h) => (
                   <th key={h} style={{ textAlign: 'left', padding: '10px 20px', color: '#888780', fontWeight: '500', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '0.5px solid #E5E4E0' }}>{h}</th>
                 ))}
               </tr>
@@ -393,6 +405,9 @@ export default function ProductsSection() {
                     </td>
                     <td style={{ padding: '12px 20px', color: '#5F5E5A', fontFamily: 'monospace', fontSize: '12px' }}>{product.barcode || '—'}</td>
                     <td style={{ padding: '12px 20px', color: '#5F5E5A' }}>{product.description || '—'}</td>
+                    <td style={{ padding: '12px 20px', color: '#5F5E5A', textAlign: 'center' }}>
+                      {product.units_per_location != null ? product.units_per_location : <span style={{ color: '#C8C7C2' }}>—</span>}
+                    </td>
                     <td style={{ padding: '12px 20px' }}>
                       <span style={{ fontSize: '15px', fontWeight: '600', color: '#1C1C1A' }}>{units}</span>
                     </td>

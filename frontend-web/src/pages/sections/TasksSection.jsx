@@ -227,6 +227,7 @@ export default function TasksSection({ onRequestLocationSelection }) {
   const [originLocation, setOriginLocation] = useState(null)
   const [allLocations, setAllLocations] = useState([])
   const [formError, setFormError] = useState(null)
+  const [quantityError, setQuantityError] = useState(false)
 
   const [filterType, setFilterType] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
@@ -236,7 +237,11 @@ export default function TasksSection({ onRequestLocationSelection }) {
   const [deleteModal, setDeleteModal] = useState(null)
   const popupRef = useRef(null)
 
-  const updateForm = (patch) => { setFormError(null); setForm(prev => ({ ...prev, ...patch })) }
+  const updateForm = (patch) => {
+    setFormError(null)
+    if ('quantity' in patch) setQuantityError(false)
+    setForm(prev => ({ ...prev, ...patch }))
+  }
 
   const { data: tasks, isLoading } = useQuery({ queryKey: ['tasks'], queryFn: getTasks })
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: getUsers })
@@ -293,6 +298,7 @@ export default function TasksSection({ onRequestLocationSelection }) {
   const quantity = Number(form.quantity) || 0
 
   const validateDestination = (locationId) => {
+    if (form.type === 'entrada') return null
     const loc = allLocations.find(l => l.id === locationId)
     if (!loc) return 'Ubicación no encontrada'
     if (loc.inventory) return 'Esta ubicación ya está ocupada'
@@ -321,6 +327,7 @@ export default function TasksSection({ onRequestLocationSelection }) {
       queryClient.invalidateQueries(['tasks'])
       setShowForm(false)
       setFormError(null)
+      setQuantityError(false)
       setOriginLocation(null)
       setForm({ assigned_to: '', type: 'entrada', product_id: '', quantity: '', origin_location_id: '', destination_location_id: '' })
     },
@@ -334,6 +341,10 @@ export default function TasksSection({ onRequestLocationSelection }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (needsQuantity && (!form.quantity || Number(form.quantity) < 1)) {
+      setQuantityError(true)
+      return
+    }
     createMutation.mutate({
       assigned_to: form.assigned_to,
       type: form.type,
@@ -344,7 +355,7 @@ export default function TasksSection({ onRequestLocationSelection }) {
     })
   }
 
-  const resetForm = () => { setShowForm(false); setOriginLocation(null); setFormError(null) }
+  const resetForm = () => { setShowForm(false); setOriginLocation(null); setFormError(null); setQuantityError(false) }
 
   const statusLabel = s => ({ pendiente: 'Pendiente', en_curso: 'En curso', completada: 'Completada' })[s] || s
   const statusBadge = s => ({ pendiente: { bg: '#FAEEDA', color: '#854F0B' }, en_curso: { bg: '#E6F1FB', color: '#185FA5' }, completada: { bg: '#EAF3DE', color: '#3B6D11' } })[s] || { bg: '#F1EFE8', color: '#888780' }
@@ -505,8 +516,9 @@ export default function TasksSection({ onRequestLocationSelection }) {
                   value={form.quantity}
                   onChange={e => updateForm({ quantity: e.target.value })}
                   placeholder="1"
-                  style={{ ...inputStyle, width: '120px' }}
+                  style={{ ...inputStyle, width: '120px', border: quantityError ? '1px solid #A32D2D' : '0.5px solid #D3D1C7' }}
                 />
+                {quantityError && <span style={{ fontSize: '12px', color: '#A32D2D' }}>Introduce al menos 1 unidad</span>}
               </div>
             </div>
           )}
