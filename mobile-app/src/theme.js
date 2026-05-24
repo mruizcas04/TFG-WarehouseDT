@@ -8,8 +8,11 @@ export const COLORS = {
   accentBg: '#E6F1FB',
   textPrimary: '#1C1C1A',
   textSecondary: '#888780',
+  textTertiary: '#B8B6AF',
   error: '#A32D2D',
   errorBg: '#FCEBEB',
+  success: '#3B6D11',
+  successBg: '#EAF3DE',
 };
 
 export const STATUS_COLORS = {
@@ -59,5 +62,16 @@ export const RADIUS = {
   sm:   6,
   md:   8,
   lg:   12,
+  xl:   16,
   pill: 20,
+};
+
+export const SHADOW = {
+  card: {
+    shadowColor: '#1C1C1A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
 };

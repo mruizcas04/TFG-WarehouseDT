@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 from app.db.database import get_db
 from app.models.models import User, Location, Level, Shelf, Warehouse, InventoryItem, Box, Product
 from app.schemas.schemas import LocationResponse, LocationNFCUpdate, LocationInventorySetup
@@ -14,6 +15,7 @@ router = APIRouter(tags=["locations"])
 def _location_company_query(company_id: uuid.UUID):
     return (
         select(Location)
+        .options(selectinload(Location.level).selectinload(Level.shelf))
         .join(Level, Location.level_id == Level.id)
         .join(Shelf, Level.shelf_id == Shelf.id)
         .join(Warehouse, Shelf.warehouse_id == Warehouse.id)

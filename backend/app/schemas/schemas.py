@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, model_validator
+from typing import Optional, Any
 from uuid import UUID
 from datetime import datetime
 from app.models.models import UserRole, TaskType, TaskStatus, MovementType
@@ -169,8 +169,28 @@ class LocationResponse(BaseModel):
     level_id: UUID
     position_number: int
     nfc_tag: Optional[str]
+    aisle_number: Optional[int] = None
+    shelf_number: Optional[int] = None
+    level_number: Optional[int] = None
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode='before')
+    @classmethod
+    def extract_hierarchy(cls, obj: Any) -> Any:
+        if isinstance(obj, dict):
+            return obj
+        level = getattr(obj, 'level', None)
+        shelf = getattr(level, 'shelf', None) if level else None
+        return {
+            'id': obj.id,
+            'level_id': obj.level_id,
+            'position_number': obj.position_number,
+            'nfc_tag': obj.nfc_tag,
+            'level_number': level.level_number if level else None,
+            'shelf_number': shelf.shelf_number if shelf else None,
+            'aisle_number': shelf.aisle_number if shelf else None,
+        }
 
 class LocationNFCUpdate(BaseModel):
     nfc_tag: str

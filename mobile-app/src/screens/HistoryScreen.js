@@ -1,26 +1,22 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, RefreshControl, StatusBar,
+  View, Text, FlatList, StyleSheet,
+  ActivityIndicator, RefreshControl, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../api/client';
 import {
-  COLORS, STATUS_COLORS, TYPE_COLORS, STATUS_LABELS, TYPE_LABELS,
+  COLORS, TYPE_COLORS, TYPE_LABELS,
   TYPOGRAPHY, SPACING, RADIUS, SHADOW,
 } from '../theme';
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 14) return 'Buenos días';
-  if (h < 21) return 'Buenas tardes';
-  return 'Buenas noches';
-}
-
-function getFirstName(name = '') {
-  return name.split(' ')[0];
+function formatDateTime(dateStr) {
+  const d = new Date(dateStr);
+  const date = d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  return { date, time };
 }
 
 function formatLocation(loc) {
@@ -33,25 +29,25 @@ function formatLocation(loc) {
   return parts.join(' · ');
 }
 
-export default function TasksScreen() {
+export default function HistoryScreen() {
   const { user } = useAuth();
-  const navigation = useNavigation();
-  const [tasks, setTasks] = useState([]);
+  const [items, setItems] = useState([]);
   const [locationsMap, setLocationsMap] = useState({});
   const [productsMap, setProductsMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchTasks = useCallback(async () => {
+  const fetchHistory = useCallback(async () => {
     try {
-      const data = await apiFetch(`/tasks/user/${user.id}`, {}, user.token);
-      const active = data.filter(t => t.status !== 'completada');
-      setTasks(active);
+      const allTasks = await apiFetch(`/tasks/user/${user.id}`, {}, user.token);
+      const completed = allTasks
+        .filter(t => t.status === 'completada')
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setItems(completed);
 
-      // Collect unique location and product IDs
       const locationIds = new Set();
-      const productIds = new Set();
-      active.forEach(t => {
+      const productIds  = new Set();
+      completed.forEach(t => {
         if (t.origin_location_id) locationIds.add(t.origin_location_id);
         if (t.destination_location_id) locationIds.add(t.destination_location_id);
         if (t.product_id) productIds.add(t.product_id);
@@ -74,7 +70,7 @@ export default function TasksScreen() {
       [...productIds].forEach((id, i) => { if (productResults[i]) prodMap[id] = productResults[i]; });
       setProductsMap(prodMap);
     } catch {
-      Alert.alert('Error', 'No se pudieron cargar las tareas');
+      // history is supplementary — fail silently
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -84,32 +80,22 @@ export default function TasksScreen() {
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      fetchTasks();
-    }, [fetchTasks])
+      fetchHistory();
+    }, [fetchHistory])
   );
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchTasks();
+    fetchHistory();
   };
 
-  const handleTaskPress = (task) => {
-    const originLoc = task.origin_location_id ? locationsMap[task.origin_location_id] : null;
-    const destLoc   = task.destination_location_id ? locationsMap[task.destination_location_id] : null;
-    const product   = task.product_id ? productsMap[task.product_id] : null;
-    navigation.navigate('TaskDetail', { task, originLoc, destLoc, product });
-  };
-
-  const renderTask = ({ item }) => {
-    const statusColor = STATUS_COLORS[item.status] || STATUS_COLORS.pendiente;
+  const renderItem = ({ item, index }) => {
     const typeColor = TYPE_COLORS[item.type] || TYPE_COLORS.entrada;
-    const date = new Date(item.created_at).toLocaleDateString('es-ES', {
-      day: '2-digit', month: 'short',
-    });
-
+    const { date, time } = formatDateTime(item.created_at);
     const originLoc = item.origin_location_id ? locationsMap[item.origin_location_id] : null;
     const destLoc   = item.destination_location_id ? locationsMap[item.destination_location_id] : null;
     const product   = item.product_id ? productsMap[item.product_id] : null;
+    const isLast    = index === items.length - 1;
 
     let locationLine = null;
     if (item.type === 'entrada' && destLoc) {
@@ -118,29 +104,28 @@ export default function TasksScreen() {
       locationLine = formatLocation(originLoc);
     } else if (item.type === 'traslado') {
       const from = formatLocation(originLoc) ?? '—';
-      const to   = formatLocation(destLoc)   ?? '—';
+      const to   = formatLocation(destLoc) ?? '—';
       locationLine = `${from}  →  ${to}`;
     }
 
     return (
-      <TouchableOpacity
-        style={[styles.taskCard, SHADOW.card]}
-        onPress={() => handleTaskPress(item)}
-        activeOpacity={0.75}
-      >
-        {/* Left accent stripe */}
-        <View style={[styles.accentBar, { backgroundColor: typeColor.text }]} />
+      <View style={styles.timelineRow}>
+        {/* Timeline track */}
+        <View style={styles.timelineTrack}>
+          <View style={[styles.timelineDot, { backgroundColor: typeColor.text }]} />
+          {!isLast && <View style={styles.timelineLine} />}
+        </View>
 
-        <View style={styles.cardBody}>
-          {/* Top row: type label + status badge */}
-          <View style={styles.topRow}>
+        {/* Card */}
+        <View style={[styles.historyCard, SHADOW.card]}>
+          {/* Header: type + timestamp */}
+          <View style={styles.cardHeader}>
             <Text style={[styles.typeLabel, { color: typeColor.text }]}>
               {TYPE_LABELS[item.type]}
             </Text>
-            <View style={[styles.statusBadge, { backgroundColor: statusColor.bg }]}>
-              <Text style={[styles.statusText, { color: statusColor.text }]}>
-                {STATUS_LABELS[item.status]}
-              </Text>
+            <View style={styles.timestampBlock}>
+              <Text style={styles.timeText}>{time}</Text>
+              <Text style={styles.dateText}>{date}</Text>
             </View>
           </View>
 
@@ -172,53 +157,20 @@ export default function TasksScreen() {
             </View>
           )}
 
-          {/* Footer */}
-          <View style={styles.cardFooter}>
-            <Text style={styles.taskId}>#{item.id.split('-')[0].toUpperCase()}</Text>
-            <Text style={styles.taskDate}>{date}</Text>
-            <Text style={styles.arrow}>›</Text>
-          </View>
+          <Text style={styles.taskId}>#{item.id.split('-')[0].toUpperCase()}</Text>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
-  const pending    = tasks.filter(t => t.status === 'pendiente').length;
-  const inProgress = tasks.filter(t => t.status === 'en_curso').length;
-
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>{getGreeting()},</Text>
-          <Text style={styles.userName}>{getFirstName(user.name)}</Text>
-        </View>
-        <View style={styles.statsRow}>
-          {inProgress > 0 && (
-            <View style={[styles.statChip, { backgroundColor: COLORS.accentBg }]}>
-              <Text style={[styles.statNumber, { color: COLORS.accent }]}>{inProgress}</Text>
-              <Text style={[styles.statLabel, { color: COLORS.accent }]}>en curso</Text>
-            </View>
-          )}
-          {pending > 0 && (
-            <View style={[styles.statChip, { backgroundColor: '#FAEEDA' }]}>
-              <Text style={[styles.statNumber, { color: '#854F0B' }]}>{pending}</Text>
-              <Text style={[styles.statLabel, { color: '#854F0B' }]}>
-                pendiente{pending !== 1 ? 's' : ''}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* Section header */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Tareas activas</Text>
-        {tasks.length > 0 && (
-          <Text style={styles.sectionCount}>{tasks.length}</Text>
+      <View style={styles.pageHeader}>
+        <Text style={styles.pageTitle}>Historial</Text>
+        {items.length > 0 && (
+          <Text style={styles.countLabel}>{items.length} completada{items.length !== 1 ? 's' : ''}</Text>
         )}
       </View>
 
@@ -226,9 +178,9 @@ export default function TasksScreen() {
         <ActivityIndicator style={styles.loader} color={COLORS.accent} size="large" />
       ) : (
         <FlatList
-          data={tasks}
-          keyExtractor={item => item.id}
-          renderItem={renderTask}
+          data={items}
+          keyExtractor={i => i.id}
+          renderItem={renderItem}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
@@ -240,8 +192,8 @@ export default function TasksScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>Todo al día</Text>
-              <Text style={styles.emptySubtitle}>No tienes tareas pendientes</Text>
+              <Text style={styles.emptyTitle}>Sin historial</Text>
+              <Text style={styles.emptySubtitle}>Las tareas completadas aparecerán aquí</Text>
             </View>
           }
         />
@@ -255,102 +207,71 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bg,
   },
-  header: {
+  pageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'baseline',
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.lg,
-    paddingBottom: SPACING.lg,
-    backgroundColor: COLORS.surface,
+    paddingBottom: SPACING.md,
     borderBottomWidth: 0.5,
     borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surface,
   },
-  greeting: {
-    fontSize: TYPOGRAPHY.small,
-    color: COLORS.textSecondary,
-    marginBottom: 1,
-  },
-  userName: {
+  pageTitle: {
     fontSize: TYPOGRAPHY.title,
-    fontWeight: '700',
+    fontWeight: '600',
     color: COLORS.textPrimary,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: SPACING.xs,
-  },
-  statChip: {
-    alignItems: 'center',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.md,
-    minWidth: 52,
-  },
-  statNumber: {
-    fontSize: TYPOGRAPHY.large,
-    fontWeight: '700',
-    lineHeight: 22,
-  },
-  statLabel: {
-    fontSize: TYPOGRAPHY.tiny,
-    fontWeight: '500',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.sm,
-  },
-  sectionTitle: {
+  countLabel: {
     fontSize: TYPOGRAPHY.small,
-    fontWeight: '600',
     color: COLORS.textSecondary,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  sectionCount: {
-    fontSize: TYPOGRAPHY.tiny,
-    color: COLORS.textSecondary,
-    backgroundColor: COLORS.surfaceAlt,
-    borderWidth: 0.5,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 2,
-    overflow: 'hidden',
   },
   loader: {
     flex: 1,
   },
   list: {
     paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xl,
     paddingBottom: SPACING.xxl * 2,
-    gap: SPACING.sm,
   },
-  taskCard: {
+  timelineRow: {
     flexDirection: 'row',
+    gap: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  timelineTrack: {
+    alignItems: 'center',
+    width: 16,
+    paddingTop: SPACING.md,
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  timelineLine: {
+    flex: 1,
+    width: 1.5,
+    backgroundColor: COLORS.border,
+    marginTop: 4,
+    marginBottom: -SPACING.sm,
+  },
+  historyCard: {
+    flex: 1,
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     borderWidth: 0.5,
     borderColor: COLORS.border,
-    overflow: 'hidden',
-  },
-  accentBar: {
-    width: 4,
-  },
-  cardBody: {
-    flex: 1,
-    padding: SPACING.lg,
+    padding: SPACING.md,
     gap: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
-  topRow: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
+    alignItems: 'flex-start',
+    marginBottom: 2,
   },
   typeLabel: {
     fontSize: TYPOGRAPHY.small,
@@ -358,14 +279,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
-  statusBadge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 3,
-    borderRadius: RADIUS.pill,
+  timestampBlock: {
+    alignItems: 'flex-end',
   },
-  statusText: {
+  timeText: {
+    fontSize: TYPOGRAPHY.small,
+    color: COLORS.textPrimary,
+    fontWeight: '500',
+  },
+  dateText: {
     fontSize: TYPOGRAPHY.tiny,
-    fontWeight: '600',
+    color: COLORS.textSecondary,
   },
   detailRow: {
     flexDirection: 'row',
@@ -386,26 +310,11 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
   },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.xs,
-    gap: SPACING.sm,
-  },
   taskId: {
     fontSize: TYPOGRAPHY.tiny,
     color: COLORS.textTertiary,
     fontFamily: 'monospace',
-    flex: 1,
-  },
-  taskDate: {
-    fontSize: TYPOGRAPHY.tiny,
-    color: COLORS.textSecondary,
-  },
-  arrow: {
-    fontSize: 18,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
+    marginTop: 2,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -420,5 +329,6 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: TYPOGRAPHY.body,
     color: COLORS.textSecondary,
+    textAlign: 'center',
   },
 });

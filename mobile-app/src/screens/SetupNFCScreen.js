@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert, SafeAreaView, StatusBar,
+  ActivityIndicator, Alert, StatusBar,
   Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import NfcManager, { NfcTech } from 'react-native-nfc-manager';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -20,10 +21,9 @@ export default function SetupNFCScreen() {
   const [scanningId, setScanningId] = useState(null);
   const [doneCount, setDoneCount]   = useState(0);
 
-  // Inventory setup modal
   const [modalVisible, setModalVisible]       = useState(false);
   const [pendingLocation, setPendingLocation] = useState(null);
-  const [invStep, setInvStep]                 = useState('ask'); // 'ask' | 'scan' | 'product' | 'saving'
+  const [invStep, setInvStep]                 = useState('ask');
   const [scannedProduct, setScannedProduct]   = useState(null);
   const [quantityText, setQuantityText]       = useState('');
   const [barcodeScanned, setBarcodeScanned]   = useState(false);
@@ -40,7 +40,7 @@ export default function SetupNFCScreen() {
           if (!loc.nfc_tag) {
             result.push({
               id: loc.id,
-              label: `Fila ${shelf.aisle_number} · Est. ${shelf.shelf_number} · Nivel ${level.level_number} · Pos. ${loc.position_number}`,
+              label: `Pasillo ${shelf.aisle_number} · Est. ${shelf.shelf_number} · Balda ${level.level_number} · Hueco ${loc.position_number}`,
             });
           }
         }
@@ -60,7 +60,7 @@ export default function SetupNFCScreen() {
       }
       const full = await apiFetch(`/warehouses/${warehouses[0].id}/full`, {}, user.token);
       setLocations(flattenLocations(full));
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'No se pudieron cargar las ubicaciones.');
     } finally {
       setLoading(false);
@@ -119,7 +119,7 @@ export default function SetupNFCScreen() {
     } catch (e) {
       const msg = e.message || '';
       if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('usercancel')) {
-        // dismissed — do nothing
+        // dismissed
       } else {
         Alert.alert('Error', msg || 'No se pudo asociar la etiqueta.');
       }
@@ -196,7 +196,7 @@ export default function SetupNFCScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
 
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -242,20 +242,24 @@ export default function SetupNFCScreen() {
         </>
       )}
 
-      {scanningId && (
-        <View style={styles.scanningBanner}>
-          <ActivityIndicator color="#fff" size="small" />
-          <Text style={styles.scanningBannerText}>Acerca la etiqueta NFC al móvil...</Text>
+      {/* NFC scanning Modal (replaces bottom banner) */}
+      <Modal visible={scanningId !== null} transparent animationType="fade">
+        <View style={styles.scanModalOverlay}>
+          <View style={styles.scanModalCard}>
+            <ActivityIndicator color={COLORS.accent} size="large" />
+            <Text style={styles.scanModalTitle}>Esperando etiqueta NFC</Text>
+            <Text style={styles.scanModalText}>Acerca el móvil a la etiqueta NFC</Text>
+          </View>
         </View>
-      )}
+      </Modal>
 
       {/* Inventory setup modal */}
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => {}}>
-        <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.modalCard}
-          >
+      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => {}}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalCard}>
             {invStep === 'ask' && (
               <>
                 <Text style={styles.modalTitle}>Etiqueta asociada</Text>
@@ -331,8 +335,8 @@ export default function SetupNFCScreen() {
                 <Text style={styles.savingText}>Guardando inventario...</Text>
               </View>
             )}
-          </KeyboardAvoidingView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -367,7 +371,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
     backgroundColor: COLORS.surface,
   },
-  title:    { fontSize: TYPOGRAPHY.title,  fontWeight: '500', color: COLORS.textPrimary, marginBottom: SPACING.xs },
+  title:    { fontSize: TYPOGRAPHY.title, fontWeight: '500', color: COLORS.textPrimary, marginBottom: SPACING.xs },
   subtitle: { fontSize: TYPOGRAPHY.small, color: COLORS.textSecondary, lineHeight: 18 },
 
   listHeader: {
@@ -414,7 +418,7 @@ const styles = StyleSheet.create({
     padding: SPACING.xxl,
     gap: SPACING.md,
   },
-  emptyTitle: { fontSize: TYPOGRAPHY.large,  fontWeight: '500', color: COLORS.textPrimary, textAlign: 'center' },
+  emptyTitle: { fontSize: TYPOGRAPHY.large, fontWeight: '500', color: COLORS.textPrimary, textAlign: 'center' },
   emptyText:  { fontSize: TYPOGRAPHY.body, color: COLORS.textSecondary, textAlign: 'center' },
 
   primaryButton: {
@@ -427,29 +431,50 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { color: '#fff', fontWeight: '500', fontSize: TYPOGRAPHY.body },
 
-  scanningBanner: {
-    flexDirection: 'row',
+  // NFC scanning modal
+  scanModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: SPACING.sm,
-    backgroundColor: COLORS.accent,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
+    padding: SPACING.xl,
   },
-  scanningBannerText: { color: '#fff', fontSize: TYPOGRAPHY.body, fontWeight: '500' },
+  scanModalCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xxl,
+    alignItems: 'center',
+    gap: SPACING.md,
+    width: '85%',
+    borderWidth: 0.5,
+    borderColor: COLORS.border,
+  },
+  scanModalTitle: {
+    fontSize: TYPOGRAPHY.large,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  scanModalText: {
+    fontSize: TYPOGRAPHY.body,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
 
-  // Modal
+  // Inventory modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xl,
   },
   modalCard: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: RADIUS.xl,
-    borderTopRightRadius: RADIUS.xl,
+    borderRadius: RADIUS.xl,
     padding: SPACING.xl,
-    paddingBottom: SPACING.xxl,
     gap: SPACING.sm,
+    width: '100%',
   },
   modalTitle: {
     fontSize: TYPOGRAPHY.large,
@@ -481,7 +506,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: { color: COLORS.textSecondary, fontWeight: '500', fontSize: TYPOGRAPHY.body },
 
   cameraContainer: {
-    height: 240,
+    height: 200,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
     marginVertical: SPACING.md,

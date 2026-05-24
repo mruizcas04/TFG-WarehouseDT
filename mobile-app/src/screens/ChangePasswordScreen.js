@@ -3,8 +3,8 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import EyeIcon from '../components/EyeIcon';
 import { API_URL } from '../api/client';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../theme';
 
@@ -94,7 +94,7 @@ export default function ChangePasswordScreen() {
               autoCapitalize="none"
             />
             <TouchableOpacity style={styles.eyeButton} onPress={() => setShowCurrent(v => !v)}>
-              <Ionicons name={showCurrent ? 'eye-off' : 'eye'} size={20} color={COLORS.textSecondary} />
+              <EyeIcon visible={showCurrent} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -110,7 +110,7 @@ export default function ChangePasswordScreen() {
               autoCapitalize="none"
             />
             <TouchableOpacity style={styles.eyeButton} onPress={() => setShowNew(v => !v)}>
-              <Ionicons name={showNew ? 'eye-off' : 'eye'} size={20} color={COLORS.textSecondary} />
+              <EyeIcon visible={showNew} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -126,7 +126,7 @@ export default function ChangePasswordScreen() {
               autoCapitalize="none"
             />
             <TouchableOpacity style={styles.eyeButton} onPress={() => setShowConfirm(v => !v)}>
-              <Ionicons name={showConfirm ? 'eye-off' : 'eye'} size={20} color={COLORS.textSecondary} />
+              <EyeIcon visible={showConfirm} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
 

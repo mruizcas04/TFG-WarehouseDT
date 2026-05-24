@@ -33,7 +33,18 @@
       "Bash(xargs grep -l \"OnMouseEnter\\\\|OnMouseExit\\\\|EventTrigger\\\\|PointerEnter\\\\|PointerExit\")",
       "Bash(xargs grep -l \"Canvas\\\\|RectTransform\\\\|GraphicRaycaster\")",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\mruiz\\\\TFG\\\\frontend-web\" -Force)",
-      "Bash(Select-Object Name, Mode)"
+      "Bash(Select-Object Name, Mode)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\mruiz\\\\TFG\" -Directory)",
+      "Bash(npm install *)",
+      "Bash(node -e \"require\\('@expo/vector-icons'\\); console.log\\('OK'\\)\")",
+      "Bash(node -e \"require\\('@react-navigation/bottom-tabs'\\); console.log\\('bottom-tabs OK'\\)\")",
+      "Bash(adb devices *)",
+      "Bash(C:\\\\Users\\\\mruiz\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe devices *)",
+      "PowerShell(& \"C:\\\\Users\\\\mruiz\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" devices)",
+      "PowerShell(& \"C:\\\\Users\\\\mruiz\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" kill-server)",
+      "PowerShell(& \"C:\\\\Users\\\\mruiz\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" start-server)",
+      "Bash(node -e \"const p = require\\('./node_modules/react-native-nfc-manager/package.json'\\); console.log\\(p.version, p['react-native']?.['codegenConfig'] ? 'new-arch-support' : 'no-codegen'\\)\")",
+      "PowerShell(& \"C:\\\\Users\\\\mruiz\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" install -r -d \"C:\\\\Users\\\\mruiz\\\\TFG\\\\mobile-app\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\" 2>&1)"
     ]
   }
 }

@@ -3,8 +3,8 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import EyeIcon from '../components/EyeIcon';
 import { API_URL, apiFetch } from '../api/client';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../theme';
 
@@ -50,6 +50,8 @@ export default function LoginScreen({ navigation }) {
         id: payload.sub,
         role: payload.role,
         name: me.name,
+        email: me.email,
+        created_at: me.created_at,
         must_change_password: payload.must_change_password ?? false,
       });
     } catch (e) {
@@ -95,7 +97,7 @@ export default function LoginScreen({ navigation }) {
             onChangeText={setPassword}
           />
           <TouchableOpacity style={styles.eyeButton} onPress={() => setShowPassword(v => !v)}>
-            <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={20} color={COLORS.textSecondary} />
+            <EyeIcon visible={showPassword} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
 
