@@ -26,6 +26,8 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private GameObject locationPrefab;
         [Tooltip("Poste vertical del rack (ej: stand_vertical del pack). Opcional — si está vacío no se renderiza estructura.")]
         [SerializeField] private GameObject rackPostPrefab;
+        [Tooltip("Rotación euler en grados que se aplica a cada poste al instanciarlo. Por defecto (0,90,0) igual que la viga, para que el frame del poste quede perpendicular a la dirección del pasillo.")]
+        [SerializeField] private Vector3 rackPostRotationEuler = new Vector3(0, 90, 0);
         [Tooltip("Si está activo, escala el poste en Y para que coincida con la altura del almacén. Si está desactivado, usa la altura nativa del FBX (el poste sobresale por arriba, más realista).")]
         [SerializeField] private bool scalePostToWarehouseHeight = false;
         [Tooltip("Altura nativa del poste vertical (en metros). Solo se usa si scalePostToWarehouseHeight está activado.")]
@@ -365,6 +367,7 @@ namespace WarehouseTwin.Warehouse
             GameObject post = Instantiate(rackPostPrefab, parent.transform);
             post.name = name;
             post.transform.localPosition = localPosition;
+            post.transform.localRotation = Quaternion.Euler(rackPostRotationEuler);
             Vector3 s = post.transform.localScale;
             post.transform.localScale = new Vector3(s.x, s.y * yScale, s.z);
         }
