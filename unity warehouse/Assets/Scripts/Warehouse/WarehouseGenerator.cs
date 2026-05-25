@@ -364,7 +364,6 @@ namespace WarehouseTwin.Warehouse
                     beam.transform.localRotation = beamRotation;
                     Vector3 s = beam.transform.localScale;
                     beam.transform.localScale = new Vector3(s.x * beamScale, s.y, s.z);
-                    Debug.Log($"Beam {beam.name}: shelfLength={shelfLength}, beamScale={beamScale}, localScale={beam.transform.localScale}");
                 }
             }
         }

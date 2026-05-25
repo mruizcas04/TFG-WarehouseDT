@@ -22,6 +22,8 @@ namespace WarehouseTwin.Warehouse
         [Header("Visuales en capas (opcional — vacíos = modo legacy single-cube)")]
         [Tooltip("Hijo mostrado cuando la ubicación está ocupada (caja/producto). Oculto si Free o si filtro la oculta.")]
         [SerializeField] private GameObject _contentVisual;
+        [Tooltip("Hijo siempre visible (típicamente un palet) que representa el 'suelo' de la ubicación. Se oculta solo si el filtro la apaga. Opcional.")]
+        [SerializeField] private GameObject _pelletVisual;
         [Tooltip("Renderer del cubo translúcido superpuesto. Se muestra y cambia color con hover / task / selected.")]
         [SerializeField] private Renderer _slotOverlay;
 
@@ -43,7 +45,7 @@ namespace WarehouseTwin.Warehouse
         private static readonly Color OverlaySelected = new Color(0.2f, 0.6f, 1.0f, 0.55f);
         private static readonly Color OverlayTask     = new Color(1.0f, 0.85f, 0.0f, 0.45f);
 
-        private bool UseLayered => _contentVisual != null || _slotOverlay != null;
+        private bool UseLayered => _contentVisual != null || _slotOverlay != null || _pelletVisual != null;
         private bool HasContent => !string.IsNullOrEmpty(ProductId) || IsBox;
 
         private void Awake()
@@ -197,8 +199,12 @@ namespace WarehouseTwin.Warehouse
 
         private void RefreshLayered()
         {
-            // Content: visible si ocupada (metadata o estado) y el filtro no la oculta.
+            // Palet: siempre visible cuando la ubicación no esté filtrada (independiente del estado).
             // Si está seleccionada, también la mostramos aunque el filtro la "tape" — la selección manda.
+            if (_pelletVisual != null)
+                _pelletVisual.SetActive(!_dimmed || _selected);
+
+            // Content: visible si ocupada (metadata o estado) y el filtro no la oculta.
             if (_contentVisual != null)
             {
                 bool occupied = HasContent
