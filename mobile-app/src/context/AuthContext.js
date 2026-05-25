@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext } from 'react';
+import { apiFetch } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -18,7 +19,20 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);   // { id, role, token, name, must_change_password }
 
   const login = (userData) => setUser(userData);
-  const logout = () => setUser(null);
+
+  const logout = async () => {
+    const token = user?.token;
+    if (token) {
+      try {
+        await apiFetch('/auth/logout', { method: 'POST' }, token);
+      } catch {
+        // Si la red falla, desconectamos localmente igualmente para no dejar
+        // al usuario atrapado en la app. is_online quedará desfasado hasta
+        // el próximo login, pero es preferible a bloquear el cierre de sesión.
+      }
+    }
+    setUser(null);
+  };
 
   const updateToken = (newToken) => {
     const payload = decodeJWTPayload(newToken);

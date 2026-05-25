@@ -15,7 +15,8 @@ export default function UsersSection() {
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: getUsers,
-    refetchInterval: 15_000,   // refresca cada 15 s para ver cambios de is_online en tiempo real
+    refetchInterval: 5_000,            // polling rápido para que is_online se sienta en tiempo real
+    refetchIntervalInBackground: true, // sigue refrescando aunque la pestaña no esté enfocada
     staleTime: 0,
   })
   const { data: inactiveUsers, isLoading: isLoadingInactive } = useQuery({
