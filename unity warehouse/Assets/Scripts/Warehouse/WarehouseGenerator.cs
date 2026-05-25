@@ -21,6 +21,8 @@ namespace WarehouseTwin.Warehouse
         [Tooltip("Distancia entre pasillos (centro a centro). 3.5m permite paso de carretilla.")]
         [SerializeField] private float aisleSpacing = 3.5f;
         [SerializeField] private float locationPadding = 0.05f;
+        [Tooltip("Hueco extra (en metros) entre la estantería frontal y trasera de un shelf doble. En realidad las dos comparten postes centrales, pero como mi código instancia estructuras separadas, necesitan separación visual. 0.5m suele bastar.")]
+        [SerializeField] private float doubleShelfExtraGap = 0.5f;
 
         [Header("Prefabs")]
         [SerializeField] private GameObject locationPrefab;
@@ -121,7 +123,7 @@ namespace WarehouseTwin.Warehouse
                 if (prevA < 0)
                     aisleXPos[a] = 0f;
                 else if (aislesWithDouble.Contains(prevA))
-                    aisleXPos[a] = xCursor + shelfDepth + locationPadding;
+                    aisleXPos[a] = xCursor + shelfDepth + locationPadding + doubleShelfExtraGap;
                 else
                     aisleXPos[a] = xCursor + aisleSpacing;
                 xCursor = aisleXPos[a];
