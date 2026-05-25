@@ -38,6 +38,8 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private Vector3 rackBeamRotationEuler = new Vector3(0, 90, 0);
         [Tooltip("Longitud nativa de la viga horizontal (en metros). Se usa para calcular la escala. Mide el prefab original en Unity y rellena aquí.")]
         [SerializeField] private float rackBeamNativeLength = 5.5f;
+        [Tooltip("Extensión extra de la viga en cada extremo (metros). Útil para cerrar el hueco visible entre el final de la viga y el poste cuando el pivot del FBX no cae exacto. Empieza con 0.1 y ajusta.")]
+        [SerializeField] private float rackBeamExtraLength = 0.1f;
 
         [Header("Espacio libre alrededor (metros)")]
         [SerializeField] private float margin = 8.0f;
@@ -345,11 +347,12 @@ namespace WarehouseTwin.Warehouse
             InstantiatePost(shelfGO, "Post_End",   new Vector3(0, groundY, endZ),   postYScale);
 
             // Vigas: una por nivel, centradas entre los postes (pivot en el centro del FBX).
-            // Rotadas para alinear su eje largo nativo con Z, y escaladas en Z para cubrir shelfLength.
+            // Rotadas para alinear su eje largo nativo con Z, y escaladas en Z para cubrir shelfLength + extra para cerrar el hueco con el poste.
             if (rackBeamPrefab != null && rackBeamNativeLength > 0.01f)
             {
-                float beamScale = shelfLength / rackBeamNativeLength;
-                float beamMidZ  = (startZ + endZ) / 2f;
+                float beamLength = shelfLength + 2f * rackBeamExtraLength;
+                float beamScale  = beamLength / rackBeamNativeLength;
+                float beamMidZ   = (startZ + endZ) / 2f;
                 Quaternion beamRotation = Quaternion.Euler(rackBeamRotationEuler);
                 for (int lv = 0; lv < numLevels; lv++)
                 {
