@@ -63,9 +63,9 @@ ScriptsOnlyBuild:
     - Class: 114
       Script: {instanceID: 6162}
     - Class: 114
-      Script: {instanceID: 7248}
+      Script: {instanceID: 7250}
     - Class: 114
-      Script: {instanceID: 7494}
+      Script: {instanceID: 7496}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 157
@@ -663,7 +663,7 @@ ScriptsOnlyBuild:
     className: AspectRatioFitter
   - hash:
       serializedVersion: 2
-      Hash: 34bf4cde3c658a3e8d964ae930ceca5c
+      Hash: 82becd1100525539aad5bd30323e2187
     assemblyName: Assembly-CSharp
     namespaceName: WarehouseTwin.Warehouse
     className: LocationObject
@@ -673,6 +673,12 @@ ScriptsOnlyBuild:
     assemblyName: Unity.TextMeshPro
     namespaceName: TMPro
     className: TextMeshProUGUI
+  - hash:
+      serializedVersion: 2
+      Hash: d6dc5702f8ad898513633b01fd2b0e20
+    assemblyName: Assembly-CSharp
+    namespaceName: WarehouseTwin.Warehouse
+    className: WarehouseTooltip
   - hash:
       serializedVersion: 2
       Hash: da5a949a0bbd2ff91bc51c5805c2c41f
