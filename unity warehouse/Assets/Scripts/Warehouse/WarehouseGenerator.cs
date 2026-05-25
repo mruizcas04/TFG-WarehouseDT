@@ -29,7 +29,7 @@ namespace WarehouseTwin.Warehouse
         [Tooltip("Viga horizontal del rack (ej: stand_horizontal_long). Se escala en eje Z para cubrir el largo de la estantería.")]
         [SerializeField] private GameObject rackBeamPrefab;
         [Tooltip("Longitud nativa de la viga horizontal (en metros). Se usa para calcular la escala. Mide el prefab original en Unity y rellena aquí.")]
-        [SerializeField] private float rackBeamNativeLength = 2.5f;
+        [SerializeField] private float rackBeamNativeLength = 5.5f;
 
         [Header("Espacio libre alrededor (metros)")]
         [SerializeField] private float margin = 8.0f;
