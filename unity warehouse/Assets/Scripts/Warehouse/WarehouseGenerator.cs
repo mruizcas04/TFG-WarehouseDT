@@ -347,7 +347,8 @@ namespace WarehouseTwin.Warehouse
             InstantiatePost(shelfGO, "Post_End",   new Vector3(0, groundY, endZ),   postYScale);
 
             // Vigas: una por nivel, centradas entre los postes (pivot en el centro del FBX).
-            // Rotadas para alinear su eje largo nativo con Z, y escaladas en Z para cubrir shelfLength + extra para cerrar el hueco con el poste.
+            // Rotadas para alinear su eje largo nativo con Z, y escaladas en local-X para extender la longitud
+            // (en Unity, el scale se aplica ANTES de la rotación, así que escalamos el eje largo NATIVO, no el rotado).
             if (rackBeamPrefab != null && rackBeamNativeLength > 0.01f)
             {
                 float beamLength = shelfLength + 2f * rackBeamExtraLength;
@@ -362,7 +363,8 @@ namespace WarehouseTwin.Warehouse
                     beam.transform.localPosition = new Vector3(0, levelBottomY, beamMidZ);
                     beam.transform.localRotation = beamRotation;
                     Vector3 s = beam.transform.localScale;
-                    beam.transform.localScale = new Vector3(s.x, s.y, s.z * beamScale);
+                    beam.transform.localScale = new Vector3(s.x * beamScale, s.y, s.z);
+                    Debug.Log($"Beam {beam.name}: shelfLength={shelfLength}, beamScale={beamScale}, localScale={beam.transform.localScale}");
                 }
             }
         }
