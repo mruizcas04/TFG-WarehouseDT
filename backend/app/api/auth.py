@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from app.db.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.core.email import send_verification_email, send_temp_password_email, send_reset_password_email
@@ -46,6 +46,14 @@ async def login(
             detail="Debes verificar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    await db.execute(
+        update(User).where(User.id == user.id).values(
+            last_login=datetime.utcnow(),
+            is_online=True,
+        )
+    )
+    await db.commit()
 
     access_token = create_access_token(data={
         "sub": str(user.id),
@@ -242,6 +250,17 @@ async def deactivate_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
 
     user.is_active = False
+    await db.commit()
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await db.execute(
+        update(User).where(User.id == current_user.id).values(is_online=False)
+    )
     await db.commit()
 
 

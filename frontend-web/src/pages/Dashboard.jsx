@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { logoutApi } from '../api/auth'
 import HomeSection from './sections/HomeSection'
 import WarehouseSection from './sections/WarehouseSection'
 import ProductsSection from './sections/ProductsSection'
 import UsersSection from './sections/UsersSection'
 import TasksSection from './sections/TasksSection'
-import MovementsSection from './sections/MovementsSection'
+import StatsSection from './sections/StatsSection'
 
 const menuItems = [
   {
@@ -26,12 +27,12 @@ const menuItems = [
     icon: <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 7.5h11M9 3.5l4 4-4 4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
   },
   {
-    id: 'movements', label: 'Historial',
-    icon: <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" strokeWidth="1.2"/><path d="M7.5 4v3.5l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-  },
-  {
     id: 'users', label: 'Usuarios',
     icon: <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.2"/><path d="M2 13c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+  },
+  {
+    id: 'stats', label: 'Estadísticas',
+    icon: <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="9" width="3" height="5" rx="0.5" stroke="currentColor" strokeWidth="1.2"/><rect x="6" y="5" width="3" height="9" rx="0.5" stroke="currentColor" strokeWidth="1.2"/><rect x="11" y="1" width="3" height="13" rx="0.5" stroke="currentColor" strokeWidth="1.2"/></svg>
   },
 ]
 
@@ -99,7 +100,8 @@ export default function Dashboard() {
     setPendingLocationSelection(null)
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logoutApi()  // espera a que el servidor marque is_online=False antes de borrar el token
     logout()
     navigate('/login')
   }
@@ -109,8 +111,8 @@ export default function Dashboard() {
       case 'home': return <HomeSection />
       case 'products': return <ProductsSection />
       case 'tasks': return <TasksSection onRequestLocationSelection={handleRequestLocationSelection} />
-      case 'movements': return <MovementsSection />
       case 'users': return <UsersSection />
+      case 'stats': return <StatsSection />
       default: return null
     }
   }

@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete as sql_delete
+from sqlalchemy import select, delete as sql_delete, func
 from app.db.database import get_db
-from app.models.models import User, Task, InventoryItem, Box, TaskStatus, Movement, Product
-from app.schemas.schemas import TaskCreate, TaskResponse, TaskStatusUpdate
+from app.models.models import User, Task, InventoryItem, Box, TaskStatus, Movement, Product, UserRole
+from app.schemas.schemas import (
+    TaskCreate, TaskResponse, TaskStatusUpdate,
+    WorkerRecommendation, WorkerStats, StatsResponse,
+)
 from app.api.deps import get_current_admin, get_current_user
 from app.services.websocket_service import websocket_service
+from datetime import datetime, timedelta, date as date_type
 import uuid
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -192,6 +196,215 @@ async def get_tasks_by_user(
     return result.scalars().all()
 
 
+@router.get("/recommendation", response_model=list[WorkerRecommendation])
+async def get_worker_recommendation(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin),
+):
+    today_start = datetime.combine(date_type.today(), datetime.min.time())
+
+    # Todos los workers activos de la empresa
+    workers_result = await db.execute(
+        select(User).where(
+            User.company_id == current_user.company_id,
+            User.role == UserRole.worker,
+            User.is_active == True,
+        )
+    )
+    all_workers = workers_result.scalars().all()
+
+    if not all_workers:
+        return []
+
+    # Priorizar workers que están conectados ahora mismo
+    online_workers = [w for w in all_workers if w.is_online]
+    workers_to_rank = online_workers if online_workers else all_workers
+    online_ids = {w.id for w in online_workers}
+
+    recommendations = []
+    for worker in workers_to_rank:
+        pending_today = (await db.execute(
+            select(func.count(Task.id)).where(
+                Task.assigned_to == worker.id,
+                Task.company_id == current_user.company_id,
+                Task.status.in_([TaskStatus.pendiente, TaskStatus.en_curso]),
+                Task.created_at >= today_start,
+            )
+        )).scalar() or 0
+
+        pending_old = (await db.execute(
+            select(func.count(Task.id)).where(
+                Task.assigned_to == worker.id,
+                Task.company_id == current_user.company_id,
+                Task.status.in_([TaskStatus.pendiente, TaskStatus.en_curso]),
+                Task.created_at < today_start,
+            )
+        )).scalar() or 0
+
+        total_completed = (await db.execute(
+            select(func.count(Task.id)).where(
+                Task.assigned_to == worker.id,
+                Task.company_id == current_user.company_id,
+                Task.status == TaskStatus.completada,
+            )
+        )).scalar() or 0
+
+        accumulation_rate = (pending_today + pending_old) / (total_completed + 1)
+        score = pending_today * 0.5 + pending_old * 0.3 + accumulation_rate * 0.2
+
+        recommendations.append({
+            "user_id": worker.id,
+            "name": worker.name,
+            "score": score,
+            "pending_today": pending_today,
+            "pending_old": pending_old,
+            "total_completed": total_completed,
+            "is_active_today": worker.id in online_ids,
+            "is_recommended": False,
+        })
+
+    recommendations.sort(key=lambda x: x["score"])
+    if recommendations:
+        recommendations[0]["is_recommended"] = True
+
+    return recommendations
+
+
+@router.get("/stats", response_model=StatsResponse)
+async def get_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin),
+):
+    today = date_type.today()
+    today_start = datetime.combine(today, datetime.min.time())
+    week_start = datetime.combine(today - timedelta(days=today.weekday()), datetime.min.time())
+    month_start = datetime.combine(today.replace(day=1), datetime.min.time())
+
+    workers_result = await db.execute(
+        select(User).where(
+            User.company_id == current_user.company_id,
+            User.role == UserRole.worker,
+            User.is_active == True,
+        )
+    )
+    workers = workers_result.scalars().all()
+
+    worker_stats_list = []
+    for worker in workers:
+        total_assigned = (await db.execute(
+            select(func.count(Task.id)).where(
+                Task.assigned_to == worker.id,
+                Task.company_id == current_user.company_id,
+            )
+        )).scalar() or 0
+
+        total_completed = (await db.execute(
+            select(func.count(Task.id)).where(
+                Task.assigned_to == worker.id,
+                Task.company_id == current_user.company_id,
+                Task.status == TaskStatus.completada,
+            )
+        )).scalar() or 0
+
+        total_pending = (await db.execute(
+            select(func.count(Task.id)).where(
+                Task.assigned_to == worker.id,
+                Task.company_id == current_user.company_id,
+                Task.status.in_([TaskStatus.pendiente, TaskStatus.en_curso]),
+            )
+        )).scalar() or 0
+
+        pending_old = (await db.execute(
+            select(func.count(Task.id)).where(
+                Task.assigned_to == worker.id,
+                Task.company_id == current_user.company_id,
+                Task.status.in_([TaskStatus.pendiente, TaskStatus.en_curso]),
+                Task.created_at < today_start,
+            )
+        )).scalar() or 0
+
+        completed_this_week = (await db.execute(
+            select(func.count(Task.id)).where(
+                Task.assigned_to == worker.id,
+                Task.company_id == current_user.company_id,
+                Task.status == TaskStatus.completada,
+                Task.completed_at >= week_start,
+            )
+        )).scalar() or 0
+
+        completed_this_month = (await db.execute(
+            select(func.count(Task.id)).where(
+                Task.assigned_to == worker.id,
+                Task.company_id == current_user.company_id,
+                Task.status == TaskStatus.completada,
+                Task.completed_at >= month_start,
+            )
+        )).scalar() or 0
+
+        completion_rate = (total_completed / total_assigned * 100) if total_assigned > 0 else 0.0
+
+        worker_stats_list.append(WorkerStats(
+            user_id=worker.id,
+            name=worker.name,
+            total_assigned=total_assigned,
+            total_completed=total_completed,
+            total_pending=total_pending,
+            completion_rate=completion_rate,
+            pending_old=pending_old,
+            completed_this_week=completed_this_week,
+            completed_this_month=completed_this_month,
+        ))
+
+    # Métricas globales
+    global_total_movements = (await db.execute(
+        select(func.count(Movement.id)).where(Movement.company_id == current_user.company_id)
+    )).scalar() or 0
+
+    global_total_tasks_completed = (await db.execute(
+        select(func.count(Task.id)).where(
+            Task.company_id == current_user.company_id,
+            Task.status == TaskStatus.completada,
+        )
+    )).scalar() or 0
+
+    global_total_tasks = (await db.execute(
+        select(func.count(Task.id)).where(Task.company_id == current_user.company_id)
+    )).scalar() or 0
+
+    global_completion_rate = (
+        global_total_tasks_completed / global_total_tasks * 100
+        if global_total_tasks > 0 else 0.0
+    )
+
+    # Día más activo de la semana
+    timestamps_result = await db.execute(
+        select(Movement.timestamp).where(Movement.company_id == current_user.company_id)
+    )
+    timestamps = timestamps_result.scalars().all()
+    day_names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    day_counts: dict[str, int] = {}
+    for ts in timestamps:
+        day = day_names[ts.weekday()]
+        day_counts[day] = day_counts.get(day, 0) + 1
+    busiest_day = max(day_counts, key=day_counts.get) if day_counts else None
+
+    # Worker más activo
+    most_active_worker = None
+    if worker_stats_list:
+        best = max(worker_stats_list, key=lambda w: w.total_completed)
+        if best.total_completed > 0:
+            most_active_worker = best.name
+
+    return StatsResponse(
+        workers=worker_stats_list,
+        global_total_movements=global_total_movements,
+        global_total_tasks_completed=global_total_tasks_completed,
+        global_completion_rate=global_completion_rate,
+        busiest_day=busiest_day,
+        most_active_worker=most_active_worker,
+    )
+
+
 @router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: uuid.UUID,
@@ -250,6 +463,8 @@ async def update_task_status(
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
 
     task.status = status_data.status
+    if status_data.status == TaskStatus.completada:
+        task.completed_at = datetime.utcnow()
     await db.commit()
     await db.refresh(task)
     await websocket_service.broadcast_task_status_changed(

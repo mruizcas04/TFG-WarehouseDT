@@ -12,7 +12,12 @@ export default function UsersSection() {
   const [deactivateModal, setDeactivateModal] = useState(null)
   const [showInactive, setShowInactive] = useState(false)
 
-  const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: getUsers })
+  const { data: users, isLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
+    refetchInterval: 15_000,   // refresca cada 15 s para ver cambios de is_online en tiempo real
+    staleTime: 0,
+  })
   const { data: inactiveUsers, isLoading: isLoadingInactive } = useQuery({
     queryKey: ['users-inactive'],
     queryFn: getInactiveUsers,
@@ -59,12 +64,27 @@ export default function UsersSection() {
   const UserRow = ({ user, inactive = false }) => {
     const badge = roleBadge(user.role)
     const isCurrentUser = currentUser && currentUser.id === user.id
+    const showOnline = !inactive && user.role === 'worker'
     return (
       <tr style={{ borderTop: '0.5px solid #F1EFE8', opacity: inactive ? 0.75 : 1 }}>
         <td style={{ padding: '12px 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: inactive ? '#F1EFE8' : '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '500', color: inactive ? '#888780' : '#185FA5', flexShrink: 0 }}>
-              {getInitials(user.name)}
+            {/* Avatar con indicador online */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: inactive ? '#F1EFE8' : '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '500', color: inactive ? '#888780' : '#185FA5' }}>
+                {getInitials(user.name)}
+              </div>
+              {showOnline && (
+                <span
+                  title={user.is_online ? 'Conectado' : 'Desconectado'}
+                  style={{
+                    position: 'absolute', bottom: 0, right: 0,
+                    width: '9px', height: '9px', borderRadius: '50%',
+                    background: user.is_online ? '#2ECC71' : '#D3D1C7',
+                    border: '1.5px solid white',
+                  }}
+                />
+              )}
             </div>
             <span style={{ fontWeight: '500', color: '#1C1C1A' }}>{user.name}</span>
             {inactive && (
@@ -77,6 +97,21 @@ export default function UsersSection() {
           <span style={{ background: badge.bg, color: badge.color, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: '500' }}>
             {roleLabel(user.role)}
           </span>
+        </td>
+        <td style={{ padding: '12px 20px' }}>
+          {user.role === 'worker' && !inactive ? (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              background: user.is_online ? '#EDFAF3' : '#F8F8F6',
+              color: user.is_online ? '#1A9A5A' : '#888780',
+              padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: '500',
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: user.is_online ? '#2ECC71' : '#D3D1C7', flexShrink: 0 }} />
+              {user.is_online ? 'Conectado' : 'Desconectado'}
+            </span>
+          ) : (
+            <span style={{ color: '#D3D1C7', fontSize: '12px' }}>—</span>
+          )}
         </td>
         <td style={{ padding: '12px 20px', color: '#888780' }}>
           {new Date(user.created_at).toLocaleDateString('es-ES')}
@@ -99,7 +134,7 @@ export default function UsersSection() {
     )
   }
 
-  const activeHeaders = ['Usuario', 'Email', 'Rol', 'Fecha de registro', 'Acciones']
+  const activeHeaders = ['Usuario', 'Email', 'Rol', 'Estado', 'Fecha de registro', 'Acciones']
   const inactiveHeaders = ['Usuario', 'Email', 'Rol', 'Fecha de registro']
 
   return (

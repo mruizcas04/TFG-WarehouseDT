@@ -40,7 +40,9 @@ class UserResponse(BaseModel):
     email: str
     role: UserRole
     is_active: bool
+    is_online: bool
     must_change_password: bool
+    last_login: Optional[datetime] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -290,8 +292,43 @@ class TaskResponse(BaseModel):
     origin_location_id: Optional[UUID]
     destination_location_id: Optional[UUID]
     created_at: datetime
+    completed_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+# --- Worker Recommendation / Stats ---
+
+class WorkerRecommendation(BaseModel):
+    user_id: UUID
+    name: str
+    score: float
+    pending_today: int
+    pending_old: int
+    total_completed: int
+    is_active_today: bool
+    is_recommended: bool
+
+
+class WorkerStats(BaseModel):
+    user_id: UUID
+    name: str
+    total_assigned: int
+    total_completed: int
+    total_pending: int
+    completion_rate: float
+    pending_old: int
+    completed_this_week: int
+    completed_this_month: int
+
+
+class StatsResponse(BaseModel):
+    workers: list[WorkerStats]
+    global_total_movements: int
+    global_total_tasks_completed: int
+    global_completion_rate: float
+    busiest_day: Optional[str] = None
+    most_active_worker: Optional[str] = None
 
 # --- Inventory Summary ---
 

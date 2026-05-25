@@ -171,6 +171,8 @@ class User(Base):
     verification_token: Mapped[str | None] = mapped_column(String, nullable=True)
     reset_password_token: Mapped[str | None] = mapped_column(String, nullable=True)
     reset_token_expires: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
+    is_online: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     company: Mapped["Company | None"] = relationship("Company", back_populates="users")
@@ -193,6 +195,7 @@ class Task(Base):
     origin_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
     destination_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
 
     company: Mapped["Company | None"] = relationship("Company", back_populates="tasks")
     admin: Mapped["User"] = relationship("User", foreign_keys=[created_by], back_populates="tasks_created")

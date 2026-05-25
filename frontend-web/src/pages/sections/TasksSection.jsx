@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTasks, createTask, deleteTask } from '../../api/tasks'
+import { getRecommendation } from '../../api/stats'
+import { getMovements } from '../../api/movements'
 import { getUsers } from '../../api/users'
 import { getProducts } from '../../api/products'
 import { getBoxes } from '../../api/boxes'
@@ -248,6 +250,13 @@ export default function TasksSection({ onRequestLocationSelection }) {
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: getProducts })
   const { data: boxes } = useQuery({ queryKey: ['boxes'], queryFn: getBoxes })
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
+  const { data: recommendation } = useQuery({
+    queryKey: ['recommendation'],
+    queryFn: getRecommendation,
+    enabled: showForm,
+    staleTime: 30_000,
+  })
+  const { data: movements } = useQuery({ queryKey: ['movements'], queryFn: getMovements })
 
   useEffect(() => {
     if (!warehouses?.length) return
@@ -259,6 +268,14 @@ export default function TasksSection({ onRequestLocationSelection }) {
   useEffect(() => {
     setVisibleCount(10)
   }, [filterType, filterStatus, searchQuery])
+
+  // Preseleccionar el trabajador recomendado cuando se abre el formulario
+  useEffect(() => {
+    if (showForm && recommendation?.length > 0 && !form.assigned_to) {
+      const recommended = recommendation.find(r => r.is_recommended)
+      if (recommended) updateForm({ assigned_to: recommended.user_id })
+    }
+  }, [showForm, recommendation])
 
   useEffect(() => {
     if (!productPopup) return
@@ -330,6 +347,7 @@ export default function TasksSection({ onRequestLocationSelection }) {
       setQuantityError(false)
       setOriginLocation(null)
       setForm({ assigned_to: '', type: 'entrada', product_id: '', quantity: '', origin_location_id: '', destination_location_id: '' })
+      queryClient.invalidateQueries(['recommendation'])
     },
     onError: (err) => setFormError(err?.response?.data?.detail || 'Error al crear la tarea'),
   })
@@ -415,6 +433,13 @@ export default function TasksSection({ onRequestLocationSelection }) {
   const pillActive = { background: '#185FA5', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }
   const pillInactive = { background: 'white', color: '#5F5E5A', border: '0.5px solid #D3D1C7', padding: '5px 12px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer' }
 
+  const movMetrics = {
+    total:     movements?.length ?? 0,
+    entradas:  movements?.filter(m => m.type === 'entrada').length  ?? 0,
+    salidas:   movements?.filter(m => m.type === 'salida').length   ?? 0,
+    traslados: movements?.filter(m => m.type === 'traslado').length ?? 0,
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -424,6 +449,23 @@ export default function TasksSection({ onRequestLocationSelection }) {
         </button>
       </div>
 
+      {/* Panel de métricas de movimientos */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+        {[
+          { label: 'Total movimientos', value: movMetrics.total,     bg: '#F8F8F6', numColor: '#1C1C1A', lblColor: '#888780' },
+          { label: 'Entradas',          value: movMetrics.entradas,  bg: '#EAF3DE', numColor: '#3B6D11', lblColor: '#3B6D11' },
+          { label: 'Salidas',           value: movMetrics.salidas,   bg: '#FAEEDA', numColor: '#854F0B', lblColor: '#854F0B' },
+          { label: 'Traslados',         value: movMetrics.traslados, bg: '#EEEDFE', numColor: '#534AB7', lblColor: '#534AB7' },
+        ].map(m => (
+          <div key={m.label} style={{ background: m.bg, borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '18px 20px' }}>
+            <div style={{ fontSize: '30px', fontWeight: '600', color: m.numColor, lineHeight: 1 }}>
+              {movements == null ? '—' : m.value}
+            </div>
+            <div style={{ fontSize: '12px', color: m.lblColor, marginTop: '6px' }}>{m.label}</div>
+          </div>
+        ))}
+      </div>
+
       {showForm && (
         <form onSubmit={handleSubmit} style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#1C1C1A', margin: 0 }}>Nueva tarea</h3>
@@ -431,10 +473,47 @@ export default function TasksSection({ onRequestLocationSelection }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
               <label style={labelStyle}>Asignar a</label>
-              <select value={form.assigned_to} onChange={e => updateForm({ assigned_to: e.target.value })} style={selectStyle} required>
+              <select
+                value={form.assigned_to}
+                onChange={e => updateForm({ assigned_to: e.target.value })}
+                style={selectStyle}
+                required
+              >
                 <option value="">Selecciona un trabajador</option>
-                {workers?.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                {recommendation
+                  ? recommendation.map(r => (
+                      <option key={r.user_id} value={r.user_id}>
+                        {r.is_recommended ? `⭐ ${r.name}` : r.name}
+                      </option>
+                    ))
+                  : workers?.map(w => <option key={w.id} value={w.id}>{w.name}</option>)
+                }
               </select>
+              {(() => {
+                const selectedRec = recommendation?.find(r => r.user_id === form.assigned_to)
+                if (!selectedRec) return null
+                const totalLoad = selectedRec.pending_today + selectedRec.pending_old
+                const totalForRate = selectedRec.total_completed + totalLoad
+                const rate = totalForRate > 0
+                  ? Math.round(selectedRec.total_completed / totalForRate * 100)
+                  : 100
+                return (
+                  <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    {selectedRec.is_recommended && (
+                      <span style={{ background: '#EAF3DE', color: '#3B6D11', fontSize: '10px', fontWeight: '600', padding: '2px 7px', borderRadius: '20px', letterSpacing: '0.02em' }}>
+                        Recomendado
+                      </span>
+                    )}
+                    <span style={{ fontSize: '11px', color: '#888780' }}>
+                      {selectedRec.pending_today} {selectedRec.pending_today === 1 ? 'tarea pendiente hoy' : 'tareas pendientes hoy'}
+                      {' · '}
+                      {selectedRec.pending_old} {selectedRec.pending_old === 1 ? 'atrasada' : 'atrasadas'}
+                      {' · '}
+                      tasa completado: {rate}%
+                    </span>
+                  </div>
+                )
+              })()}
             </div>
             <div>
               <label style={labelStyle}>Tipo de operación</label>

@@ -44,7 +44,8 @@
       "PowerShell(& \"C:\\\\Users\\\\mruiz\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" kill-server)",
       "PowerShell(& \"C:\\\\Users\\\\mruiz\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" start-server)",
       "Bash(node -e \"const p = require\\('./node_modules/react-native-nfc-manager/package.json'\\); console.log\\(p.version, p['react-native']?.['codegenConfig'] ? 'new-arch-support' : 'no-codegen'\\)\")",
-      "PowerShell(& \"C:\\\\Users\\\\mruiz\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" install -r -d \"C:\\\\Users\\\\mruiz\\\\TFG\\\\mobile-app\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\" 2>&1)"
+      "PowerShell(& \"C:\\\\Users\\\\mruiz\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\platform-tools\\\\adb.exe\" install -r -d \"C:\\\\Users\\\\mruiz\\\\TFG\\\\mobile-app\\\\android\\\\app\\\\build\\\\outputs\\\\apk\\\\debug\\\\app-debug.apk\" 2>&1)",
+      "PowerShell(python --version 2>&1)"
     ]
   }
 }

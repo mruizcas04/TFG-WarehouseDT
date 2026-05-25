@@ -28,3 +28,6 @@ export const resetPassword = async (token, new_password) => {
   const response = await client.post('/auth/reset-password', { token, new_password })
   return response.data
 }
+
+export const logoutApi = () =>
+  client.post('/auth/logout').catch(() => {/* fire-and-forget; no bloquear el logout local */})
