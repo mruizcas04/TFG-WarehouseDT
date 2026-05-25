@@ -25,6 +25,8 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float doubleShelfExtraGap = 0.5f;
         [Tooltip("Margen entre el suelo y la primera balda (en metros). Realista — los racks de verdad tienen 15-30cm de hueco abajo. Con este margen activo, en un poste de altura X caben menos niveles (lógico).")]
         [SerializeField] private float levelBaseClearance = 0.2f;
+        [Tooltip("Offset vertical (en metros) aplicado a cada ubicación dentro de su nivel. Útil para subir el contenido completo (palet + caja + overlay) de forma que el palet no clipee con la viga inferior. Empieza en 0 y sube hasta que el palet quede apoyado correctamente.")]
+        [SerializeField] private float locationVerticalOffset = 0f;
 
         [Header("Prefabs")]
         [SerializeField] private GameObject locationPrefab;
@@ -248,7 +250,7 @@ namespace WarehouseTwin.Warehouse
 
                         GameObject locationGO = Instantiate(locationPrefab, levelGO.transform);
                         locationGO.name = $"Location_{location.position_number}";
-                        locationGO.transform.localPosition = new Vector3(0, 0, locationZ);
+                        locationGO.transform.localPosition = new Vector3(0, locationVerticalOffset, locationZ);
 
                         LocationObject locObj = locationGO.GetComponent<LocationObject>();
                         locObj.Initialize(location.id, LocationObject.StateFromInventory(location.inventory));
