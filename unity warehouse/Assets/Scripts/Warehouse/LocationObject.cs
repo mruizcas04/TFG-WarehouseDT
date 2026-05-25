@@ -57,7 +57,8 @@ namespace WarehouseTwin.Warehouse
 
         /// <summary>
         /// Ajusta el tamaño físico de la ubicación. En modo legacy escala el root (cubo único).
-        /// En modo layered ajusta el BoxCollider y el SlotOverlay (que es un cubo) sin deformar el Content.
+        /// En modo layered solo ajusta el BoxCollider (área clickable). El SlotOverlay y el Content
+        /// conservan la escala y posición que el usuario haya configurado en el prefab.
         /// </summary>
         public void SetCellSize(Vector3 size)
         {
@@ -69,12 +70,7 @@ namespace WarehouseTwin.Warehouse
                     _boxCollider.size   = size;
                     _boxCollider.center = Vector3.zero;
                 }
-                if (_slotOverlay != null)
-                {
-                    _slotOverlay.transform.localScale    = size;
-                    _slotOverlay.transform.localPosition = Vector3.zero;
-                }
-                // Content mantiene su escala nativa — la caja del pack ya está dimensionada.
+                // SlotOverlay y Content mantienen su escala/posición nativas del prefab.
             }
             else
             {
