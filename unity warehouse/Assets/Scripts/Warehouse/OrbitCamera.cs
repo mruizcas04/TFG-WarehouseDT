@@ -32,6 +32,18 @@ namespace WarehouseTwin.Warehouse
             minDistance = size * 0.3f;
         }
 
+        /// <summary>
+        /// Como FitToWarehouse pero clampea maxDistance a un radio máximo
+        /// para que la cámara no salga del recinto de las paredes.
+        /// </summary>
+        public void FitToWarehouse(Vector3 center, float size, float maxRadiusInsideWalls)
+        {
+            target      = center;
+            distance    = Mathf.Min(size * 1.5f, maxRadiusInsideWalls);
+            maxDistance = Mathf.Min(size * 3f, maxRadiusInsideWalls);
+            minDistance = size * 0.3f;
+        }
+
         private void LateUpdate()
         {
             // Rotar arrastrando con el botón derecho del ratón

@@ -358,12 +358,14 @@ namespace WarehouseTwin.Warehouse
                     locObj.SetState(LocationState.Task);
             }
 
-            // Ajustar cámara al almacén generado
+            // Ajustar cámara al almacén generado.
+            // Limitamos la distancia máxima para que la cámara nunca salga del recinto de las paredes.
             float centerX = (boundsMinX + boundsMaxX) / 2f;
             float centerZ = (boundsMinZ + boundsMaxZ) / 2f;
             float size    = Mathf.Max(boundsMaxX - boundsMinX, boundsMaxZ - boundsMinZ);
+            float maxRadiusInsideWalls = size / 2f + margin - 2f;  // 2m de margen de seguridad
             OrbitCamera cam = Camera.main != null ? Camera.main.GetComponent<OrbitCamera>() : null;
-            if (cam != null) cam.FitToWarehouse(new Vector3(centerX, 0f, centerZ), size);
+            if (cam != null) cam.FitToWarehouse(new Vector3(centerX, 0f, centerZ), size, maxRadiusInsideWalls);
 
             Debug.Log($"Almacén generado: {_locationObjects.Count} ubicaciones.");
         }
@@ -410,14 +412,14 @@ namespace WarehouseTwin.Warehouse
             float wallY   = wallYOffset;
             Quaternion baseRot = Quaternion.Euler(wallRotationOffset);
 
-            // Pared FRONT (Z=minZ): tiles a lo largo de X. Sin rotación adicional.
+            // Pared FRONT (Z=minZ, interior en +Z): sin rotación, cara +Z del prefab queda mirando al interior.
             TileWall(minX, maxX, "Front", wallY, minZ, baseRot, yScale, axisAlongX: true);
-            // Pared BACK (Z=maxZ): tiles a lo largo de X. Rotada 180° en Y.
+            // Pared BACK (Z=maxZ, interior en -Z): rotada 180° en Y para que su cara +Z mire al interior.
             TileWall(minX, maxX, "Back", wallY, maxZ, baseRot * Quaternion.Euler(0, 180, 0), yScale, axisAlongX: true);
-            // Pared LEFT (X=minX): tiles a lo largo de Z. Rotada -90° en Y.
-            TileWall(minZ, maxZ, "Left", wallY, minX, baseRot * Quaternion.Euler(0, -90, 0), yScale, axisAlongX: false);
-            // Pared RIGHT (X=maxX): tiles a lo largo de Z. Rotada 90° en Y.
-            TileWall(minZ, maxZ, "Right", wallY, maxX, baseRot * Quaternion.Euler(0, 90, 0), yScale, axisAlongX: false);
+            // Pared LEFT (X=minX, interior en +X): rotada +90° en Y para que su cara +Z mire al interior.
+            TileWall(minZ, maxZ, "Left", wallY, minX, baseRot * Quaternion.Euler(0, 90, 0), yScale, axisAlongX: false);
+            // Pared RIGHT (X=maxX, interior en -X): rotada -90° en Y para que su cara +Z mire al interior.
+            TileWall(minZ, maxZ, "Right", wallY, maxX, baseRot * Quaternion.Euler(0, -90, 0), yScale, axisAlongX: false);
         }
 
         private void TileWall(float axisMin, float axisMax, string side, float cy, float perpendicularCoord, Quaternion rotation, float yScale, bool axisAlongX)
