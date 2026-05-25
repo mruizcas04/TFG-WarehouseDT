@@ -19,12 +19,16 @@ namespace WarehouseTwin.Warehouse
         public int    Quantity      { get; private set; }
         public bool   IsBox         { get; private set; }
 
-        private Renderer _renderer;
+        [Header("Visuales en capas (opcional — vacíos = modo legacy single-cube)")]
+        [Tooltip("Hijo mostrado cuando la ubicación está ocupada (caja/producto). Oculto si Free o si filtro la oculta.")]
+        [SerializeField] private GameObject _contentVisual;
+        [Tooltip("Renderer del cubo translúcido superpuesto. Se muestra y cambia color con hover / task / selected.")]
+        [SerializeField] private Renderer _slotOverlay;
+
+        private Renderer _legacyRenderer;
         private bool     _dimmed;
-        private bool     _hoverHighlight;
-        private Color    _savedColor;
-        private bool     _selectionHighlight;
-        private Color    _selectionSavedColor;
+        private bool     _hover;
+        private bool     _selected;
 
         private static readonly Color ColorFree     = new Color(0.6f,  0.6f,  0.6f);
         private static readonly Color ColorProduct  = new Color(0.2f,  0.8f,  0.2f);
@@ -33,9 +37,18 @@ namespace WarehouseTwin.Warehouse
         private static readonly Color ColorDimmed   = new Color(0.15f, 0.15f, 0.15f, 0.4f);
         private static readonly Color ColorSelected = new Color(0.2f,  0.6f,  1.0f);
 
+        // Tintes translúcidos para el SlotOverlay (modo layered)
+        private static readonly Color OverlayHover    = new Color(0.4f, 0.8f, 1.0f, 0.30f);
+        private static readonly Color OverlaySelected = new Color(0.2f, 0.6f, 1.0f, 0.55f);
+        private static readonly Color OverlayTask     = new Color(1.0f, 0.85f, 0.0f, 0.45f);
+
+        private bool UseLayered => _contentVisual != null || _slotOverlay != null;
+        private bool HasContent => !string.IsNullOrEmpty(ProductId) || IsBox;
+
         private void Awake()
         {
-            _renderer = GetComponent<Renderer>();
+            _legacyRenderer = GetComponent<Renderer>();
+            if (_slotOverlay != null) _slotOverlay.gameObject.SetActive(false);
         }
 
         public void Initialize(string locationId, LocationState initialState)
@@ -54,6 +67,7 @@ namespace WarehouseTwin.Warehouse
             Quantity      = quantity;
             IsBox         = isBox;
             TaskInfo      = taskInfo;
+            RefreshVisual();
         }
 
         public void SetState(LocationState newState)
@@ -65,53 +79,20 @@ namespace WarehouseTwin.Warehouse
                 TaskInfo = "Tarea activa";
             else if (newState != LocationState.Task)
                 TaskInfo = "";
-            if (!_dimmed) ApplyColor();
+            RefreshVisual();
         }
 
         public void SetFilterDim(bool dimmed)
         {
             _dimmed = dimmed;
-            if (dimmed)
-            {
-                if (_renderer != null) _renderer.material.color = ColorDimmed;
-            }
-            else
-            {
-                ApplyColor();
-            }
-        }
-
-        private void ApplyColor()
-        {
-            if (_renderer == null) { Debug.LogError($"Renderer null en {LocationId}"); return; }
-
-            Color color = CurrentState switch
-            {
-                LocationState.Free    => ColorFree,
-                LocationState.Product => ColorProduct,
-                LocationState.Box     => ColorBox,
-                LocationState.Task    => ColorTask,
-                _                     => ColorFree
-            };
-
-            Debug.Log($"ApplyColor {LocationId} — estado: {CurrentState} — color: {color}");
-            _renderer.material.color = color;
+            RefreshVisual();
         }
 
         public void SetSelectionHighlight(bool highlighted)
         {
-            if (highlighted && !_selectionHighlight && _renderer != null)
-            {
-                _selectionHighlight = true;
-                _hoverHighlight = false;
-                _renderer.material.color = ColorSelected;
-            }
-            else if (!highlighted && _selectionHighlight && _renderer != null)
-            {
-                _selectionHighlight = false;
-                _hoverHighlight = false;
-                if (!_dimmed) ApplyColor();
-            }
+            _selected = highlighted;
+            if (highlighted) _hover = false;
+            RefreshVisual();
         }
 
         private void OnMouseDown()
@@ -125,26 +106,89 @@ namespace WarehouseTwin.Warehouse
             if (tooltip != null)
                 tooltip.Show(LocationLabel, ProductName, Quantity, TaskInfo, CurrentState, Barcode, Category, CategoryColor);
 
-            if (ReactBridge.Instance != null && ReactBridge.Instance.IsInSelectionMode && _renderer != null && !_dimmed)
-            {
-                _savedColor = _renderer.material.color;
-                _hoverHighlight = true;
-                Color c = _savedColor;
-                _renderer.material.color = new Color(
-                    Mathf.Min(c.r + 0.3f, 1f),
-                    Mathf.Min(c.g + 0.3f, 1f),
-                    Mathf.Min(c.b + 0.3f, 1f),
-                    c.a);
-            }
+            _hover = true;
+            RefreshVisual();
         }
 
         private void OnMouseExit()
         {
             WarehouseTooltip.Instance?.Hide();
-            if (_hoverHighlight && _renderer != null)
+            _hover = false;
+            RefreshVisual();
+        }
+
+        private void RefreshVisual()
+        {
+            if (UseLayered) RefreshLayered();
+            else            RefreshLegacy();
+        }
+
+        private void RefreshLegacy()
+        {
+            if (_legacyRenderer == null)
             {
-                _renderer.material.color = _selectionHighlight ? ColorSelected : _savedColor;
-                _hoverHighlight = false;
+                Debug.LogError($"Renderer null en {LocationId}");
+                return;
+            }
+
+            // Prioridad: selected > dimmed > estado base. Hover brillo solo en modo selección.
+            Color color;
+            if (_selected)
+            {
+                color = ColorSelected;
+            }
+            else if (_dimmed)
+            {
+                color = ColorDimmed;
+            }
+            else
+            {
+                color = CurrentState switch
+                {
+                    LocationState.Free    => ColorFree,
+                    LocationState.Product => ColorProduct,
+                    LocationState.Box     => ColorBox,
+                    LocationState.Task    => ColorTask,
+                    _                     => ColorFree
+                };
+            }
+
+            bool selectionMode = ReactBridge.Instance != null && ReactBridge.Instance.IsInSelectionMode;
+            if (_hover && selectionMode && !_dimmed && !_selected)
+            {
+                color = new Color(
+                    Mathf.Min(color.r + 0.3f, 1f),
+                    Mathf.Min(color.g + 0.3f, 1f),
+                    Mathf.Min(color.b + 0.3f, 1f),
+                    color.a);
+            }
+
+            _legacyRenderer.material.color = color;
+        }
+
+        private void RefreshLayered()
+        {
+            // Content: visible si ocupada (metadata o estado) y el filtro no la oculta.
+            // Si está seleccionada, también la mostramos aunque el filtro la "tape" — la selección manda.
+            if (_contentVisual != null)
+            {
+                bool occupied = HasContent
+                                || CurrentState == LocationState.Product
+                                || CurrentState == LocationState.Box;
+                _contentVisual.SetActive(occupied && (!_dimmed || _selected));
+            }
+
+            // SlotOverlay: prioridad Selected > Task > Hover. Oculto si solo Dim.
+            if (_slotOverlay != null)
+            {
+                Color? overlay = null;
+                if (_selected)                                   overlay = OverlaySelected;
+                else if (!_dimmed && CurrentState == LocationState.Task) overlay = OverlayTask;
+                else if (!_dimmed && _hover)                     overlay = OverlayHover;
+
+                _slotOverlay.gameObject.SetActive(overlay.HasValue);
+                if (overlay.HasValue)
+                    _slotOverlay.material.color = overlay.Value;
             }
         }
 
