@@ -66,12 +66,18 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float wallTileWidth = 5f;
         [Tooltip("Altura nativa del prefab de pared (en metros). Se escala en Y para cubrir wallHeight.")]
         [SerializeField] private float wallTileHeight = 5f;
-        [Tooltip("Rotación euler base aplicada a los prefabs de pared. Ajusta si las paredes salen mirando hacia fuera del almacén.")]
+        [Tooltip("Rotación euler base aplicada a los prefabs de pared. Ajusta si las paredes salen mirando hacia fuera del almacén — prueba (0,180,0).")]
         [SerializeField] private Vector3 wallRotationOffset = Vector3.zero;
+        [Tooltip("Offset vertical (en metros) sumado a la posición Y de las paredes. Útil si el pivot del FBX no está en la base — sube/baja hasta que las paredes lleguen al suelo y al techo.")]
+        [SerializeField] private float wallYOffset = 0f;
         [Tooltip("Prefab del techo (ej. roof_flat). Si está vacío no hay techo.")]
         [SerializeField] private GameObject ceilingPrefab;
         [Tooltip("Tamaño nativo del prefab de techo (lado del cuadrado, en metros).")]
         [SerializeField] private float ceilingTileSize = 5f;
+        [Tooltip("Rotación euler aplicada al prefab de techo. Si lo ves al revés (cara visible mirando hacia arriba en vez de abajo) prueba (180,0,0).")]
+        [SerializeField] private Vector3 ceilingRotationOffset = Vector3.zero;
+        [Tooltip("Offset vertical (en metros) sumado a la posición Y del techo. Sube o baja el techo si no encaja con las paredes.")]
+        [SerializeField] private float ceilingYOffset = 0f;
         [Tooltip("Prefab de lámpara (ej. lamp_1). Si está vacío no se colocan lámparas.")]
         [SerializeField] private GameObject lampPrefab;
         [Tooltip("Distancia entre lámparas (en metros, ambas direcciones).")]
@@ -396,21 +402,22 @@ namespace WarehouseTwin.Warehouse
 
         /// <summary>
         /// Tilea paredes a lo largo de los 4 lados del almacén. Tilea horizontalmente, escala en Y para cubrir wallHeight.
+        /// Asume pivot del FBX en la base (Y=0). Si el FBX tiene pivot en el centro, usa wallYOffset.
         /// </summary>
         private void BuildWallTiles(float minX, float maxX, float minZ, float maxZ, float wallHeight)
         {
             float yScale  = wallHeight / wallTileHeight;
-            float wallCY  = wallHeight / 2f;
+            float wallY   = wallYOffset;
             Quaternion baseRot = Quaternion.Euler(wallRotationOffset);
 
             // Pared FRONT (Z=minZ): tiles a lo largo de X. Sin rotación adicional.
-            TileWall(minX, maxX, "Front", wallCY, minZ, baseRot, yScale, axisAlongX: true);
+            TileWall(minX, maxX, "Front", wallY, minZ, baseRot, yScale, axisAlongX: true);
             // Pared BACK (Z=maxZ): tiles a lo largo de X. Rotada 180° en Y.
-            TileWall(minX, maxX, "Back", wallCY, maxZ, baseRot * Quaternion.Euler(0, 180, 0), yScale, axisAlongX: true);
+            TileWall(minX, maxX, "Back", wallY, maxZ, baseRot * Quaternion.Euler(0, 180, 0), yScale, axisAlongX: true);
             // Pared LEFT (X=minX): tiles a lo largo de Z. Rotada -90° en Y.
-            TileWall(minZ, maxZ, "Left", wallCY, minX, baseRot * Quaternion.Euler(0, -90, 0), yScale, axisAlongX: false);
+            TileWall(minZ, maxZ, "Left", wallY, minX, baseRot * Quaternion.Euler(0, -90, 0), yScale, axisAlongX: false);
             // Pared RIGHT (X=maxX): tiles a lo largo de Z. Rotada 90° en Y.
-            TileWall(minZ, maxZ, "Right", wallCY, maxX, baseRot * Quaternion.Euler(0, 90, 0), yScale, axisAlongX: false);
+            TileWall(minZ, maxZ, "Right", wallY, maxX, baseRot * Quaternion.Euler(0, 90, 0), yScale, axisAlongX: false);
         }
 
         private void TileWall(float axisMin, float axisMax, string side, float cy, float perpendicularCoord, Quaternion rotation, float yScale, bool axisAlongX)
@@ -433,12 +440,14 @@ namespace WarehouseTwin.Warehouse
         }
 
         /// <summary>
-        /// Tilea el techo en grid a la altura wallHeight.
+        /// Tilea el techo en grid a la altura wallHeight + ceilingYOffset, con rotación ceilingRotationOffset.
         /// </summary>
         private void BuildCeilingTiles(float minX, float maxX, float minZ, float maxZ, float ceilingY)
         {
             int tilesX = Mathf.CeilToInt((maxX - minX) / ceilingTileSize);
             int tilesZ = Mathf.CeilToInt((maxZ - minZ) / ceilingTileSize);
+            Quaternion ceilingRot = Quaternion.Euler(ceilingRotationOffset);
+            float y = ceilingY + ceilingYOffset;
 
             for (int i = 0; i < tilesX; i++)
             {
@@ -448,13 +457,14 @@ namespace WarehouseTwin.Warehouse
                     float cz = minZ + j * ceilingTileSize + ceilingTileSize / 2f;
                     GameObject tile = Instantiate(ceilingPrefab, transform);
                     tile.name = $"Ceiling_{i}_{j}";
-                    tile.transform.localPosition = new Vector3(cx, ceilingY, cz);
+                    tile.transform.localPosition = new Vector3(cx, y, cz);
+                    tile.transform.localRotation = ceilingRot;
                 }
             }
         }
 
         /// <summary>
-        /// Coloca lámparas en grid colgando del techo.
+        /// Coloca lámparas en grid colgando del techo (respetando ceilingYOffset).
         /// </summary>
         private void BuildLamps(float minX, float maxX, float minZ, float maxZ, float ceilingY)
         {
@@ -468,6 +478,7 @@ namespace WarehouseTwin.Warehouse
             float spreadZ = (lampsZ - 1) * lampSpacing;
             float startX  = (minX + maxX) / 2f - spreadX / 2f;
             float startZ  = (minZ + maxZ) / 2f - spreadZ / 2f;
+            float lampY   = ceilingY + ceilingYOffset - lampDropFromCeiling;
 
             for (int i = 0; i < lampsX; i++)
             {
@@ -477,7 +488,7 @@ namespace WarehouseTwin.Warehouse
                     lamp.name = $"Lamp_{i}_{j}";
                     lamp.transform.localPosition = new Vector3(
                         startX + i * lampSpacing,
-                        ceilingY - lampDropFromCeiling,
+                        lampY,
                         startZ + j * lampSpacing);
                 }
             }
