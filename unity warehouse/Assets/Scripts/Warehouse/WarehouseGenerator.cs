@@ -26,6 +26,8 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private GameObject locationPrefab;
         [Tooltip("Poste vertical del rack (ej: stand_vertical del pack). Opcional — si está vacío no se renderiza estructura.")]
         [SerializeField] private GameObject rackPostPrefab;
+        [Tooltip("Altura nativa del poste vertical (en metros). Se usa para escalarlo a la altura del almacén. Mide el prefab original con el truco del Box Collider.")]
+        [SerializeField] private float rackPostNativeHeight = 5.5f;
         [Tooltip("Viga horizontal del rack (ej: stand_horizontal_long). Se escala en eje Z para cubrir el largo de la estantería.")]
         [SerializeField] private GameObject rackBeamPrefab;
         [Tooltip("Longitud nativa de la viga horizontal (en metros). Se usa para calcular la escala. Mide el prefab original en Unity y rellena aquí.")]
@@ -324,9 +326,13 @@ namespace WarehouseTwin.Warehouse
             float startZ = -(shelfWidth - locationPadding) / 2f;
             float endZ   = startZ + shelfLength;
 
+            // Altura total que debe cubrir el poste (desde el suelo hasta encima del último nivel)
+            float postTargetHeight = numLevels * shelfHeight;
+            float postYScale = (rackPostNativeHeight > 0.01f) ? postTargetHeight / rackPostNativeHeight : 1f;
+
             // Postes en los extremos
-            InstantiatePost(shelfGO, "Post_Start", new Vector3(0, groundY, startZ));
-            InstantiatePost(shelfGO, "Post_End",   new Vector3(0, groundY, endZ));
+            InstantiatePost(shelfGO, "Post_Start", new Vector3(0, groundY, startZ), postYScale);
+            InstantiatePost(shelfGO, "Post_End",   new Vector3(0, groundY, endZ),   postYScale);
 
             // Vigas: una por nivel, en la base. Escaladas en Z para cubrir shelfLength.
             if (rackBeamPrefab != null && rackBeamNativeLength > 0.01f)
@@ -344,11 +350,13 @@ namespace WarehouseTwin.Warehouse
             }
         }
 
-        private void InstantiatePost(GameObject parent, string name, Vector3 localPosition)
+        private void InstantiatePost(GameObject parent, string name, Vector3 localPosition, float yScale)
         {
             GameObject post = Instantiate(rackPostPrefab, parent.transform);
             post.name = name;
             post.transform.localPosition = localPosition;
+            Vector3 s = post.transform.localScale;
+            post.transform.localScale = new Vector3(s.x, s.y * yScale, s.z);
         }
 
         private void HandleInventoryUpdated(WebSocketEventDTO evt)
