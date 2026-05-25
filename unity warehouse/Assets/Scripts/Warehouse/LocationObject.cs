@@ -25,7 +25,8 @@ namespace WarehouseTwin.Warehouse
         [Tooltip("Renderer del cubo translúcido superpuesto. Se muestra y cambia color con hover / task / selected.")]
         [SerializeField] private Renderer _slotOverlay;
 
-        private Renderer _legacyRenderer;
+        private Renderer    _legacyRenderer;
+        private BoxCollider _boxCollider;
         private bool     _dimmed;
         private bool     _hover;
         private bool     _selected;
@@ -48,7 +49,35 @@ namespace WarehouseTwin.Warehouse
         private void Awake()
         {
             _legacyRenderer = GetComponent<Renderer>();
+            _boxCollider    = GetComponent<BoxCollider>();
             if (_slotOverlay != null) _slotOverlay.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Ajusta el tamaño físico de la ubicación. En modo legacy escala el root (cubo único).
+        /// En modo layered ajusta el BoxCollider y el SlotOverlay (que es un cubo) sin deformar el Content.
+        /// </summary>
+        public void SetCellSize(Vector3 size)
+        {
+            if (UseLayered)
+            {
+                if (_boxCollider == null) _boxCollider = GetComponent<BoxCollider>();
+                if (_boxCollider != null)
+                {
+                    _boxCollider.size   = size;
+                    _boxCollider.center = Vector3.zero;
+                }
+                if (_slotOverlay != null)
+                {
+                    _slotOverlay.transform.localScale    = size;
+                    _slotOverlay.transform.localPosition = Vector3.zero;
+                }
+                // Content mantiene su escala nativa — la caja del pack ya está dimensionada.
+            }
+            else
+            {
+                transform.localScale = size;
+            }
         }
 
         public void Initialize(string locationId, LocationState initialState)

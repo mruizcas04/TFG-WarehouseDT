@@ -12,15 +12,24 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private string warehouseId;
 
         [Header("Dimensiones de los elementos (metros)")]
-        [SerializeField] private float shelfWidth = 1.0f;
-        [SerializeField] private float shelfHeight = 0.4f;
-        [SerializeField] private float shelfDepth = 0.6f;
-        [SerializeField] private float aisleSpacing = 2.5f;
+        [Tooltip("Ancho de cada ubicación (eje del pasillo). 1.2m = ancho de un palet europeo.")]
+        [SerializeField] private float shelfWidth = 1.2f;
+        [Tooltip("Altura de cada balda. 1.5m permite encajar cajas/palets de tamaño realista.")]
+        [SerializeField] private float shelfHeight = 1.5f;
+        [Tooltip("Profundidad de la estantería (eje transversal al pasillo). 1.0m = profundidad palet europeo.")]
+        [SerializeField] private float shelfDepth = 1.0f;
+        [Tooltip("Distancia entre pasillos (centro a centro). 3.5m permite paso de carretilla.")]
+        [SerializeField] private float aisleSpacing = 3.5f;
         [SerializeField] private float locationPadding = 0.05f;
 
         [Header("Prefabs")]
         [SerializeField] private GameObject locationPrefab;
-        [SerializeField] private GameObject shelfFramePrefab;
+        [Tooltip("Poste vertical del rack (ej: stand_vertical del pack). Opcional — si está vacío no se renderiza estructura.")]
+        [SerializeField] private GameObject rackPostPrefab;
+        [Tooltip("Viga horizontal del rack (ej: stand_horizontal_long). Se escala en eje Z para cubrir el largo de la estantería.")]
+        [SerializeField] private GameObject rackBeamPrefab;
+        [Tooltip("Longitud nativa de la viga horizontal (en metros). Se usa para calcular la escala. Mide el prefab original en Unity y rellena aquí.")]
+        [SerializeField] private float rackBeamNativeLength = 2.5f;
 
         [Header("Espacio libre alrededor (metros)")]
         [SerializeField] private float margin = 8.0f;
@@ -225,14 +234,14 @@ namespace WarehouseTwin.Warehouse
                         GameObject locationGO = Instantiate(locationPrefab, levelGO.transform);
                         locationGO.name = $"Location_{location.position_number}";
                         locationGO.transform.localPosition = new Vector3(0, 0, locationZ);
-                        locationGO.transform.localScale = new Vector3(
-                            shelfDepth - locationPadding,
-                            shelfHeight - locationPadding,
-                            shelfWidth - locationPadding
-                        );
 
                         LocationObject locObj = locationGO.GetComponent<LocationObject>();
                         locObj.Initialize(location.id, LocationObject.StateFromInventory(location.inventory));
+                        locObj.SetCellSize(new Vector3(
+                            shelfDepth - locationPadding,
+                            shelfHeight - locationPadding,
+                            shelfWidth - locationPadding
+                        ));
 
                         bool   hasTask  = activeTaskSet.Contains(location.id);
                         bool   isBox    = !string.IsNullOrEmpty(location.inventory?.box_id);
@@ -255,6 +264,8 @@ namespace WarehouseTwin.Warehouse
                         _locationObjects[location.id] = locObj;
                     }
                 }
+
+                BuildRackStructure(shelfGO, shelf.levels.Count, shelfLength);
 
                 if (!isDoubleBack)
                 {
@@ -294,6 +305,50 @@ namespace WarehouseTwin.Warehouse
             wall.transform.localScale = scale;
             if (wallMaterial != null)
                 wall.GetComponent<Renderer>().material = wallMaterial;
+        }
+
+        /// <summary>
+        /// Instancia postes verticales en los extremos de la estantería y vigas horizontales en
+        /// la base de cada nivel. No-op si rackPostPrefab no está asignado (modo legacy).
+        /// </summary>
+        private void BuildRackStructure(GameObject shelfGO, int numLevels, float shelfLength)
+        {
+            if (rackPostPrefab == null) return;
+
+            // En el espacio local del shelfGO: Y=0 es el centro del nivel 1 (por el groundOffset que
+            // se aplica al posicionar el shelfGO). El suelo del nivel 1 está en Y = -groundOffset.
+            float groundY = -((shelfHeight - locationPadding) / 2f);
+
+            // Las ubicaciones se colocan a lo largo de Z. La primera tiene su centro en Z=0,
+            // así que el borde frontal de la estantería está en Z = -shelfWidth/2.
+            float startZ = -(shelfWidth - locationPadding) / 2f;
+            float endZ   = startZ + shelfLength;
+
+            // Postes en los extremos
+            InstantiatePost(shelfGO, "Post_Start", new Vector3(0, groundY, startZ));
+            InstantiatePost(shelfGO, "Post_End",   new Vector3(0, groundY, endZ));
+
+            // Vigas: una por nivel, en la base. Escaladas en Z para cubrir shelfLength.
+            if (rackBeamPrefab != null && rackBeamNativeLength > 0.01f)
+            {
+                float beamScale = shelfLength / rackBeamNativeLength;
+                for (int lv = 0; lv < numLevels; lv++)
+                {
+                    float levelBottomY = lv * shelfHeight + groundY;
+                    GameObject beam = Instantiate(rackBeamPrefab, shelfGO.transform);
+                    beam.name = $"Beam_Level{lv + 1}";
+                    beam.transform.localPosition = new Vector3(0, levelBottomY, startZ);
+                    Vector3 s = beam.transform.localScale;
+                    beam.transform.localScale = new Vector3(s.x, s.y, s.z * beamScale);
+                }
+            }
+        }
+
+        private void InstantiatePost(GameObject parent, string name, Vector3 localPosition)
+        {
+            GameObject post = Instantiate(rackPostPrefab, parent.transform);
+            post.name = name;
+            post.transform.localPosition = localPosition;
         }
 
         private void HandleInventoryUpdated(WebSocketEventDTO evt)
