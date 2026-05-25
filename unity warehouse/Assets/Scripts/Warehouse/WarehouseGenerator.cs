@@ -26,10 +26,14 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private GameObject locationPrefab;
         [Tooltip("Poste vertical del rack (ej: stand_vertical del pack). Opcional — si está vacío no se renderiza estructura.")]
         [SerializeField] private GameObject rackPostPrefab;
-        [Tooltip("Altura nativa del poste vertical (en metros). Se usa para escalarlo a la altura del almacén. Mide el prefab original con el truco del Box Collider.")]
-        [SerializeField] private float rackPostNativeHeight = 5.5f;
+        [Tooltip("Si está activo, escala el poste en Y para que coincida con la altura del almacén. Si está desactivado, usa la altura nativa del FBX (el poste sobresale por arriba, más realista).")]
+        [SerializeField] private bool scalePostToWarehouseHeight = false;
+        [Tooltip("Altura nativa del poste vertical (en metros). Solo se usa si scalePostToWarehouseHeight está activado.")]
+        [SerializeField] private float rackPostNativeHeight = 7.778f;
         [Tooltip("Viga horizontal del rack (ej: stand_horizontal_long). Se escala en eje Z para cubrir el largo de la estantería.")]
         [SerializeField] private GameObject rackBeamPrefab;
+        [Tooltip("Rotación euler en grados que se aplica a cada viga al instanciarla. Por defecto (0,90,0) porque los FBX del pack suelen tener su eje largo en X — esta rotación lo alinea con Z, donde mi código espera el largo.")]
+        [SerializeField] private Vector3 rackBeamRotationEuler = new Vector3(0, 90, 0);
         [Tooltip("Longitud nativa de la viga horizontal (en metros). Se usa para calcular la escala. Mide el prefab original en Unity y rellena aquí.")]
         [SerializeField] private float rackBeamNativeLength = 5.5f;
 
@@ -326,24 +330,30 @@ namespace WarehouseTwin.Warehouse
             float startZ = -(shelfWidth - locationPadding) / 2f;
             float endZ   = startZ + shelfLength;
 
-            // Altura total que debe cubrir el poste (desde el suelo hasta encima del último nivel)
-            float postTargetHeight = numLevels * shelfHeight;
-            float postYScale = (rackPostNativeHeight > 0.01f) ? postTargetHeight / rackPostNativeHeight : 1f;
+            // Escalado vertical del poste: solo si el usuario lo activa explícitamente
+            float postYScale = 1f;
+            if (scalePostToWarehouseHeight && rackPostNativeHeight > 0.01f)
+            {
+                float postTargetHeight = numLevels * shelfHeight;
+                postYScale = postTargetHeight / rackPostNativeHeight;
+            }
 
             // Postes en los extremos
             InstantiatePost(shelfGO, "Post_Start", new Vector3(0, groundY, startZ), postYScale);
             InstantiatePost(shelfGO, "Post_End",   new Vector3(0, groundY, endZ),   postYScale);
 
-            // Vigas: una por nivel, en la base. Escaladas en Z para cubrir shelfLength.
+            // Vigas: una por nivel, en la base. Rotadas para alinear su eje largo nativo con Z, y escaladas en Z para cubrir shelfLength.
             if (rackBeamPrefab != null && rackBeamNativeLength > 0.01f)
             {
                 float beamScale = shelfLength / rackBeamNativeLength;
+                Quaternion beamRotation = Quaternion.Euler(rackBeamRotationEuler);
                 for (int lv = 0; lv < numLevels; lv++)
                 {
                     float levelBottomY = lv * shelfHeight + groundY;
                     GameObject beam = Instantiate(rackBeamPrefab, shelfGO.transform);
                     beam.name = $"Beam_Level{lv + 1}";
                     beam.transform.localPosition = new Vector3(0, levelBottomY, startZ);
+                    beam.transform.localRotation = beamRotation;
                     Vector3 s = beam.transform.localScale;
                     beam.transform.localScale = new Vector3(s.x, s.y, s.z * beamScale);
                 }
