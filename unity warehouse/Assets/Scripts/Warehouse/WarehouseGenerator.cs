@@ -23,6 +23,8 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float locationPadding = 0.05f;
         [Tooltip("Hueco extra (en metros) entre la estantería frontal y trasera de un shelf doble. En realidad las dos comparten postes centrales, pero como mi código instancia estructuras separadas, necesitan separación visual. 0.5m suele bastar.")]
         [SerializeField] private float doubleShelfExtraGap = 0.5f;
+        [Tooltip("Margen entre el suelo y la primera balda (en metros). Realista — los racks de verdad tienen 15-30cm de hueco abajo. Con este margen activo, en un poste de altura X caben menos niveles (lógico).")]
+        [SerializeField] private float levelBaseClearance = 0.2f;
 
         [Header("Prefabs")]
         [SerializeField] private GameObject locationPrefab;
@@ -228,12 +230,13 @@ namespace WarehouseTwin.Warehouse
                 GameObject shelfGO = new GameObject($"Shelf_Aisle{aisle}_Shelf{shelf.shelf_number}");
                 shelfGO.transform.SetParent(transform);
                 shelfGO.transform.localPosition = new Vector3(placedX, groundOffset, placedZ);
-                if (isDoubleBack)
-                    shelfGO.transform.localRotation = Quaternion.Euler(0, 180f, 0);
+                // Nota: antes rotaba 180° en Y al shelf back-doble para que las cajas miraran al pasillo opuesto,
+                // pero eso también invertía el eje Z de su estructura interna y desalineaba postes/vigas con el frontal.
+                // Como los palets/cajas del pack son simétricos, quitarlo no cambia nada visualmente y arregla la alineación.
 
                 foreach (LevelDTO level in shelf.levels)
                 {
-                    float levelY = (level.level_number - 1) * shelfHeight;
+                    float levelY = (level.level_number - 1) * shelfHeight + levelBaseClearance;
 
                     GameObject levelGO = new GameObject($"Level_{level.level_number}");
                     levelGO.transform.SetParent(shelfGO.transform);
@@ -336,11 +339,12 @@ namespace WarehouseTwin.Warehouse
             float startZ = -(shelfWidth - locationPadding) / 2f;
             float endZ   = startZ + shelfLength;
 
-            // Escalado vertical del poste: solo si el usuario lo activa explícitamente
+            // Escalado vertical del poste: solo si el usuario lo activa explícitamente.
+            // El poste debe cubrir desde el suelo hasta encima del último nivel — incluye clearance inferior.
             float postYScale = 1f;
             if (scalePostToWarehouseHeight && rackPostNativeHeight > 0.01f)
             {
-                float postTargetHeight = numLevels * shelfHeight;
+                float postTargetHeight = numLevels * shelfHeight + levelBaseClearance;
                 postYScale = postTargetHeight / rackPostNativeHeight;
             }
 
@@ -359,7 +363,7 @@ namespace WarehouseTwin.Warehouse
                 Quaternion beamRotation = Quaternion.Euler(rackBeamRotationEuler);
                 for (int lv = 0; lv < numLevels; lv++)
                 {
-                    float levelBottomY = lv * shelfHeight + groundY;
+                    float levelBottomY = lv * shelfHeight + groundY + levelBaseClearance;
                     GameObject beam = Instantiate(rackBeamPrefab, shelfGO.transform);
                     beam.name = $"Beam_Level{lv + 1}";
                     beam.transform.localPosition = new Vector3(0, levelBottomY, beamMidZ);
