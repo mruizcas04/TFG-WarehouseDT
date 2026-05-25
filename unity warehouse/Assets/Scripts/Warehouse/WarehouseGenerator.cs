@@ -84,6 +84,30 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float lampSpacing = 10f;
         [Tooltip("Cuánto bajan las lámparas del techo (en metros). 0 = pegadas al techo, 0.5 = colgando 50cm.")]
         [SerializeField] private float lampDropFromCeiling = 0.5f;
+        [Tooltip("Si está activo, añade un Light component real a cada lámpara para iluminar la escena.")]
+        [SerializeField] private bool lampsEmitLight = true;
+        [Tooltip("Color de la luz emitida por las lámparas.")]
+        [SerializeField] private Color lampLightColor = new Color(1f, 0.92f, 0.78f);
+        [Tooltip("Intensidad de cada lámpara.")]
+        [SerializeField] private float lampLightIntensity = 1.2f;
+        [Tooltip("Rango de la luz de cada lámpara (metros).")]
+        [SerializeField] private float lampLightRange = 10f;
+        [Tooltip("Prefab de techo con claraboya (ej. roof_window). Si está asignado, se sustituye cada N tiles del techo por una claraboya.")]
+        [SerializeField] private GameObject roofWindowPrefab;
+        [Tooltip("Frecuencia: cada cuántos tiles del techo se pone una ventana. 0 = ninguna.")]
+        [SerializeField] private int roofWindowEvery = 6;
+
+        [Header("Carteles numéricos de pasillo (opcional)")]
+        [Tooltip("Prefabs de dígitos 0-9 para numerar pasillos. Asigna los 10 prefabs row_number_X del pack en orden (índice 0 = row_number_0, etc.).")]
+        [SerializeField] private GameObject[] rowNumberPrefabs = new GameObject[10];
+        [Tooltip("Altura del cartel sobre el suelo (metros).")]
+        [SerializeField] private float aisleSignHeight = 4f;
+        [Tooltip("Ancho aproximado de cada dígito (metros). Se usa para separar dígitos en números multidígito.")]
+        [SerializeField] private float aisleSignDigitWidth = 0.7f;
+        [Tooltip("Distancia (en metros) del cartel respecto al inicio del primer shelf del pasillo. Negativo para colocarlo antes del shelf.")]
+        [SerializeField] private float aisleSignZOffset = -1.5f;
+        [Tooltip("Rotación euler aplicada a cada cartel (en grados).")]
+        [SerializeField] private Vector3 aisleSignRotation = Vector3.zero;
 
         private Dictionary<string, LocationObject> _locationObjects = new();
 
@@ -250,6 +274,9 @@ namespace WarehouseTwin.Warehouse
             {
                 BuildLamps(fMinX, fMaxX, fMinZ, fMaxZ, wallHeight);
             }
+
+            // --- Carteles numéricos en cada pasillo (opcional) ---
+            BuildAisleSigns(aisleXPos);
 
             // --- Segunda pasada: generar estanterías ---
             // Offset Y para que el nivel 1 apoye en el suelo (pivot de los cubos en centro)
@@ -443,6 +470,7 @@ namespace WarehouseTwin.Warehouse
 
         /// <summary>
         /// Tilea el techo en grid a la altura wallHeight + ceilingYOffset, con rotación ceilingRotationOffset.
+        /// Si hay un roofWindowPrefab asignado, sustituye cada N tiles por una claraboya.
         /// </summary>
         private void BuildCeilingTiles(float minX, float maxX, float minZ, float maxZ, float ceilingY)
         {
@@ -450,17 +478,64 @@ namespace WarehouseTwin.Warehouse
             int tilesZ = Mathf.CeilToInt((maxZ - minZ) / ceilingTileSize);
             Quaternion ceilingRot = Quaternion.Euler(ceilingRotationOffset);
             float y = ceilingY + ceilingYOffset;
+            int tileIndex = 0;
 
             for (int i = 0; i < tilesX; i++)
             {
                 for (int j = 0; j < tilesZ; j++)
                 {
+                    bool isInterior = i > 0 && i < tilesX - 1 && j > 0 && j < tilesZ - 1;
+                    bool useWindow  = roofWindowPrefab != null && roofWindowEvery > 0
+                                      && isInterior && tileIndex % roofWindowEvery == 0;
+                    GameObject prefab = useWindow ? roofWindowPrefab : ceilingPrefab;
+
                     float cx = minX + i * ceilingTileSize + ceilingTileSize / 2f;
                     float cz = minZ + j * ceilingTileSize + ceilingTileSize / 2f;
-                    GameObject tile = Instantiate(ceilingPrefab, transform);
-                    tile.name = $"Ceiling_{i}_{j}";
+                    GameObject tile = Instantiate(prefab, transform);
+                    tile.name = useWindow ? $"Ceiling_Window_{i}_{j}" : $"Ceiling_{i}_{j}";
                     tile.transform.localPosition = new Vector3(cx, y, cz);
                     tile.transform.localRotation = ceilingRot;
+                    tileIndex++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Coloca un cartel numérico en la entrada de cada pasillo. Soporta números de varios dígitos.
+        /// </summary>
+        private void BuildAisleSigns(Dictionary<int, float> aisleXPos)
+        {
+            if (rowNumberPrefabs == null || rowNumberPrefabs.Length < 10) return;
+            // Verificar que al menos algunos dígitos están asignados
+            bool hasAnyDigit = false;
+            for (int i = 0; i < 10; i++)
+                if (rowNumberPrefabs[i] != null) { hasAnyDigit = true; break; }
+            if (!hasAnyDigit) return;
+
+            Quaternion signRotation = Quaternion.Euler(aisleSignRotation);
+
+            foreach (var kvp in aisleXPos)
+            {
+                int aisleNumber = kvp.Key;
+                float aisleX    = kvp.Value;
+                string digits   = aisleNumber.ToString();
+                float totalWidth = (digits.Length - 1) * aisleSignDigitWidth;
+                float startX    = aisleX - totalWidth / 2f;
+
+                for (int i = 0; i < digits.Length; i++)
+                {
+                    int digit = digits[i] - '0';
+                    if (digit < 0 || digit > 9) continue;
+                    GameObject prefab = rowNumberPrefabs[digit];
+                    if (prefab == null) continue;
+
+                    GameObject sign = Instantiate(prefab, transform);
+                    sign.name = $"AisleSign_{aisleNumber}_{i}";
+                    sign.transform.localPosition = new Vector3(
+                        startX + i * aisleSignDigitWidth,
+                        aisleSignHeight,
+                        aisleSignZOffset);
+                    sign.transform.localRotation = signRotation;
                 }
             }
         }
@@ -492,6 +567,16 @@ namespace WarehouseTwin.Warehouse
                         startX + i * lampSpacing,
                         lampY,
                         startZ + j * lampSpacing);
+
+                    if (lampsEmitLight)
+                    {
+                        Light l = lamp.AddComponent<Light>();
+                        l.type      = LightType.Point;
+                        l.color     = lampLightColor;
+                        l.intensity = lampLightIntensity;
+                        l.range     = lampLightRange;
+                        l.shadows   = LightShadows.None;
+                    }
                 }
             }
         }
