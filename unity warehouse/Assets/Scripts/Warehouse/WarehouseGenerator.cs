@@ -25,8 +25,6 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float doubleShelfExtraGap = 0.5f;
         [Tooltip("Margen entre el suelo y la primera balda (en metros). Realista — los racks de verdad tienen 15-30cm de hueco abajo. Con este margen activo, en un poste de altura X caben menos niveles (lógico).")]
         [SerializeField] private float levelBaseClearance = 0.2f;
-        [Tooltip("Offset vertical (en metros) aplicado a cada ubicación dentro de su nivel. Útil para subir el contenido completo (palet + caja + overlay) de forma que el palet no clipee con la viga inferior. Empieza en 0 y sube hasta que el palet quede apoyado correctamente.")]
-        [SerializeField] private float locationVerticalOffset = 0f;
 
         [Header("Prefabs")]
         [SerializeField] private GameObject locationPrefab;
@@ -48,13 +46,38 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float rackBeamExtraLength = 0.1f;
 
         [Header("Espacio libre alrededor (metros)")]
-        [SerializeField] private float margin = 8.0f;
+        [Tooltip("Margen entre el rack y las paredes. Súbelo si la cámara choca con las paredes.")]
+        [SerializeField] private float margin = 15.0f;
         [SerializeField] private float wallExtraHeight = 5.0f;
         [SerializeField] private float shelfGap = 1.0f;
 
-        [Header("Materiales (opcional)")]
+        [Header("Materiales fallback (solo si no asignas prefabs)")]
         [SerializeField] private Material floorMaterial;
         [SerializeField] private Material wallMaterial;
+
+        [Header("Entorno — prefabs del pack (opcional)")]
+        [Tooltip("Prefab del suelo (ej. floor_5x5). Si está asignado se tilea para cubrir el almacén. Si está vacío, usa un cubo primitivo con floorMaterial.")]
+        [SerializeField] private GameObject floorPrefab;
+        [Tooltip("Tamaño nativo del prefab de suelo (lado del cuadrado, en metros). 5 para floor_5x5, 2.5 para floor_2.5x2.5.")]
+        [SerializeField] private float floorTileSize = 5f;
+        [Tooltip("Prefab de pared (ej. wall_1_neat). Se tilea horizontalmente y se escala vertical para cubrir la altura del almacén.")]
+        [SerializeField] private GameObject wallPrefab;
+        [Tooltip("Ancho nativo del prefab de pared (en metros). Mide con el truco del Box Collider.")]
+        [SerializeField] private float wallTileWidth = 5f;
+        [Tooltip("Altura nativa del prefab de pared (en metros). Se escala en Y para cubrir wallHeight.")]
+        [SerializeField] private float wallTileHeight = 5f;
+        [Tooltip("Rotación euler base aplicada a los prefabs de pared. Ajusta si las paredes salen mirando hacia fuera del almacén.")]
+        [SerializeField] private Vector3 wallRotationOffset = Vector3.zero;
+        [Tooltip("Prefab del techo (ej. roof_flat). Si está vacío no hay techo.")]
+        [SerializeField] private GameObject ceilingPrefab;
+        [Tooltip("Tamaño nativo del prefab de techo (lado del cuadrado, en metros).")]
+        [SerializeField] private float ceilingTileSize = 5f;
+        [Tooltip("Prefab de lámpara (ej. lamp_1). Si está vacío no se colocan lámparas.")]
+        [SerializeField] private GameObject lampPrefab;
+        [Tooltip("Distancia entre lámparas (en metros, ambas direcciones).")]
+        [SerializeField] private float lampSpacing = 10f;
+        [Tooltip("Cuánto bajan las lámparas del techo (en metros). 0 = pegadas al techo, 0.5 = colgando 50cm.")]
+        [SerializeField] private float lampDropFromCeiling = 0.5f;
 
         private Dictionary<string, LocationObject> _locationObjects = new();
 
@@ -178,23 +201,49 @@ namespace WarehouseTwin.Warehouse
             float fCZ = (fMinZ + fMaxZ) / 2f;
 
             // --- Suelo ---
-            GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            floor.name = "Floor";
-            floor.transform.SetParent(transform);
-            floor.transform.localScale = new Vector3(fW, floorThickness, fL);
-            floor.transform.localPosition = new Vector3(fCX, -floorThickness / 2f, fCZ);
-            if (floorMaterial != null)
-                floor.GetComponent<Renderer>().material = floorMaterial;
+            if (floorPrefab != null && floorTileSize > 0.01f)
+            {
+                BuildFloorTiles(fMinX, fMaxX, fMinZ, fMaxZ);
+            }
+            else
+            {
+                GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                floor.name = "Floor";
+                floor.transform.SetParent(transform);
+                floor.transform.localScale = new Vector3(fW, floorThickness, fL);
+                floor.transform.localPosition = new Vector3(fCX, -floorThickness / 2f, fCZ);
+                if (floorMaterial != null)
+                    floor.GetComponent<Renderer>().material = floorMaterial;
+            }
 
             // --- Paredes ---
-            CreateWall("Wall_Front", fCX, wallHeight / 2f, fMinZ - wallThickness / 2f,
-                new Vector3(fW + wallThickness * 2f, wallHeight, wallThickness));
-            CreateWall("Wall_Back", fCX, wallHeight / 2f, fMaxZ + wallThickness / 2f,
-                new Vector3(fW + wallThickness * 2f, wallHeight, wallThickness));
-            CreateWall("Wall_Left", fMinX - wallThickness / 2f, wallHeight / 2f, fCZ,
-                new Vector3(wallThickness, wallHeight, fL));
-            CreateWall("Wall_Right", fMaxX + wallThickness / 2f, wallHeight / 2f, fCZ,
-                new Vector3(wallThickness, wallHeight, fL));
+            if (wallPrefab != null && wallTileWidth > 0.01f && wallTileHeight > 0.01f)
+            {
+                BuildWallTiles(fMinX, fMaxX, fMinZ, fMaxZ, wallHeight);
+            }
+            else
+            {
+                CreateWall("Wall_Front", fCX, wallHeight / 2f, fMinZ - wallThickness / 2f,
+                    new Vector3(fW + wallThickness * 2f, wallHeight, wallThickness));
+                CreateWall("Wall_Back", fCX, wallHeight / 2f, fMaxZ + wallThickness / 2f,
+                    new Vector3(fW + wallThickness * 2f, wallHeight, wallThickness));
+                CreateWall("Wall_Left", fMinX - wallThickness / 2f, wallHeight / 2f, fCZ,
+                    new Vector3(wallThickness, wallHeight, fL));
+                CreateWall("Wall_Right", fMaxX + wallThickness / 2f, wallHeight / 2f, fCZ,
+                    new Vector3(wallThickness, wallHeight, fL));
+            }
+
+            // --- Techo (opcional) ---
+            if (ceilingPrefab != null && ceilingTileSize > 0.01f)
+            {
+                BuildCeilingTiles(fMinX, fMaxX, fMinZ, fMaxZ, wallHeight);
+            }
+
+            // --- Lámparas (opcional) ---
+            if (lampPrefab != null && lampSpacing > 0.01f)
+            {
+                BuildLamps(fMinX, fMaxX, fMinZ, fMaxZ, wallHeight);
+            }
 
             // --- Segunda pasada: generar estanterías ---
             // Offset Y para que el nivel 1 apoye en el suelo (pivot de los cubos en centro)
@@ -250,7 +299,7 @@ namespace WarehouseTwin.Warehouse
 
                         GameObject locationGO = Instantiate(locationPrefab, levelGO.transform);
                         locationGO.name = $"Location_{location.position_number}";
-                        locationGO.transform.localPosition = new Vector3(0, locationVerticalOffset, locationZ);
+                        locationGO.transform.localPosition = new Vector3(0, 0, locationZ);
 
                         LocationObject locObj = locationGO.GetComponent<LocationObject>();
                         locObj.Initialize(location.id, LocationObject.StateFromInventory(location.inventory));
@@ -322,6 +371,116 @@ namespace WarehouseTwin.Warehouse
             wall.transform.localScale = scale;
             if (wallMaterial != null)
                 wall.GetComponent<Renderer>().material = wallMaterial;
+        }
+
+        /// <summary>
+        /// Tilea el prefab del suelo cubriendo el área dada. Crea floor tiles en grid.
+        /// </summary>
+        private void BuildFloorTiles(float minX, float maxX, float minZ, float maxZ)
+        {
+            int tilesX = Mathf.CeilToInt((maxX - minX) / floorTileSize);
+            int tilesZ = Mathf.CeilToInt((maxZ - minZ) / floorTileSize);
+
+            for (int i = 0; i < tilesX; i++)
+            {
+                for (int j = 0; j < tilesZ; j++)
+                {
+                    float cx = minX + i * floorTileSize + floorTileSize / 2f;
+                    float cz = minZ + j * floorTileSize + floorTileSize / 2f;
+                    GameObject tile = Instantiate(floorPrefab, transform);
+                    tile.name = $"Floor_{i}_{j}";
+                    tile.transform.localPosition = new Vector3(cx, 0, cz);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Tilea paredes a lo largo de los 4 lados del almacén. Tilea horizontalmente, escala en Y para cubrir wallHeight.
+        /// </summary>
+        private void BuildWallTiles(float minX, float maxX, float minZ, float maxZ, float wallHeight)
+        {
+            float yScale  = wallHeight / wallTileHeight;
+            float wallCY  = wallHeight / 2f;
+            Quaternion baseRot = Quaternion.Euler(wallRotationOffset);
+
+            // Pared FRONT (Z=minZ): tiles a lo largo de X. Sin rotación adicional.
+            TileWall(minX, maxX, "Front", wallCY, minZ, baseRot, yScale, axisAlongX: true);
+            // Pared BACK (Z=maxZ): tiles a lo largo de X. Rotada 180° en Y.
+            TileWall(minX, maxX, "Back", wallCY, maxZ, baseRot * Quaternion.Euler(0, 180, 0), yScale, axisAlongX: true);
+            // Pared LEFT (X=minX): tiles a lo largo de Z. Rotada -90° en Y.
+            TileWall(minZ, maxZ, "Left", wallCY, minX, baseRot * Quaternion.Euler(0, -90, 0), yScale, axisAlongX: false);
+            // Pared RIGHT (X=maxX): tiles a lo largo de Z. Rotada 90° en Y.
+            TileWall(minZ, maxZ, "Right", wallCY, maxX, baseRot * Quaternion.Euler(0, 90, 0), yScale, axisAlongX: false);
+        }
+
+        private void TileWall(float axisMin, float axisMax, string side, float cy, float perpendicularCoord, Quaternion rotation, float yScale, bool axisAlongX)
+        {
+            float wallLength = axisMax - axisMin;
+            int numTiles = Mathf.CeilToInt(wallLength / wallTileWidth);
+
+            for (int i = 0; i < numTiles; i++)
+            {
+                float center = axisMin + i * wallTileWidth + wallTileWidth / 2f;
+                GameObject tile = Instantiate(wallPrefab, transform);
+                tile.name = $"Wall_{side}_{i}";
+                tile.transform.localPosition = axisAlongX
+                    ? new Vector3(center, cy, perpendicularCoord)
+                    : new Vector3(perpendicularCoord, cy, center);
+                tile.transform.localRotation = rotation;
+                Vector3 s = tile.transform.localScale;
+                tile.transform.localScale = new Vector3(s.x, s.y * yScale, s.z);
+            }
+        }
+
+        /// <summary>
+        /// Tilea el techo en grid a la altura wallHeight.
+        /// </summary>
+        private void BuildCeilingTiles(float minX, float maxX, float minZ, float maxZ, float ceilingY)
+        {
+            int tilesX = Mathf.CeilToInt((maxX - minX) / ceilingTileSize);
+            int tilesZ = Mathf.CeilToInt((maxZ - minZ) / ceilingTileSize);
+
+            for (int i = 0; i < tilesX; i++)
+            {
+                for (int j = 0; j < tilesZ; j++)
+                {
+                    float cx = minX + i * ceilingTileSize + ceilingTileSize / 2f;
+                    float cz = minZ + j * ceilingTileSize + ceilingTileSize / 2f;
+                    GameObject tile = Instantiate(ceilingPrefab, transform);
+                    tile.name = $"Ceiling_{i}_{j}";
+                    tile.transform.localPosition = new Vector3(cx, ceilingY, cz);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Coloca lámparas en grid colgando del techo.
+        /// </summary>
+        private void BuildLamps(float minX, float maxX, float minZ, float maxZ, float ceilingY)
+        {
+            int lampsX = Mathf.FloorToInt((maxX - minX) / lampSpacing);
+            int lampsZ = Mathf.FloorToInt((maxZ - minZ) / lampSpacing);
+            if (lampsX < 1) lampsX = 1;
+            if (lampsZ < 1) lampsZ = 1;
+
+            // Distribuir lámparas centradas en el almacén
+            float spreadX = (lampsX - 1) * lampSpacing;
+            float spreadZ = (lampsZ - 1) * lampSpacing;
+            float startX  = (minX + maxX) / 2f - spreadX / 2f;
+            float startZ  = (minZ + maxZ) / 2f - spreadZ / 2f;
+
+            for (int i = 0; i < lampsX; i++)
+            {
+                for (int j = 0; j < lampsZ; j++)
+                {
+                    GameObject lamp = Instantiate(lampPrefab, transform);
+                    lamp.name = $"Lamp_{i}_{j}";
+                    lamp.transform.localPosition = new Vector3(
+                        startX + i * lampSpacing,
+                        ceilingY - lampDropFromCeiling,
+                        startZ + j * lampSpacing);
+                }
+            }
         }
 
         /// <summary>
