@@ -11,8 +11,6 @@ export const COLORS = {
   textTertiary: '#B8B6AF',
   error: '#A32D2D',
   errorBg: '#FCEBEB',
-  success: '#3B6D11',
-  successBg: '#EAF3DE',
 };
 
 export const STATUS_COLORS = {

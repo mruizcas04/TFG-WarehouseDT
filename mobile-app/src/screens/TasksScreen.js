@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../api/client';
+import { formatLocation } from '../utils/formatLocation';
 import {
   COLORS, STATUS_COLORS, TYPE_COLORS, STATUS_LABELS, TYPE_LABELS,
   TYPOGRAPHY, SPACING, RADIUS, SHADOW,
@@ -21,16 +22,6 @@ function getGreeting() {
 
 function getFirstName(name = '') {
   return name.split(' ')[0];
-}
-
-function formatLocation(loc) {
-  if (!loc) return null;
-  const parts = [];
-  if (loc.aisle_number != null) parts.push(`Pasillo ${loc.aisle_number}`);
-  if (loc.shelf_number != null) parts.push(`Est. ${loc.shelf_number}`);
-  if (loc.level_number != null) parts.push(`Balda ${loc.level_number}`);
-  parts.push(`Hueco ${loc.position_number}`);
-  return parts.join(' · ');
 }
 
 export default function TasksScreen() {

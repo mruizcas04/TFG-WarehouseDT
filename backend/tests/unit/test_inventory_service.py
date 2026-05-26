@@ -4,8 +4,8 @@ Unit tests for inventory-related business logic.
 Since the project has no dedicated inventory service, all inventory mutations
 happen inside the movement router (app/api/movements.py).  These tests target:
 
-  1. The pure helper functions _inventory_to_dict and _inventory_state — no mocking
-     needed, they receive plain Python objects.
+  1. The pure helper function _inventory_to_dict — no mocking needed,
+     it receives plain Python objects.
   2. The create_movement handler for entrada/salida movements, called directly
      with a fully-mocked AsyncSession so no real DB is involved.
 
@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import HTTPException
 
-from app.api.movements import _inventory_to_dict, _inventory_state, create_movement
+from app.api.movements import _inventory_to_dict, create_movement
 from app.models.models import InventoryItem, Box, User, UserRole, MovementType
 from app.schemas.schemas import MovementCreate
 
@@ -55,8 +55,7 @@ class TestInventoryHelpers:
     def test_inventory_to_dict_returns_none_for_empty_location(self):
         """
         _inventory_to_dict(None) must return None.
-        A None item represents a free location — callers use this to determine
-        the 'free' state before calling _inventory_state.
+        A None item represents a free location.
         """
         # Act & Assert
         assert _inventory_to_dict(None) is None
@@ -108,24 +107,6 @@ class TestInventoryHelpers:
         assert result["quantity"] == 12
         assert result["box_current_quantity"] == 12
         assert result["box_max_capacity"] == 20
-
-    def test_inventory_state_free_when_no_item(self):
-        """_inventory_state must return 'free' for an empty location (item=None)."""
-        assert _inventory_state(None) == "free"
-
-    def test_inventory_state_returns_box_when_item_has_box_id(self):
-        """_inventory_state must return 'box' when the item is backed by a Box."""
-        item = MagicMock(spec=InventoryItem)
-        item.box_id = uuid.uuid4()
-        item.product_id = None
-        assert _inventory_state(item) == "box"
-
-    def test_inventory_state_returns_product_when_item_has_product_id(self):
-        """_inventory_state must return 'product' for a standalone product item."""
-        item = MagicMock(spec=InventoryItem)
-        item.box_id = None
-        item.product_id = uuid.uuid4()
-        assert _inventory_state(item) == "product"
 
     def test_item_cannot_reference_both_product_and_box(self):
         """

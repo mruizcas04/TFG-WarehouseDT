@@ -10,20 +10,6 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-class TokenData(BaseModel):
-    user_id: UUID
-    role: UserRole
-    company_id: UUID
-
-# --- Company ---
-
-class CompanyResponse(BaseModel):
-    id: UUID
-    name: str
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
 # --- User ---
 
 class UserCreate(BaseModel):

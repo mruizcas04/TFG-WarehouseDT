@@ -10,20 +10,11 @@ import NfcManager, { NfcTech } from 'react-native-nfc-manager';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../api/client';
+import { formatLocation } from '../utils/formatLocation';
 import {
   COLORS, TYPE_COLORS, TYPE_LABELS,
   TYPOGRAPHY, SPACING, RADIUS,
 } from '../theme';
-
-function formatLocationDetail(loc) {
-  if (!loc) return '—';
-  const parts = [];
-  if (loc.aisle_number != null) parts.push(`Pasillo ${loc.aisle_number}`);
-  if (loc.shelf_number != null) parts.push(`Est. ${loc.shelf_number}`);
-  if (loc.level_number != null) parts.push(`Balda ${loc.level_number}`);
-  parts.push(`Hueco ${loc.position_number}`);
-  return parts.join(' · ');
-}
 
 const STEPS = {
   entrada:  ['nfc_dest',   'barcode', 'confirm'],
@@ -258,7 +249,7 @@ export default function MoveScreen() {
           <Text style={styles.stepTitle}>{STEP_TITLES[currentStep]}</Text>
           {expectedLocation && (
             <View style={styles.locationChip}>
-              <Text style={styles.locationChipText}>{formatLocationDetail(expectedLocation)}</Text>
+              <Text style={styles.locationChipText}>{formatLocation(expectedLocation, '—')}</Text>
             </View>
           )}
         </View>
@@ -425,13 +416,13 @@ export default function MoveScreen() {
         {originLocation && (
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>UBICACIÓN ORIGEN</Text>
-            <Text style={styles.infoValue}>{formatLocationDetail(originLocation)}</Text>
+            <Text style={styles.infoValue}>{formatLocation(originLocation, '—')}</Text>
           </View>
         )}
         {destLocation && (
           <View style={styles.infoCard}>
             <Text style={styles.infoLabel}>UBICACIÓN DESTINO</Text>
-            <Text style={styles.infoValue}>{formatLocationDetail(destLocation)}</Text>
+            <Text style={styles.infoValue}>{formatLocation(destLocation, '—')}</Text>
           </View>
         )}
         {product && (

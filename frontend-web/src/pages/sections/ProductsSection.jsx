@@ -379,7 +379,7 @@ export default function ProductsSection() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <button
                           type="button"
-                          onClick={() => { setImageModal(product); setImageFile(null) }}
+                          onClick={() => setImageModal(product)}
                           title={product.image_url ? 'Ver / cambiar imagen' : 'Añadir imagen'}
                           style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '6px', overflow: 'hidden', border: '0.5px solid #E5E4E0', background: '#F8F8F6', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
                         >

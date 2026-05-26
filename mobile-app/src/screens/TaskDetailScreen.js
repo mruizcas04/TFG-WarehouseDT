@@ -7,20 +7,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../api/client';
+import { formatLocation } from '../utils/formatLocation';
 import {
   COLORS, TYPE_COLORS, TYPE_LABELS, STATUS_COLORS, STATUS_LABELS,
   TYPOGRAPHY, SPACING, RADIUS, SHADOW,
 } from '../theme';
-
-function formatLocation(loc) {
-  if (!loc) return '—';
-  const parts = [];
-  if (loc.aisle_number != null) parts.push(`Pasillo ${loc.aisle_number}`);
-  if (loc.shelf_number != null) parts.push(`Est. ${loc.shelf_number}`);
-  if (loc.level_number != null) parts.push(`Balda ${loc.level_number}`);
-  parts.push(`Hueco ${loc.position_number}`);
-  return parts.join(' · ');
-}
 
 export default function TaskDetailScreen() {
   const navigation = useNavigation();
@@ -85,14 +76,14 @@ export default function TaskDetailScreen() {
         {(task.type === 'salida' || task.type === 'traslado') && (
           <View style={[styles.infoCard, SHADOW.card]}>
             <Text style={styles.infoLabel}>UBICACIÓN ORIGEN</Text>
-            <Text style={styles.infoValue}>{formatLocation(originLoc)}</Text>
+            <Text style={styles.infoValue}>{formatLocation(originLoc, '—')}</Text>
           </View>
         )}
 
         {(task.type === 'entrada' || task.type === 'traslado') && (
           <View style={[styles.infoCard, SHADOW.card]}>
             <Text style={styles.infoLabel}>UBICACIÓN DESTINO</Text>
-            <Text style={styles.infoValue}>{formatLocation(destLoc)}</Text>
+            <Text style={styles.infoValue}>{formatLocation(destLoc, '—')}</Text>
           </View>
         )}
 

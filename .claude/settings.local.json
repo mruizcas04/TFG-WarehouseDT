@@ -52,7 +52,17 @@
       "Read(//c/Users/maria.ruiz.castro/.claude/projects/c--Users-maria-ruiz-castro-TFG/**)",
       "Bash(dir c:\\\\Users\\\\maria.ruiz.castro\\\\TFG)",
       "Bash(where python *)",
-      "Bash(where pip *)"
+      "Bash(where pip *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\maria.ruiz.castro\\\\TFG\\\\backend\\\\app\" -Recurse -File -Filter \"*.py\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Head -50)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\maria.ruiz.castro\\\\TFG\\\\frontend-web\\\\src\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\maria.ruiz.castro\\\\TFG\\\\mobile-app\" -Recurse -File -Filter \"*.js\" -ErrorAction SilentlyContinue)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\maria.ruiz.castro\\\\TFG\\\\unity warehouse\\\\Assets\\\\Scripts\" -Recurse -File -Filter \"*.cs\")",
+      "Read(//tmp/**)",
+      "Bash(npx eslint *)",
+      "PowerShell(Get-Command node, npm, npx -ErrorAction SilentlyContinue)"
     ]
   }
 }

@@ -85,18 +85,6 @@ class TestBroadcast:
 
 class TestBroadcastHelpers:
 
-    async def test_broadcast_inventory_updated_includes_location(self):
-        svc = WebSocketService()
-        ws = _ws_mock()
-        svc.active_connections = [ws]
-
-        await svc.broadcast_inventory_updated("loc-1", {"quantity": 3})
-
-        payload = json.loads(ws.send_text.call_args[0][0])
-        assert payload["event"] == "inventory_updated"
-        assert payload["data"]["location_id"] == "loc-1"
-        assert payload["data"]["quantity"] == 3
-
     async def test_broadcast_movement_created_carries_inventories(self):
         svc = WebSocketService()
         ws = _ws_mock()

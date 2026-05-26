@@ -23,16 +23,6 @@ def _inventory_to_dict(item: InventoryItem | None, box: Box | None = None) -> di
         "box_max_capacity": box.max_capacity if box else None,
     }
 
-def _inventory_state(item: InventoryItem | None) -> str:
-    """Devuelve el estado de una ubicación como string simple para Unity."""
-    if item is None:
-        return "free"
-    if item.box_id:
-        return "box"
-    if item.product_id:
-        return "product"
-    return "free"
-
 
 @router.get("", response_model=list[MovementResponse])
 async def get_movements(

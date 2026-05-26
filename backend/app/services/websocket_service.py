@@ -24,12 +24,6 @@ class WebSocketService:
         for connection in disconnected:
             self.disconnect(connection)
 
-    async def broadcast_inventory_updated(self, location_id: str, data: dict):
-        await self.broadcast("inventory_updated", {
-            "location_id": location_id,
-            **data
-        })
-
     async def broadcast_movement_created(self, movement_id: str, data: dict,
                                           origin_inventory: dict | None = None,
                                           destination_inventory: dict | None = None):

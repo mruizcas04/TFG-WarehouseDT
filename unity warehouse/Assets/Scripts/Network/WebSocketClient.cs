@@ -107,12 +107,6 @@ namespace WarehouseTwin.Network
             }
         }
 
-        public void Disconnect()
-        {
-            _socket?.Close();
-            _isConnected = false;
-        }
-
         private async void OnDestroy()
         {
             if (_isConnected && _socket != null)

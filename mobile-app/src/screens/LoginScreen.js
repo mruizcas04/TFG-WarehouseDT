@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, decodeJWTPayload } from '../context/AuthContext';
 import EyeIcon from '../components/EyeIcon';
 import { API_URL, apiFetch } from '../api/client';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../theme';
@@ -37,11 +37,7 @@ export default function LoginScreen({ navigation }) {
       }
 
       const data = await res.json();
-      const base64Url = data.access_token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(decodeURIComponent(
-        atob(base64).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
-      ));
+      const payload = decodeJWTPayload(data.access_token);
 
       const me = await apiFetch('/auth/me', {}, data.access_token);
 
