@@ -62,7 +62,9 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\maria.ruiz.castro\\\\TFG\\\\unity warehouse\\\\Assets\\\\Scripts\" -Recurse -File -Filter \"*.cs\")",
       "Read(//tmp/**)",
       "Bash(npx eslint *)",
-      "PowerShell(Get-Command node, npm, npx -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-Command node, npm, npx -ErrorAction SilentlyContinue)",
+      "Bash(rm -f .coverage)",
+      "Bash(COVERAGE_CORE=sysmon python -m pytest tests/integration --cov=app --cov-branch --cov-report=term --no-header -q --tb=no --cov-fail-under=0)"
     ]
   }
 }
