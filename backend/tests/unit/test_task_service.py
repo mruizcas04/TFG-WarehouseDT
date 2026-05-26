@@ -137,25 +137,30 @@ class TestCreateTask:
 
     async def test_create_task_fails_when_destination_is_occupied(self):
         """
-        An entrada or traslado task must reject an occupied destination so that
-        the physical location is not double-booked.
+        An entrada task whose destination already holds a different product must
+        be rejected with HTTP 400. Concrete attribute values are pinned on the
+        existing InventoryItem so the handler's branching is deterministic
+        (otherwise the auto-generated MagicMock attributes are truthy and the
+        code path that fetches a Box is taken unexpectedly).
         """
         # Arrange
         db = _mock_db()
         admin = _make_admin()
         worker = _make_worker(company_id=admin.company_id)
         existing_item = MagicMock(spec=InventoryItem)
+        existing_item.product_id = uuid.uuid4()  # different product
+        existing_item.box_id = None              # avoid box lookup branch
+        existing_item.quantity = 1
 
         db.execute.side_effect = [
-            # 1. Assigned user found
-            MagicMock(**{"scalar_one_or_none.return_value": worker}),
-            # 2. Destination is occupied
-            MagicMock(**{"scalar_one_or_none.return_value": existing_item}),
+            MagicMock(**{"scalar_one_or_none.return_value": worker}),        # assignee found
+            MagicMock(**{"scalar_one_or_none.return_value": existing_item}), # destination occupied
         ]
 
         task_data = TaskCreate(
             assigned_to=worker.id,
             type=TaskType.entrada,
+            product_id=uuid.uuid4(),  # different from existing_item.product_id
             destination_location_id=uuid.uuid4(),
         )
 

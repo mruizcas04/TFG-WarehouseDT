@@ -49,7 +49,10 @@
       "WebFetch(domain:assetstore.unity.com)",
       "WebSearch",
       "Bash(ls \"c:/Users/maria.ruiz.castro/.claude/projects/c--Users-maria-ruiz-castro-TFG/memory/\" 2>&1 || echo \"DIR_NOT_EXISTS\")",
-      "Read(//c/Users/maria.ruiz.castro/.claude/projects/c--Users-maria-ruiz-castro-TFG/**)"
+      "Read(//c/Users/maria.ruiz.castro/.claude/projects/c--Users-maria-ruiz-castro-TFG/**)",
+      "Bash(dir c:\\\\Users\\\\maria.ruiz.castro\\\\TFG)",
+      "Bash(where python *)",
+      "Bash(where pip *)"
     ]
   }
 }

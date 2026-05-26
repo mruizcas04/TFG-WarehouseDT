@@ -106,9 +106,17 @@ class TestGetProducts:
 class TestCreateProduct:
 
     async def test_creates_and_returns_product(self):
-        """create_product persists a new Product and returns it."""
+        """
+        create_product persists a new Product and returns it. After commit the
+        handler re-queries the product via _get_product_with_category which uses
+        scalar_one(), so we mock that result with the created product.
+        """
         db = _mock_db()
         user = _mock_user()
+        created = MagicMock(spec=Product)
+        created.name = "Widget"
+        created.barcode = "BAR-001"
+        db.execute.return_value = MagicMock(**{"scalar_one.return_value": created})
         product_data = ProductCreate(name="Widget", barcode="BAR-001", description="desc")
 
         result = await create_product(product_data=product_data, db=db, current_user=user)
@@ -167,11 +175,20 @@ class TestGetProduct:
 class TestUpdateProduct:
 
     async def test_updates_product_and_returns_it(self):
-        """update_product modifies product fields, commits, and returns the product."""
+        """
+        update_product modifies product fields, commits, and returns the product
+        re-fetched via _get_product_with_category (a second execute() call).
+        """
         db = _mock_db()
         user = _mock_user()
         mock_product = MagicMock(spec=Product)
-        db.execute.return_value = _single(mock_product)
+        reloaded = MagicMock(spec=Product)
+        reloaded.name = "Updated"
+
+        db.execute.side_effect = [
+            _single(mock_product),                                          # initial fetch
+            MagicMock(**{"scalar_one.return_value": reloaded}),             # reload after commit
+        ]
 
         product_data = ProductCreate(name="Updated", barcode="NEW-001", description="d", type="t")
         result = await update_product(
@@ -180,7 +197,7 @@ class TestUpdateProduct:
 
         assert mock_product.name == "Updated"
         db.commit.assert_awaited_once()
-        assert result is mock_product
+        assert result is reloaded
 
     async def test_not_found_raises_404(self):
         db = _mock_db()

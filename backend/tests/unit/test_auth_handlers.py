@@ -136,10 +136,12 @@ class TestRegister:
 
     async def test_new_company_creates_admin_and_returns_user(self):
         """
-        register with company_name creates a Company and admin User,
-        commits them, and returns the new user without a temporary password.
-        db.refresh is mocked to set created_at (server-side default that only
-        fires during a real INSERT).
+        register with company_name creates a Company and admin User, commits
+        them, and returns the new user with no temporary password (the new
+        admin uses the password they typed).
+        db.refresh is mocked to fill in the server-side defaults that would
+        normally be populated by SQLAlchemy on INSERT — without them the
+        Pydantic response model fails validation on bool fields.
         """
         db = _mock_db()
         db.execute.return_value = _make_result_single(None)  # no duplicate email
@@ -147,6 +149,8 @@ class TestRegister:
         async def set_server_defaults(obj):
             obj.created_at = datetime(2024, 1, 1)
             obj.is_active = True
+            obj.is_online = False
+            obj.last_login = None
 
         db.refresh.side_effect = set_server_defaults
 

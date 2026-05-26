@@ -84,8 +84,10 @@ class TestAuthRegister:
         self, client, base_data, admin_token
     ):
         """
-        POST /auth/register without company_name, with admin auth, adds a worker to
-        the existing company and returns a temporary password.
+        POST /auth/register without company_name, with admin auth, adds a worker
+        to the existing company. The temporary password is sent by email (not
+        returned in the body) so the response only confirms the worker was
+        created with role=worker and must_change_password=True.
         """
         # Act
         response = await client.post(
@@ -101,8 +103,10 @@ class TestAuthRegister:
         # Assert
         assert response.status_code == 201
         body = response.json()
+        assert body["email"] == "extra.worker@test.com"
         assert body["role"] == "worker"
-        assert body["temporary_password"] is not None
+        assert body["must_change_password"] is True
+        assert body["is_active"] is True
 
     async def test_register_without_company_name_and_no_auth_returns_401(
         self, client, base_data

@@ -1,8 +1,9 @@
 """
 Shared fixtures for the warehouse management system test suite.
 
-Environment variables are set via pytest_configure (runs before any module import)
-so that pydantic-settings picks up the SQLite URL instead of reading the .env file.
+Env vars must be set BEFORE any app module is imported because pydantic-settings
+reads them at Settings() instantiation (which runs at app.core.config import time).
+pytest_configure is too late — conftest module-level imports run first.
 
 Architecture:
 - test_engine (function scope): fresh in-memory SQLite DB per test for full isolation.
@@ -18,16 +19,13 @@ Architecture:
 """
 
 import os
+
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-minimum-32-characters!")
+
 import uuid
 
 
-def pytest_configure(config):  # noqa: ARG001
-    """Set env vars before any app module is imported (pydantic-settings reads at instantiation)."""
-    os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-    os.environ.setdefault("SECRET_KEY", "test-secret-key-minimum-32-characters!")
-
-
-import uuid as _uuid_module
 from sqlalchemy.dialects.postgresql import UUID as _PG_UUID
 
 
@@ -68,8 +66,35 @@ from app.models.models import (
     User, UserRole, Company, Warehouse, Shelf, Level, Location, Product, Box,
 )
 from app.core.security import get_password_hash, create_access_token
+from app.core import email as email_module
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+
+# ---------------------------------------------------------------------------
+# Auto-mock external email (Resend) for every test
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def _disable_external_email(monkeypatch):
+    """
+    Neutralise every send_*_email helper so no test hits the real Resend API.
+    Applied automatically to all tests because none of the suite should reach
+    out to a third-party service. Tests that need to assert an email was sent
+    can re-patch the helper locally.
+    """
+    async def _noop(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(email_module, "send_verification_email", _noop)
+    monkeypatch.setattr(email_module, "send_temp_password_email", _noop)
+    monkeypatch.setattr(email_module, "send_reset_password_email", _noop)
+    # auth.py imports the helpers directly, so we also need to patch the
+    # already-bound references in app.api.auth.
+    import app.api.auth as auth_module
+    monkeypatch.setattr(auth_module, "send_verification_email", _noop)
+    monkeypatch.setattr(auth_module, "send_temp_password_email", _noop)
+    monkeypatch.setattr(auth_module, "send_reset_password_email", _noop)
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +188,7 @@ async def base_data(db_session):
         password_hash=get_password_hash("admin123"),
         role=UserRole.admin,
         is_active=True,
+        is_email_verified=True,
         must_change_password=False,
     )
     worker = User(
@@ -173,6 +199,7 @@ async def base_data(db_session):
         password_hash=get_password_hash("worker123"),
         role=UserRole.worker,
         is_active=True,
+        is_email_verified=True,
         must_change_password=False,
     )
     db_session.add_all([admin, worker])

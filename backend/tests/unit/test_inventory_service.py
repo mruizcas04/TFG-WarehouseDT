@@ -222,7 +222,11 @@ class TestInventoryCreation:
         with pytest.raises(HTTPException) as exc_info:
             await create_movement(movement_data, db, user)
         assert exc_info.value.status_code == 400
-        assert "ya tiene inventario" in exc_info.value.detail
+        # Error message changed when product-mismatch check was added: the
+        # occupied-location guard now rejects with "ya contiene un producto
+        # diferente" because the mocked existing item has product_id=None,
+        # which does not match the incoming product_id.
+        assert "producto diferente" in exc_info.value.detail
 
     async def test_update_quantity_of_existing_box_item_on_partial_exit(self):
         """

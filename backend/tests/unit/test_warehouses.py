@@ -334,6 +334,8 @@ class TestGetWarehouseFull:
         mock_product = MagicMock()
         mock_product.id = product_id
         mock_product.name = "Widget"
+        mock_product.barcode = "BAR-W-001"
+        mock_product.category_id = None  # avoids the categories query
 
         db.execute.side_effect = [
             _make_result_single(mock_wh),        # get warehouse
