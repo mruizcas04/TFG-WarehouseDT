@@ -36,14 +36,15 @@ namespace WarehouseTwin.Warehouse
         private static readonly Color ColorFree     = new Color(0.6f,  0.6f,  0.6f);
         private static readonly Color ColorProduct  = new Color(0.2f,  0.8f,  0.2f);
         private static readonly Color ColorBox      = new Color(0.2f,  0.8f,  0.2f);
-        private static readonly Color ColorTask     = new Color(1.0f,  0.85f, 0.0f);
+        private static readonly Color ColorTask     = new Color(0.9f,  0.12f, 0.68f);
         private static readonly Color ColorDimmed   = new Color(0.15f, 0.15f, 0.15f, 0.4f);
         private static readonly Color ColorSelected = new Color(0.2f,  0.6f,  1.0f);
 
         // Tintes translúcidos para el SlotOverlay (modo layered)
         private static readonly Color OverlayHover    = new Color(0.4f, 0.8f, 1.0f, 0.30f);
         private static readonly Color OverlaySelected = new Color(0.2f, 0.6f, 1.0f, 0.55f);
-        private static readonly Color OverlayTask     = new Color(1.0f, 0.85f, 0.0f, 0.45f);
+        private static readonly Color OverlayTask     = new Color(0.9f, 0.12f, 0.68f, 0.55f);
+        private static readonly Color OverlayDimmed   = new Color(0.05f, 0.05f, 0.05f, 0.65f);
 
         private bool UseLayered => _contentVisual != null || _slotOverlay != null || _pelletVisual != null;
         private bool HasContent => !string.IsNullOrEmpty(ProductId) || IsBox;
@@ -195,27 +196,29 @@ namespace WarehouseTwin.Warehouse
 
         private void RefreshLayered()
         {
-            // Palet: siempre visible cuando la ubicación no esté filtrada (independiente del estado).
-            // Si está seleccionada, también la mostramos aunque el filtro la "tape" — la selección manda.
+            // Palet: SIEMPRE visible. La estructura del almacén no debe parpadear con filtros.
             if (_pelletVisual != null)
-                _pelletVisual.SetActive(!_dimmed || _selected);
+                _pelletVisual.SetActive(true);
 
-            // Content: visible si ocupada (metadata o estado) y el filtro no la oculta.
+            // Content: visible si ocupada. El dim no oculta — se indica con overlay oscuro encima.
             if (_contentVisual != null)
             {
                 bool occupied = HasContent
                                 || CurrentState == LocationState.Product
                                 || CurrentState == LocationState.Box;
-                _contentVisual.SetActive(occupied && (!_dimmed || _selected));
+                _contentVisual.SetActive(occupied);
             }
 
-            // SlotOverlay: prioridad Selected > Task > Hover. Oculto si solo Dim.
+            // SlotOverlay: prioridad Selected > Dim > Task > Hover.
+            // Cuando hay filtro activo y la ubicación NO matchea (dimmed), se pinta un overlay oscuro encima
+            // para indicar "filtrada fuera" sin esconder la estructura.
             if (_slotOverlay != null)
             {
                 Color? overlay = null;
-                if (_selected)                                   overlay = OverlaySelected;
-                else if (!_dimmed && CurrentState == LocationState.Task) overlay = OverlayTask;
-                else if (!_dimmed && _hover)                     overlay = OverlayHover;
+                if (_selected)                                overlay = OverlaySelected;
+                else if (_dimmed)                             overlay = OverlayDimmed;
+                else if (CurrentState == LocationState.Task) overlay = OverlayTask;
+                else if (_hover)                              overlay = OverlayHover;
 
                 _slotOverlay.gameObject.SetActive(overlay.HasValue);
                 if (overlay.HasValue)
