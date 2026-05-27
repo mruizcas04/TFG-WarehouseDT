@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getWarehouses, createWarehouse } from '../../api/warehouses'
+import { getWarehouses, createWarehouse, getWarehouseFull } from '../../api/warehouses'
 import { getProducts } from '../../api/products'
 import DigitalTwin from '../../components/DigitalTwin'
 import { useAuthStore } from '../../store/authStore'
@@ -57,6 +57,39 @@ export default function WarehouseSection({
 
   const { data: warehouses, isLoading } = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: getProducts })
+  const firstWarehouse = warehouses?.[0]
+  const { data: warehouseFull } = useQuery({
+    queryKey: ['warehouse-full', firstWarehouse?.id],
+    queryFn: () => getWarehouseFull(firstWarehouse.id),
+    enabled: !!firstWarehouse?.id,
+    // Polling: refetch cada 3s para que las estadísticas se actualicen ante movimientos / tareas.
+    refetchInterval: 3000,
+    // Para evitar parpadeo en cada refetch — react-query mantiene los datos previos hasta que llegan los nuevos.
+    keepPreviousData: true,
+  })
+
+  const stats = useMemo(() => {
+    if (!warehouseFull) return null
+    const aisles = new Set()
+    let total = 0, occupied = 0
+    for (const shelf of warehouseFull.shelves || []) {
+      aisles.add(shelf.aisle_number)
+      for (const level of shelf.levels || []) {
+        for (const loc of level.locations || []) {
+          total++
+          if (loc.inventory && (loc.inventory.product_id || loc.inventory.box_id)) occupied++
+        }
+      }
+    }
+    return {
+      aisles: aisles.size,
+      shelves: (warehouseFull.shelves || []).length,
+      total,
+      occupied,
+      free: total - occupied,
+      tasks: (warehouseFull.active_task_locations || []).length,
+    }
+  }, [warehouseFull])
 
   const mutation = useMutation({
     mutationFn: createWarehouse,
@@ -235,26 +268,6 @@ export default function WarehouseSection({
           </div>
         )}
 
-        {/* Métricas */}
-        {!isLoading && warehouse && (
-          <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: '500', color: '#1C1C1A', marginBottom: '8px' }}>{warehouse.name}</h3>
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  {[{ label: 'Estanterías', value: warehouse.num_shelves }, { label: 'Total ubicaciones', value: warehouse.total_locations ?? '—' }].map((stat) => (
-                    <div key={stat.label} style={{ padding: '12px 16px', background: '#F8F8F6', borderRadius: '8px', minWidth: '120px' }}>
-                      <div style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>{stat.label}</div>
-                      <div style={{ fontSize: '24px', fontWeight: '500', color: '#1C1C1A' }}>{stat.value}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div style={{ fontSize: '12px', color: '#B4B2A9' }}>{new Date(warehouse.created_at).toLocaleDateString('es-ES')}</div>
-            </div>
-          </div>
-        )}
-
         {/* Cabecera del gemelo (sin el canvas — el canvas vive más abajo) */}
         {!isLoading && warehouse && (
           <div style={{ background: 'white', borderRadius: '12px 12px 0 0', border: '0.5px solid #E5E4E0', borderBottom: 'none', padding: '24px 24px 0' }}>
@@ -330,6 +343,35 @@ export default function WarehouseSection({
             : null
         }
       </div>
+
+      {/* ── Bloque 3.5: Estadísticas del almacén (debajo del gemelo, solo modo normal) ── */}
+      {!selectionModeConfig && !isLoading && warehouse && (
+        <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: '500', color: '#1C1C1A' }}>{warehouse.name}</h3>
+            <div style={{ fontSize: '12px', color: '#B4B2A9' }}>{new Date(warehouse.created_at).toLocaleDateString('es-ES')}</div>
+          </div>
+          {stats ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}>
+              {[
+                { label: 'Filas',              value: stats.aisles,   color: '#1C1C1A' },
+                { label: 'Estanterías',        value: stats.shelves,  color: '#1C1C1A' },
+                { label: 'Total ubicaciones',  value: stats.total,    color: '#1C1C1A' },
+                { label: 'Libres',             value: stats.free,     color: '#5F5E5A' },
+                { label: 'Ocupadas',           value: stats.occupied, color: '#185FA5' },
+                { label: 'Con tareas',         value: stats.tasks,    color: '#C0392B' },
+              ].map((stat) => (
+                <div key={stat.label} style={{ padding: '12px 16px', background: '#F8F8F6', borderRadius: '8px' }}>
+                  <div style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>{stat.label}</div>
+                  <div style={{ fontSize: '24px', fontWeight: '500', color: stat.color }}>{stat.value}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontSize: '13px', color: '#888780' }}>Cargando estadísticas...</p>
+          )}
+        </div>
+      )}
 
       {/* ── Bloque 4: panel de confirmación / error (solo modo selección) ── */}
       <div style={{
