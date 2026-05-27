@@ -86,6 +86,8 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float ceilingXOffset = 0f;
         [Tooltip("Offset Z del techo (en metros). Como ceilingXOffset pero en el otro eje horizontal.")]
         [SerializeField] private float ceilingZOffset = 0f;
+        [Tooltip("Si está activo, usa UNA SOLA pieza de techo escalada para cubrir todo el almacén (sin tiling, sin costuras). Más simple y limpio. La textura se estira pero no hay problemas de alineación.")]
+        [SerializeField] private bool useSingleCeilingPiece = false;
         [Tooltip("Prefab de lámpara (ej. lamp_1). Si está vacío no se colocan lámparas.")]
         [SerializeField] private GameObject lampPrefab;
         [Tooltip("Distancia entre lámparas (en metros, ambas direcciones).")]
@@ -495,6 +497,27 @@ namespace WarehouseTwin.Warehouse
             float endX   = maxX + ceilingOverhang;
             float startZ = minZ - ceilingOverhang;
             float endZ   = maxZ + ceilingOverhang;
+            Quaternion ceilingRotSingle = Quaternion.Euler(ceilingRotationOffset);
+            float ySingle = ceilingY + ceilingYOffset;
+
+            // Modo "una sola pieza": instanciamos un único techo escalado para cubrir todo el área.
+            if (useSingleCeilingPiece)
+            {
+                float widthX = endX - startX;
+                float widthZ = endZ - startZ;
+                float cx     = (startX + endX) / 2f + ceilingXOffset;
+                float cz     = (startZ + endZ) / 2f + ceilingZOffset;
+                GameObject tile = Instantiate(ceilingPrefab, transform);
+                tile.name = "Ceiling_Single";
+                tile.transform.localPosition = new Vector3(cx, ySingle, cz);
+                tile.transform.localRotation = ceilingRotSingle;
+                Vector3 ss = tile.transform.localScale;
+                tile.transform.localScale = new Vector3(
+                    ss.x * (widthX / ceilingTileSize),
+                    ss.y,
+                    ss.z * (widthZ / ceilingTileSize));
+                return;
+            }
 
             int tilesX = Mathf.CeilToInt((endX - startX) / ceilingTileSize);
             int tilesZ = Mathf.CeilToInt((endZ - startZ) / ceilingTileSize);
