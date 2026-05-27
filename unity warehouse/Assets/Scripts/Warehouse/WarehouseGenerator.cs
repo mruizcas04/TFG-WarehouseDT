@@ -329,12 +329,6 @@ namespace WarehouseTwin.Warehouse
                 BuildLamps(fMinX, fMaxX, fMinZ, fMaxZ, wallHeight);
             }
 
-            // --- Carteles numéricos en cada pasillo (opcional) ---
-            BuildAisleSigns(aisleXPos, aisleZOffset);
-
-            // --- Decoración procedural (opcional) ---
-            BuildDecorations(boundsMinX, boundsMaxX, boundsMinZ, boundsMaxZ, fMinX, fMaxX, fMinZ, fMaxZ);
-
             // --- Segunda pasada: generar estanterías ---
             // Offset Y para que el nivel 1 apoye en el suelo (pivot de los cubos en centro)
             float groundOffset = (shelfHeight - locationPadding) / 2f;
@@ -434,6 +428,12 @@ namespace WarehouseTwin.Warehouse
                     aisleZOffset[aisle] += shelfLength + shelfGap;
                 }
             }
+
+            // --- Carteles numéricos en cada pasillo (opcional) ---
+            BuildAisleSigns(aisleXPos, aisleZOffset);
+
+            // --- Decoración procedural (opcional) ---
+            BuildDecorations(boundsMinX, boundsMaxX, boundsMinZ, boundsMaxZ, fMinX, fMaxX, fMinZ, fMaxZ);
 
             // Pintar en amarillo las ubicaciones con tareas activas
             foreach (string locationId in activeTaskSet)
