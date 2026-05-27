@@ -78,6 +78,8 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private Vector3 ceilingRotationOffset = Vector3.zero;
         [Tooltip("Offset vertical (en metros) sumado a la posición Y del techo. Sube o baja el techo si no encaja con las paredes.")]
         [SerializeField] private float ceilingYOffset = 0f;
+        [Tooltip("Cuánto sobresale el techo más allá del borde de las paredes (en metros). Útil para que el techo TAPE el borde superior de las paredes y no quede un hueco visible al cielo.")]
+        [SerializeField] private float ceilingOverhang = 1.0f;
         [Tooltip("Prefab de lámpara (ej. lamp_1). Si está vacío no se colocan lámparas.")]
         [SerializeField] private GameObject lampPrefab;
         [Tooltip("Distancia entre lámparas (en metros, ambas direcciones).")]
@@ -455,10 +457,13 @@ namespace WarehouseTwin.Warehouse
         {
             float wallLength = axisMax - axisMin;
             int numTiles = Mathf.CeilToInt(wallLength / wallTileWidth);
+            // Estiramos cada tile ligeramente para que el total cubra EXACTAMENTE axisMin..axisMax (sin overshoot).
+            float effectiveTileWidth = wallLength / numTiles;
+            float horizontalScale    = effectiveTileWidth / wallTileWidth;
 
             for (int i = 0; i < numTiles; i++)
             {
-                float center = axisMin + i * wallTileWidth + wallTileWidth / 2f;
+                float center = axisMin + i * effectiveTileWidth + effectiveTileWidth / 2f;
                 GameObject tile = Instantiate(wallPrefab, transform);
                 tile.name = $"Wall_{side}_{i}";
                 tile.transform.localPosition = axisAlongX
@@ -466,7 +471,8 @@ namespace WarehouseTwin.Warehouse
                     : new Vector3(perpendicularCoord, cy, center);
                 tile.transform.localRotation = rotation;
                 Vector3 s = tile.transform.localScale;
-                tile.transform.localScale = new Vector3(s.x, s.y * yScale, s.z);
+                // localScale.x es el eje largo nativo del FBX de pared; escalamos para que la pared mida effectiveTileWidth
+                tile.transform.localScale = new Vector3(s.x * horizontalScale, s.y * yScale, s.z);
             }
         }
 
@@ -476,8 +482,21 @@ namespace WarehouseTwin.Warehouse
         /// </summary>
         private void BuildCeilingTiles(float minX, float maxX, float minZ, float maxZ, float ceilingY)
         {
-            int tilesX = Mathf.CeilToInt((maxX - minX) / ceilingTileSize);
-            int tilesZ = Mathf.CeilToInt((maxZ - minZ) / ceilingTileSize);
+            // Aplicamos overhang: el techo se extiende un poco más allá de las paredes para taparles el borde superior.
+            float startX = minX - ceilingOverhang;
+            float endX   = maxX + ceilingOverhang;
+            float startZ = minZ - ceilingOverhang;
+            float endZ   = maxZ + ceilingOverhang;
+
+            int tilesX = Mathf.CeilToInt((endX - startX) / ceilingTileSize);
+            int tilesZ = Mathf.CeilToInt((endZ - startZ) / ceilingTileSize);
+
+            // Estiramos cada tile para que el conjunto cubra EXACTAMENTE startX..endX y startZ..endZ.
+            float effectiveTileX = (endX - startX) / tilesX;
+            float effectiveTileZ = (endZ - startZ) / tilesZ;
+            float scaleX = effectiveTileX / ceilingTileSize;
+            float scaleZ = effectiveTileZ / ceilingTileSize;
+
             Quaternion ceilingRot = Quaternion.Euler(ceilingRotationOffset);
             float y = ceilingY + ceilingYOffset;
             int tileIndex = 0;
@@ -491,12 +510,14 @@ namespace WarehouseTwin.Warehouse
                                       && isInterior && tileIndex % roofWindowEvery == 0;
                     GameObject prefab = useWindow ? roofWindowPrefab : ceilingPrefab;
 
-                    float cx = minX + i * ceilingTileSize + ceilingTileSize / 2f;
-                    float cz = minZ + j * ceilingTileSize + ceilingTileSize / 2f;
+                    float cx = startX + i * effectiveTileX + effectiveTileX / 2f;
+                    float cz = startZ + j * effectiveTileZ + effectiveTileZ / 2f;
                     GameObject tile = Instantiate(prefab, transform);
                     tile.name = useWindow ? $"Ceiling_Window_{i}_{j}" : $"Ceiling_{i}_{j}";
                     tile.transform.localPosition = new Vector3(cx, y, cz);
                     tile.transform.localRotation = ceilingRot;
+                    Vector3 s = tile.transform.localScale;
+                    tile.transform.localScale = new Vector3(s.x * scaleX, s.y, s.z * scaleZ);
                     tileIndex++;
                 }
             }
