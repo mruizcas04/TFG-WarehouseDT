@@ -86,12 +86,12 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float lampDropFromCeiling = 0.5f;
         [Tooltip("Si está activo, añade un Light component real a cada lámpara para iluminar la escena.")]
         [SerializeField] private bool lampsEmitLight = true;
-        [Tooltip("Color de la luz emitida por las lámparas.")]
-        [SerializeField] private Color lampLightColor = new Color(1f, 0.92f, 0.78f);
-        [Tooltip("Intensidad de cada lámpara.")]
-        [SerializeField] private float lampLightIntensity = 1.2f;
-        [Tooltip("Rango de la luz de cada lámpara (metros).")]
-        [SerializeField] private float lampLightRange = 10f;
+        [Tooltip("Color de la luz emitida por las lámparas. Blanco para máxima luminosidad, tonos cálidos para ambiente acogedor.")]
+        [SerializeField] private Color lampLightColor = new Color(1f, 0.97f, 0.90f);
+        [Tooltip("Intensidad de cada lámpara. Sube hasta 2-3 si necesitas más luz.")]
+        [SerializeField] private float lampLightIntensity = 2.0f;
+        [Tooltip("Rango de la luz de cada lámpara (metros). Aumentar reduce zonas oscuras entre lámparas.")]
+        [SerializeField] private float lampLightRange = 15f;
         [Tooltip("Prefab de techo con claraboya (ej. roof_window). Si está asignado, se sustituye cada N tiles del techo por una claraboya.")]
         [SerializeField] private GameObject roofWindowPrefab;
         [Tooltip("Frecuencia: cada cuántos tiles del techo se pone una ventana. 0 = ninguna.")]
