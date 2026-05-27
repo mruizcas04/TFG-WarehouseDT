@@ -70,6 +70,8 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private Vector3 wallRotationOffset = Vector3.zero;
         [Tooltip("Offset vertical (en metros) sumado a la posición Y de las paredes. Útil si el pivot del FBX no está en la base — sube/baja hasta que las paredes lleguen al suelo y al techo.")]
         [SerializeField] private float wallYOffset = 0f;
+        [Tooltip("Cuánto se extienden las paredes por encima de la altura del almacén (en metros). Sirve para que tapen cualquier hueco con el techo sin importar el pivot del FBX. 0.5-1m suele bastar.")]
+        [SerializeField] private float wallTopOverlap = 1.0f;
         [Tooltip("Prefab del techo (ej. roof_flat). Si está vacío no hay techo.")]
         [SerializeField] private GameObject ceilingPrefab;
         [Tooltip("Tamaño nativo del prefab de techo (lado del cuadrado, en metros).")]
@@ -434,12 +436,14 @@ namespace WarehouseTwin.Warehouse
         }
 
         /// <summary>
-        /// Tilea paredes a lo largo de los 4 lados del almacén. Tilea horizontalmente, escala en Y para cubrir wallHeight.
+        /// Tilea paredes a lo largo de los 4 lados del almacén. Tilea horizontalmente, escala en Y para cubrir wallHeight + overlap.
         /// Asume pivot del FBX en la base (Y=0). Si el FBX tiene pivot en el centro, usa wallYOffset.
         /// </summary>
         private void BuildWallTiles(float minX, float maxX, float minZ, float maxZ, float wallHeight)
         {
-            float yScale  = wallHeight / wallTileHeight;
+            // Las paredes se extienden wallTopOverlap más allá de wallHeight para tapar cualquier hueco con el techo.
+            float effectiveWallHeight = wallHeight + wallTopOverlap;
+            float yScale  = effectiveWallHeight / wallTileHeight;
             float wallY   = wallYOffset;
             Quaternion baseRot = Quaternion.Euler(wallRotationOffset);
 
