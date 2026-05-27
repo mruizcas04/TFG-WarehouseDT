@@ -18,22 +18,6 @@ const inputStyle = {
 }
 const numInputStyle = { ...inputStyle, width: '80px' }
 
-// Leyenda de colores para modo normal
-const LEGEND_NORMAL = [
-  { color: '#999',    label: 'Libre' },
-  { color: '#33cc33', label: 'Producto / Caja' },
-  { color: '#ff731a', label: 'Tarea activa' },
-  { color: '#26ff40', label: 'Filtro producto' },
-]
-
-// Leyenda compacta para modo selección
-const LEGEND_SELECTION = [
-  { color: '#999',    label: 'Libre' },
-  { color: '#33cc33', label: 'Ocupada' },
-  { color: '#ff731a', label: 'Tarea activa' },
-  { color: '#33AAFF', label: 'Seleccionada' },
-]
-
 export default function WarehouseSection({
   digitalTwinRef: externalRef,
   onLocationSelected,
@@ -49,8 +33,6 @@ export default function WarehouseSection({
   const [name, setName] = useState('')
   const [aisles, setAisles] = useState([DEFAULT_AISLE()])
   const [selectedProduct, setSelectedProduct] = useState('')
-  const [lastClicked, setLastClicked] = useState(null) // { id, label } — última ubicación clicada en modo normal
-  const [shelfFocusActive, setShelfFocusActive] = useState(false)
   const internalRef = useRef(null)
   const digitalTwinRef = externalRef ?? internalRef
   const { token } = useAuthStore()
@@ -65,28 +47,12 @@ export default function WarehouseSection({
     }
   }
 
-  const handleLocationClicked = (locationId, locationLabel) => {
-    setLastClicked({ id: locationId, label: locationLabel })
-  }
-
   const handleResetCamera = () => {
     digitalTwinRef.current?.resetCameraView()
-    setShelfFocusActive(false)
   }
 
   const handleFullscreen = () => {
     digitalTwinRef.current?.requestFullscreen()
-  }
-
-  const handleFocusShelf = () => {
-    if (!lastClicked) return
-    digitalTwinRef.current?.focusOnShelf(lastClicked.id)
-    setShelfFocusActive(true)
-  }
-
-  const handleExitShelfFocus = () => {
-    digitalTwinRef.current?.exitShelfFocus()
-    setShelfFocusActive(false)
   }
 
   const { data: warehouses, isLoading } = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
@@ -293,14 +259,6 @@ export default function WarehouseSection({
         {!isLoading && warehouse && (
           <div style={{ background: 'white', borderRadius: '12px 12px 0 0', border: '0.5px solid #E5E4E0', borderBottom: 'none', padding: '24px 24px 0' }}>
             <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#1C1C1A', marginBottom: '16px' }}>Gemelo Digital</h3>
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
-              {LEGEND_NORMAL.map(({ color, label }) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: color }} />
-                  <span style={{ fontSize: '12px', color: '#888780' }}>{label}</span>
-                </div>
-              ))}
-            </div>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
               <select value={selectedProduct} onChange={handleProductFilter}
                 style={{ border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', color: selectedProduct ? '#1C1C1A' : '#888780', background: 'white', outline: 'none', cursor: 'pointer', minWidth: '200px' }}>
@@ -318,18 +276,6 @@ export default function WarehouseSection({
                 style={{ padding: '6px 12px', borderRadius: '8px', border: '0.5px solid #D3D1C7', background: '#F1EFE8', color: '#5F5E5A', fontSize: '12px', cursor: 'pointer' }}>
                 ⛶ Pantalla completa
               </button>
-              {!shelfFocusActive ? (
-                <button onClick={handleFocusShelf} disabled={!lastClicked}
-                  title={lastClicked ? `Vista de alzado de ${lastClicked.label}` : 'Haz click en una ubicación primero'}
-                  style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', background: lastClicked ? '#185FA5' : '#D3D1C7', color: 'white', fontSize: '12px', cursor: lastClicked ? 'pointer' : 'not-allowed' }}>
-                  Vista alzado
-                </button>
-              ) : (
-                <button onClick={handleExitShelfFocus}
-                  style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', background: '#C0392B', color: 'white', fontSize: '12px', cursor: 'pointer' }}>
-                  Salir vista alzado
-                </button>
-              )}
             </div>
           </div>
         )}
@@ -375,20 +321,10 @@ export default function WarehouseSection({
             }
       }>
 
-        {/* Leyenda compacta — solo visible en modo selección (display:none no rompe posición de DigitalTwin) */}
-        <div style={{ display: selectionModeConfig ? 'flex' : 'none', gap: '14px', marginBottom: '10px', flexShrink: 0, flexWrap: 'wrap' }}>
-          {LEGEND_SELECTION.map(({ color, label }) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: color, flexShrink: 0 }} />
-              <span style={{ fontSize: '11px', color: '#888780' }}>{label}</span>
-            </div>
-          ))}
-        </div>
-
         {/* DigitalTwin — posición FIJA: siempre el segundo hijo de este div.
             React nunca lo remonta porque index y tipo de componente son constantes. */}
         {warehouse
-          ? <DigitalTwin ref={digitalTwinRef} warehouseId={warehouse.id} token={token} onLocationSelected={onLocationSelected} onLocationClicked={handleLocationClicked} containerStyle={selectionModeConfig ? { flex: '1 1 0', height: undefined } : undefined} />
+          ? <DigitalTwin ref={digitalTwinRef} warehouseId={warehouse.id} token={token} onLocationSelected={onLocationSelected} containerStyle={selectionModeConfig ? { flex: '1 1 0', height: undefined } : undefined} />
           : selectionModeConfig
             ? <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, color: '#888780', fontSize: '13px' }}>No hay almacén configurado</div>
             : null

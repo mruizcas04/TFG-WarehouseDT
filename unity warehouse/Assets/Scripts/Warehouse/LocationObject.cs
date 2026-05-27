@@ -137,7 +137,6 @@ namespace WarehouseTwin.Warehouse
         private void OnMouseDown()
         {
             ReactBridge.NotifyLocationSelected(LocationId, LocationLabel);
-            ReactBridge.NotifyLocationClicked(LocationId, LocationLabel);
         }
 
         private void OnMouseEnter()

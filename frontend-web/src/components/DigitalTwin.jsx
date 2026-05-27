@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 
-const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, onLocationClicked, containerStyle }, ref) => {
+const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, containerStyle }, ref) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const unityInstanceRef = useRef(null);
@@ -30,12 +30,6 @@ const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, onLoca
     resetCameraView() {
       unityInstanceRef.current?.SendMessage("WarehouseManager", "ResetCameraView", "");
     },
-    focusOnShelf(locationId) {
-      unityInstanceRef.current?.SendMessage("WarehouseManager", "FocusOnShelf", locationId);
-    },
-    exitShelfFocus() {
-      unityInstanceRef.current?.SendMessage("WarehouseManager", "ExitShelfFocus", "");
-    },
     requestFullscreen() {
       const canvas = document.getElementById("unity-canvas");
       const elem = canvas?.parentElement || canvas || document.documentElement;
@@ -50,15 +44,8 @@ const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, onLoca
       const [locationId, locationLabel] = data.split('|');
       if (onLocationSelected) onLocationSelected(locationId, locationLabel);
     };
-    window.onUnityLocationClicked = (data) => {
-      const [locationId, locationLabel] = data.split('|');
-      if (onLocationClicked) onLocationClicked(locationId, locationLabel);
-    };
-    return () => {
-      delete window.onUnityLocationSelected;
-      delete window.onUnityLocationClicked;
-    };
-  }, [onLocationSelected, onLocationClicked]);
+    return () => { delete window.onUnityLocationSelected; };
+  }, [onLocationSelected]);
 
 useEffect(() => {
   if (scriptLoadedRef.current) return;

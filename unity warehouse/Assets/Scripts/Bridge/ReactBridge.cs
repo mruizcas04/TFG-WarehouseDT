@@ -126,22 +126,6 @@ namespace WarehouseTwin.Bridge
             if (cam != null) cam.ResetView();
         }
 
-        /// <summary>
-        /// React llama aquí para entrar en vista de alzado de la estantería que contiene una ubicación.
-        /// La cámara se posiciona en frente de la estantería y se bloquea el input.
-        /// </summary>
-        public void FocusOnShelf(string locationId)
-        {
-            warehouseGenerator.FocusShelfByLocation(locationId);
-        }
-
-        /// <summary>
-        /// React llama aquí para salir de la vista de alzado y volver a la vista normal.
-        /// </summary>
-        public void ExitShelfFocus(string _)
-        {
-            warehouseGenerator.ExitShelfFocus();
-        }
 
         public static void NotifyLocationSelected(string locationId, string locationLabel)
         {
@@ -152,19 +136,6 @@ namespace WarehouseTwin.Bridge
 #pragma warning restore CS0618
         }
 
-        /// <summary>
-        /// Notifica a React de cualquier click sobre una ubicación, independientemente del modo
-        /// (selección o normal). Se usa para mostrar info / botón de "vista alzado" cuando se elige
-        /// una estantería en modo normal.
-        /// </summary>
-        public static void NotifyLocationClicked(string locationId, string locationLabel)
-        {
-            if (Instance == null) return;
-            string payload = (locationId + "|" + locationLabel).Replace("'", "\\'");
-#pragma warning disable CS0618
-            Application.ExternalEval($"if(window.onUnityLocationClicked){{window.onUnityLocationClicked('{payload}');}}");
-#pragma warning restore CS0618
-        }
 
         public void SetSelectionHighlight(string locationId)
         {

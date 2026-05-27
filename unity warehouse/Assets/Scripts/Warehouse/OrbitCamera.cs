@@ -37,8 +37,6 @@ namespace WarehouseTwin.Warehouse
         private float   _initialPitch = 35f;
         private bool    _initialSaved;
 
-        // Si está bloqueada, ignora input del usuario (modo vista fija)
-        private bool _inputLocked;
 
         public void FitToWarehouse(Vector3 center, float size)
         {
@@ -72,6 +70,16 @@ namespace WarehouseTwin.Warehouse
         }
 
         /// <summary>
+        /// Configura el rango angular vertical (pitch) permitido. Útil para evitar ángulos exagerados.
+        /// </summary>
+        public void SetPitchRange(float minPitch, float maxPitch)
+        {
+            minVertical = minPitch;
+            maxVertical = maxPitch;
+            _pitch = Mathf.Clamp(_pitch, minVertical, maxVertical);
+        }
+
+        /// <summary>
         /// Vuelve a la vista inicial guardada (target, distancia, ángulos).
         /// </summary>
         public void ResetView()
@@ -81,24 +89,6 @@ namespace WarehouseTwin.Warehouse
             distance = _initialDistance;
             _yaw     = _initialYaw;
             _pitch   = _initialPitch;
-        }
-
-        /// <summary>
-        /// Bloquea/desbloquea el input. Útil para mostrar una vista fija (ej. alzado de un shelf).
-        /// </summary>
-        public void SetInputLocked(bool locked) => _inputLocked = locked;
-
-        /// <summary>
-        /// Posiciona la cámara mirando a un punto desde una dirección + distancia concretos,
-        /// y bloquea el input. Sirve para "vista de alzado" frontal de una estantería.
-        /// </summary>
-        public void FocusOn(Vector3 focusTarget, float focusDistance, float focusYaw, float focusPitch)
-        {
-            target   = focusTarget;
-            distance = focusDistance;
-            _yaw     = focusYaw;
-            _pitch   = focusPitch;
-            _inputLocked = true;
         }
 
         private void SaveInitialView()
@@ -112,21 +102,18 @@ namespace WarehouseTwin.Warehouse
 
         private void LateUpdate()
         {
-            if (!_inputLocked)
+            // Rotar arrastrando con el botón derecho del ratón
+            if (Input.GetMouseButton(1))
             {
-                // Rotar arrastrando con el botón derecho del ratón
-                if (Input.GetMouseButton(1))
-                {
-                    _yaw   += Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime;
-                    _pitch -= Input.GetAxis("Mouse Y") * rotationSpeed * Time.deltaTime;
-                    _pitch  = Mathf.Clamp(_pitch, minVertical, maxVertical);
-                }
-
-                // Zoom con la rueda del ratón
-                float scroll = Input.GetAxis("Mouse ScrollWheel");
-                distance -= scroll * zoomSpeed;
-                distance  = Mathf.Clamp(distance, minDistance, maxDistance);
+                _yaw   += Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime;
+                _pitch -= Input.GetAxis("Mouse Y") * rotationSpeed * Time.deltaTime;
+                _pitch  = Mathf.Clamp(_pitch, minVertical, maxVertical);
             }
+
+            // Zoom con la rueda del ratón
+            float scroll = Input.GetAxis("Mouse ScrollWheel");
+            distance -= scroll * zoomSpeed;
+            distance  = Mathf.Clamp(distance, minDistance, maxDistance);
 
             // Calcular la posición de la cámara en esféricas
             Quaternion rotation = Quaternion.Euler(_pitch, _yaw, 0f);
