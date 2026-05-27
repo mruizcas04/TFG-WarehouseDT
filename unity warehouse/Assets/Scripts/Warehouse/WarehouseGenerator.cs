@@ -117,6 +117,36 @@ namespace WarehouseTwin.Warehouse
         [Tooltip("Tipo de sombras que proyectan las lámparas. None = más rápido pero todo plano. Soft = bonito pero pesado en WebGL con muchas lámparas.")]
         [SerializeField] private LightShadows lampShadows = LightShadows.None;
 
+        [Header("Puertas (opcional)")]
+        [Tooltip("Prefab de puerta (ej. door_single o door_double). Si está vacío no se colocan puertas.")]
+        [SerializeField] private GameObject doorPrefab;
+        [SerializeField] private bool doorOnFrontWall = true;
+        [SerializeField] private bool doorOnBackWall  = true;
+        [SerializeField] private bool doorOnLeftWall  = false;
+        [SerializeField] private bool doorOnRightWall = false;
+        [Tooltip("Rotación euler base aplicada a las puertas. Ajusta si la puerta queda al revés.")]
+        [SerializeField] private Vector3 doorRotation = Vector3.zero;
+        [Tooltip("Offset vertical de la puerta (metros). Útil si el pivot no está en la base.")]
+        [SerializeField] private float doorYOffset = 0f;
+
+        [Header("Paredes con ventana (opcional)")]
+        [Tooltip("Prefab de pared con ventana (ej. wall_2_one). Si está asignado, sustituye cada N tiles de pared.")]
+        [SerializeField] private GameObject wallWindowedPrefab;
+        [Tooltip("Cada cuántos tiles de pared se pone uno con ventana. 0 = nunca.")]
+        [SerializeField] private int wallWindowedEvery = 4;
+
+        [Header("Decoración (opcional)")]
+        [Tooltip("Prefabs decorativos que se esparcen aleatoriamente en el margen del almacén (entre racks y paredes). Loader, trolleys, bins, sacks, etc.")]
+        [SerializeField] private GameObject[] decorPrefabs;
+        [Tooltip("Número de decoraciones a instanciar. 0 = ninguna.")]
+        [SerializeField] private int decorCount = 12;
+        [Tooltip("Semilla de aleatoriedad para que la decoración sea determinista entre rebuilds.")]
+        [SerializeField] private int decorSeed = 42;
+        [Tooltip("Distancia mínima de las decoraciones a las paredes (metros).")]
+        [SerializeField] private float decorWallMargin = 1.5f;
+        [Tooltip("Distancia mínima de las decoraciones a los racks (metros).")]
+        [SerializeField] private float decorRackMargin = 2.0f;
+
         [Header("Carteles numéricos de pasillo (opcional)")]
         [Tooltip("Prefabs de dígitos 0-9 para numerar pasillos. Asigna los 10 prefabs row_number_X del pack en orden (índice 0 = row_number_0, etc.).")]
         [SerializeField] private GameObject[] rowNumberPrefabs = new GameObject[10];
@@ -150,21 +180,19 @@ namespace WarehouseTwin.Warehouse
             }
         }
 
+        /// <summary>
+        /// Limpia cualquier filtro/highlight activo en todas las ubicaciones.
+        /// El parámetro filterType se mantiene por compatibilidad pero ya se ignora — los filtros
+        /// por estado (free/product/box/task) fueron retirados, solo queda el filtro por producto
+        /// que se aplica vía SetFilterHighlight en cada ubicación.
+        /// </summary>
         public void ApplyFilter(string filterType)
         {
             foreach (var kvp in _locationObjects)
             {
                 LocationObject loc = kvp.Value;
-                bool dimmed = filterType switch
-                {
-                    "all"     => false,
-                    "free"    => loc.CurrentState != LocationState.Free,
-                    "product" => loc.CurrentState != LocationState.Product,
-                    "box"     => loc.CurrentState != LocationState.Box,
-                    "task"    => loc.CurrentState != LocationState.Task,
-                    _         => false
-                };
-                loc.SetFilterDim(dimmed);
+                loc.SetFilterDim(false);
+                loc.SetFilterHighlight(false);
             }
         }
 
@@ -283,6 +311,12 @@ namespace WarehouseTwin.Warehouse
                     new Vector3(wallThickness, wallHeight, fL));
             }
 
+            // --- Puertas (opcional) ---
+            if (doorPrefab != null)
+            {
+                BuildDoors(fMinX, fMaxX, fMinZ, fMaxZ);
+            }
+
             // --- Techo (3 strips: plano + curvo + plano) ---
             if (roofFlatPrefab != null && roofTileSize > 0.01f)
             {
@@ -296,7 +330,10 @@ namespace WarehouseTwin.Warehouse
             }
 
             // --- Carteles numéricos en cada pasillo (opcional) ---
-            BuildAisleSigns(aisleXPos);
+            BuildAisleSigns(aisleXPos, aisleZOffset);
+
+            // --- Decoración procedural (opcional) ---
+            BuildDecorations(boundsMinX, boundsMaxX, boundsMinZ, boundsMaxZ, fMinX, fMaxX, fMinZ, fMaxZ);
 
             // --- Segunda pasada: generar estanterías ---
             // Offset Y para que el nivel 1 apoye en el suelo (pivot de los cubos en centro)
@@ -407,12 +444,17 @@ namespace WarehouseTwin.Warehouse
 
             // Ajustar cámara al almacén generado.
             // Limitamos la distancia máxima para que la cámara nunca salga del recinto de las paredes.
+            // Limitamos también Y para que la cámara no atraviese ni suelo ni techo.
             float centerX = (boundsMinX + boundsMaxX) / 2f;
             float centerZ = (boundsMinZ + boundsMaxZ) / 2f;
             float size    = Mathf.Max(boundsMaxX - boundsMinX, boundsMaxZ - boundsMinZ);
-            float maxRadiusInsideWalls = size / 2f + margin - 2f;  // 2m de margen de seguridad
+            float maxRadiusInsideWalls = size / 2f + margin - 2f;
             OrbitCamera cam = Camera.main != null ? Camera.main.GetComponent<OrbitCamera>() : null;
-            if (cam != null) cam.FitToWarehouse(new Vector3(centerX, 0f, centerZ), size, maxRadiusInsideWalls);
+            if (cam != null)
+            {
+                cam.SetVerticalBounds(0f, wallHeight, 1.5f);
+                cam.FitToWarehouse(new Vector3(centerX, 0f, centerZ), size, maxRadiusInsideWalls);
+            }
 
             Debug.Log($"Almacén generado: {_locationObjects.Count} ubicaciones.");
         }
@@ -482,15 +524,94 @@ namespace WarehouseTwin.Warehouse
             for (int i = 0; i < numTiles; i++)
             {
                 float center = axisMin + i * effectiveTileWidth + effectiveTileWidth / 2f;
-                GameObject tile = Instantiate(wallPrefab, transform);
-                tile.name = $"Wall_{side}_{i}";
+
+                // Sustituir por pared con ventana cada N tiles (no en bordes para evitar problemas con puertas)
+                bool useWindowed = wallWindowedPrefab != null && wallWindowedEvery > 0
+                                   && i > 0 && i < numTiles - 1
+                                   && i % wallWindowedEvery == 0;
+                GameObject prefab = useWindowed ? wallWindowedPrefab : wallPrefab;
+
+                GameObject tile = Instantiate(prefab, transform);
+                tile.name = useWindowed ? $"Wall_{side}_Win_{i}" : $"Wall_{side}_{i}";
                 tile.transform.localPosition = axisAlongX
                     ? new Vector3(center, cy, perpendicularCoord)
                     : new Vector3(perpendicularCoord, cy, center);
                 tile.transform.localRotation = rotation;
                 Vector3 s = tile.transform.localScale;
-                // localScale.x es el eje largo nativo del FBX de pared; escalamos para que la pared mida effectiveTileWidth
                 tile.transform.localScale = new Vector3(s.x * horizontalScale, s.y * yScale, s.z);
+            }
+        }
+
+        /// <summary>
+        /// Coloca puertas en las paredes seleccionadas, centradas en cada pared.
+        /// La puerta se superpone al tile de pared (no esculpe el hueco).
+        /// </summary>
+        private void BuildDoors(float minX, float maxX, float minZ, float maxZ)
+        {
+            if (doorPrefab == null) return;
+            float midX = (minX + maxX) / 2f;
+            float midZ = (minZ + maxZ) / 2f;
+            float y    = doorYOffset;
+            Quaternion baseRot = Quaternion.Euler(doorRotation);
+
+            if (doorOnFrontWall)  PlaceDoor("Door_Front", midX, y, minZ, baseRot);
+            if (doorOnBackWall)   PlaceDoor("Door_Back",  midX, y, maxZ, baseRot * Quaternion.Euler(0, 180, 0));
+            if (doorOnLeftWall)   PlaceDoor("Door_Left",  minX, y, midZ, baseRot * Quaternion.Euler(0, 90,  0));
+            if (doorOnRightWall)  PlaceDoor("Door_Right", maxX, y, midZ, baseRot * Quaternion.Euler(0, -90, 0));
+        }
+
+        private void PlaceDoor(string name, float x, float y, float z, Quaternion rotation)
+        {
+            GameObject door = Instantiate(doorPrefab, transform);
+            door.name = name;
+            door.transform.localPosition = new Vector3(x, y, z);
+            door.transform.localRotation = rotation;
+        }
+
+        /// <summary>
+        /// Esparce decoraciones procedurales en el margen libre del almacén
+        /// (zona entre los racks y las paredes). Determinista vía decorSeed.
+        /// </summary>
+        private void BuildDecorations(float rackMinX, float rackMaxX, float rackMinZ, float rackMaxZ,
+                                       float floorMinX, float floorMaxX, float floorMinZ, float floorMaxZ)
+        {
+            if (decorPrefabs == null || decorPrefabs.Length == 0 || decorCount <= 0) return;
+
+            // Filtrar prefabs nulos
+            var validPrefabs = new List<GameObject>();
+            foreach (var p in decorPrefabs) if (p != null) validPrefabs.Add(p);
+            if (validPrefabs.Count == 0) return;
+
+            // Zona segura: entre paredes (con margen) y racks (con margen)
+            float safeMinX = floorMinX + decorWallMargin;
+            float safeMaxX = floorMaxX - decorWallMargin;
+            float safeMinZ = floorMinZ + decorWallMargin;
+            float safeMaxZ = floorMaxZ - decorWallMargin;
+            float rackZoneMinX = rackMinX - decorRackMargin;
+            float rackZoneMaxX = rackMaxX + decorRackMargin;
+            float rackZoneMinZ = rackMinZ - decorRackMargin;
+            float rackZoneMaxZ = rackMaxZ + decorRackMargin;
+
+            System.Random rng = new System.Random(decorSeed);
+            int placed = 0, attempts = 0, maxAttempts = decorCount * 20;
+
+            while (placed < decorCount && attempts < maxAttempts)
+            {
+                attempts++;
+                float x = (float)(rng.NextDouble() * (safeMaxX - safeMinX) + safeMinX);
+                float z = (float)(rng.NextDouble() * (safeMaxZ - safeMinZ) + safeMinZ);
+
+                // Saltar si cae dentro de la zona de racks
+                if (x > rackZoneMinX && x < rackZoneMaxX && z > rackZoneMinZ && z < rackZoneMaxZ) continue;
+
+                GameObject prefab = validPrefabs[rng.Next(validPrefabs.Count)];
+                float rotY = (float)(rng.NextDouble() * 360.0);
+
+                GameObject deco = Instantiate(prefab, transform);
+                deco.name = $"Decor_{placed}_{prefab.name}";
+                deco.transform.localPosition = new Vector3(x, 0f, z);
+                deco.transform.localRotation = Quaternion.Euler(0f, rotY, 0f);
+                placed++;
             }
         }
 
@@ -546,18 +667,19 @@ namespace WarehouseTwin.Warehouse
         }
 
         /// <summary>
-        /// Coloca un cartel numérico en la entrada de cada pasillo. Soporta números de varios dígitos.
+        /// Coloca un cartel numérico en AMBAS entradas de cada pasillo (delantera y trasera).
         /// </summary>
-        private void BuildAisleSigns(Dictionary<int, float> aisleXPos)
+        private void BuildAisleSigns(Dictionary<int, float> aisleXPos, Dictionary<int, float> aisleZOffset)
         {
             if (rowNumberPrefabs == null || rowNumberPrefabs.Length < 10) return;
-            // Verificar que al menos algunos dígitos están asignados
             bool hasAnyDigit = false;
             for (int i = 0; i < 10; i++)
                 if (rowNumberPrefabs[i] != null) { hasAnyDigit = true; break; }
             if (!hasAnyDigit) return;
 
-            Quaternion signRotation = Quaternion.Euler(aisleSignRotation);
+            Quaternion frontRotation = Quaternion.Euler(aisleSignRotation);
+            // El cartel de atrás mira al lado opuesto — rotación 180° en Y
+            Quaternion backRotation  = frontRotation * Quaternion.Euler(0, 180, 0);
 
             foreach (var kvp in aisleXPos)
             {
@@ -567,21 +689,32 @@ namespace WarehouseTwin.Warehouse
                 float totalWidth = (digits.Length - 1) * aisleSignDigitWidth;
                 float startX    = aisleX - totalWidth / 2f;
 
-                for (int i = 0; i < digits.Length; i++)
-                {
-                    int digit = digits[i] - '0';
-                    if (digit < 0 || digit > 9) continue;
-                    GameObject prefab = rowNumberPrefabs[digit];
-                    if (prefab == null) continue;
+                float frontZ = aisleSignZOffset;  // antes del primer shelf (suele ser negativo)
+                float backZ  = aisleZOffset.ContainsKey(aisleNumber)
+                               ? aisleZOffset[aisleNumber] - shelfGap - aisleSignZOffset
+                               : -aisleSignZOffset;
 
-                    GameObject sign = Instantiate(prefab, transform);
-                    sign.name = $"AisleSign_{aisleNumber}_{i}";
-                    sign.transform.localPosition = new Vector3(
-                        startX + i * aisleSignDigitWidth,
-                        aisleSignHeight,
-                        aisleSignZOffset);
-                    sign.transform.localRotation = signRotation;
-                }
+                PlaceAisleNumber(aisleNumber, digits, startX, frontZ, frontRotation, "Front");
+                PlaceAisleNumber(aisleNumber, digits, startX, backZ,  backRotation,  "Back");
+            }
+        }
+
+        private void PlaceAisleNumber(int aisleNumber, string digits, float startX, float z, Quaternion rotation, string sideName)
+        {
+            for (int i = 0; i < digits.Length; i++)
+            {
+                int digit = digits[i] - '0';
+                if (digit < 0 || digit > 9) continue;
+                GameObject prefab = rowNumberPrefabs[digit];
+                if (prefab == null) continue;
+
+                GameObject sign = Instantiate(prefab, transform);
+                sign.name = $"AisleSign_{aisleNumber}_{sideName}_{i}";
+                sign.transform.localPosition = new Vector3(
+                    startX + i * aisleSignDigitWidth,
+                    aisleSignHeight,
+                    z);
+                sign.transform.localRotation = rotation;
             }
         }
 
@@ -738,6 +871,53 @@ namespace WarehouseTwin.Warehouse
         {
             if (_locationObjects.TryGetValue(locationId, out LocationObject locObj))
                 locObj.SetState(LocationState.Task);
+        }
+
+        /// <summary>
+        /// Posiciona la cámara en una vista de alzado frontal de la estantería que contiene esta ubicación
+        /// y bloquea el input para evitar movimientos. Llama a ExitShelfFocus para volver.
+        /// </summary>
+        public void FocusShelfByLocation(string locationId)
+        {
+            if (!_locationObjects.TryGetValue(locationId, out LocationObject loc)) return;
+
+            // location → level → shelf
+            Transform levelT = loc.transform.parent;
+            if (levelT == null) return;
+            Transform shelfT = levelT.parent;
+            if (shelfT == null) return;
+
+            // Calcular bounds del shelf entero a partir de sus renderers
+            Renderer[] renderers = shelfT.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return;
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+                bounds.Encapsulate(renderers[i].bounds);
+
+            // Posicionar cámara perpendicular al eje largo del shelf (asumiendo shelves van a lo largo de Z)
+            Vector3 shelfCenter = bounds.center;
+            float maxDim = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+            float focusDistance = maxDim * 1.2f;
+
+            OrbitCamera cam = Camera.main != null ? Camera.main.GetComponent<OrbitCamera>() : null;
+            if (cam != null)
+            {
+                // yaw=90 → cámara en -X mirando hacia +X; pitch=0 → alzado horizontal
+                cam.FocusOn(shelfCenter, focusDistance, 90f, 0f);
+            }
+        }
+
+        /// <summary>
+        /// Sale de la vista de alzado y vuelve al ángulo de cámara inicial.
+        /// </summary>
+        public void ExitShelfFocus()
+        {
+            OrbitCamera cam = Camera.main != null ? Camera.main.GetComponent<OrbitCamera>() : null;
+            if (cam != null)
+            {
+                cam.SetInputLocked(false);
+                cam.ResetView();
+            }
         }
 
         public void ClearTaskHighlight(string locationId)

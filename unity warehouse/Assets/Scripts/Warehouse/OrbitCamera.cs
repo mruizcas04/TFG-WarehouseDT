@@ -18,11 +18,27 @@ namespace WarehouseTwin.Warehouse
 
         [Header("Rotación")]
         [SerializeField] private float rotationSpeed = 200f;
-        [SerializeField] private float minVertical   = -45f; // ángulo mínimo vertical (negativo para poder mirar hacia arriba al techo)
-        [SerializeField] private float maxVertical   = 80f;  // ángulo máximo vertical
+        [SerializeField] private float minVertical   = 5f;   // ángulo mínimo (cercano a horizontal)
+        [SerializeField] private float maxVertical   = 80f;  // ángulo máximo (mirando casi en vertical)
+
+        [Header("Clamp de posición")]
+        [Tooltip("Y mínimo permitido para la cámara (no debe atravesar el suelo).")]
+        [SerializeField] private float minCameraY = 1.5f;
+        [Tooltip("Y máximo permitido para la cámara (no debe atravesar el techo).")]
+        [SerializeField] private float maxCameraY = 12f;
 
         private float _yaw   = 0f;
         private float _pitch = 35f;
+
+        // Posición inicial guardada para ResetView
+        private Vector3 _initialTarget;
+        private float   _initialDistance;
+        private float   _initialYaw;
+        private float   _initialPitch = 35f;
+        private bool    _initialSaved;
+
+        // Si está bloqueada, ignora input del usuario (modo vista fija)
+        private bool _inputLocked;
 
         public void FitToWarehouse(Vector3 center, float size)
         {
@@ -30,6 +46,7 @@ namespace WarehouseTwin.Warehouse
             distance    = size * 1.5f;
             maxDistance = size * 3f;
             minDistance = size * 0.3f;
+            SaveInitialView();
         }
 
         /// <summary>
@@ -42,27 +59,83 @@ namespace WarehouseTwin.Warehouse
             distance    = Mathf.Min(size * 1.5f, maxRadiusInsideWalls);
             maxDistance = Mathf.Min(size * 3f, maxRadiusInsideWalls);
             minDistance = size * 0.3f;
+            SaveInitialView();
+        }
+
+        /// <summary>
+        /// Configura los límites verticales del almacén (suelo y techo) para clampear el movimiento.
+        /// </summary>
+        public void SetVerticalBounds(float floorY, float ceilingY, float safetyMargin = 1.5f)
+        {
+            minCameraY = floorY + safetyMargin;
+            maxCameraY = ceilingY - safetyMargin;
+        }
+
+        /// <summary>
+        /// Vuelve a la vista inicial guardada (target, distancia, ángulos).
+        /// </summary>
+        public void ResetView()
+        {
+            if (!_initialSaved) return;
+            target   = _initialTarget;
+            distance = _initialDistance;
+            _yaw     = _initialYaw;
+            _pitch   = _initialPitch;
+        }
+
+        /// <summary>
+        /// Bloquea/desbloquea el input. Útil para mostrar una vista fija (ej. alzado de un shelf).
+        /// </summary>
+        public void SetInputLocked(bool locked) => _inputLocked = locked;
+
+        /// <summary>
+        /// Posiciona la cámara mirando a un punto desde una dirección + distancia concretos,
+        /// y bloquea el input. Sirve para "vista de alzado" frontal de una estantería.
+        /// </summary>
+        public void FocusOn(Vector3 focusTarget, float focusDistance, float focusYaw, float focusPitch)
+        {
+            target   = focusTarget;
+            distance = focusDistance;
+            _yaw     = focusYaw;
+            _pitch   = focusPitch;
+            _inputLocked = true;
+        }
+
+        private void SaveInitialView()
+        {
+            _initialTarget   = target;
+            _initialDistance = distance;
+            _initialYaw      = _yaw;
+            _initialPitch    = _pitch;
+            _initialSaved    = true;
         }
 
         private void LateUpdate()
         {
-            // Rotar arrastrando con el botón derecho del ratón
-            if (Input.GetMouseButton(1))
+            if (!_inputLocked)
             {
-                _yaw   += Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime;
-                _pitch -= Input.GetAxis("Mouse Y") * rotationSpeed * Time.deltaTime;
-                _pitch  = Mathf.Clamp(_pitch, minVertical, maxVertical);
-            }
+                // Rotar arrastrando con el botón derecho del ratón
+                if (Input.GetMouseButton(1))
+                {
+                    _yaw   += Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime;
+                    _pitch -= Input.GetAxis("Mouse Y") * rotationSpeed * Time.deltaTime;
+                    _pitch  = Mathf.Clamp(_pitch, minVertical, maxVertical);
+                }
 
-            // Zoom con la rueda del ratón
-            float scroll = Input.GetAxis("Mouse ScrollWheel");
-            distance -= scroll * zoomSpeed;
-            distance  = Mathf.Clamp(distance, minDistance, maxDistance);
+                // Zoom con la rueda del ratón
+                float scroll = Input.GetAxis("Mouse ScrollWheel");
+                distance -= scroll * zoomSpeed;
+                distance  = Mathf.Clamp(distance, minDistance, maxDistance);
+            }
 
             // Calcular la posición de la cámara en esféricas
             Quaternion rotation = Quaternion.Euler(_pitch, _yaw, 0f);
             Vector3 offset      = rotation * new Vector3(0f, 0f, -distance);
-            transform.position  = target + offset;
+            Vector3 position    = target + offset;
+
+            // Clampear Y para que no atraviese suelo ni techo
+            position.y = Mathf.Clamp(position.y, minCameraY, maxCameraY);
+            transform.position = position;
 
             // Mirar siempre al target
             transform.LookAt(target);

@@ -117,6 +117,32 @@ namespace WarehouseTwin.Bridge
             warehouseGenerator.ApplyFilter("all");
         }
 
+        /// <summary>
+        /// React puede llamar a este método para volver al ángulo de cámara inicial.
+        /// </summary>
+        public void ResetCameraView(string _)
+        {
+            OrbitCamera cam = Camera.main != null ? Camera.main.GetComponent<OrbitCamera>() : null;
+            if (cam != null) cam.ResetView();
+        }
+
+        /// <summary>
+        /// React llama aquí para entrar en vista de alzado de la estantería que contiene una ubicación.
+        /// La cámara se posiciona en frente de la estantería y se bloquea el input.
+        /// </summary>
+        public void FocusOnShelf(string locationId)
+        {
+            warehouseGenerator.FocusShelfByLocation(locationId);
+        }
+
+        /// <summary>
+        /// React llama aquí para salir de la vista de alzado y volver a la vista normal.
+        /// </summary>
+        public void ExitShelfFocus(string _)
+        {
+            warehouseGenerator.ExitShelfFocus();
+        }
+
         public static void NotifyLocationSelected(string locationId, string locationLabel)
         {
             if (Instance == null || !Instance._selectionMode) return;
@@ -146,8 +172,9 @@ namespace WarehouseTwin.Bridge
         }
 
         // React llama a este método para aplicar un filtro visual.
-        // Formato: {"type": "all"|"free"|"product"|"box"|"task"}
-        //          {"type": "product_id", "value": "uuid"}
+        // Único tipo activo: {"type": "product_id", "value": "uuid"} → resalta en verde las ubicaciones con ese producto.
+        // {"type": "all"} → limpia cualquier filtro/highlight activo.
+        // Otros tipos (free/product/box/task) están deprecados — se tratan como reset.
         public void SetFilter(string filterJson)
         {
             FilterPayload payload = JsonUtility.FromJson<FilterPayload>(filterJson);
@@ -158,13 +185,14 @@ namespace WarehouseTwin.Bridge
                 LocationObject[] locs = FindObjectsOfType<LocationObject>();
                 foreach (LocationObject loc in locs)
                 {
-                    bool dimmed = string.IsNullOrEmpty(payload.value) || loc.ProductId != payload.value;
-                    loc.SetFilterDim(dimmed);
+                    bool matching = !string.IsNullOrEmpty(payload.value) && loc.ProductId == payload.value;
+                    loc.SetFilterHighlight(matching);
                 }
                 return;
             }
 
-            warehouseGenerator.ApplyFilter(payload.type);
+            // Cualquier otro tipo (incluido "all") → reset
+            warehouseGenerator.ApplyFilter("all");
         }
 
         // Clases auxiliares para deserializar los JSON que manda React

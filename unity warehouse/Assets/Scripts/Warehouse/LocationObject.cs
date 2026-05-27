@@ -32,19 +32,21 @@ namespace WarehouseTwin.Warehouse
         private bool     _dimmed;
         private bool     _hover;
         private bool     _selected;
+        private bool     _filterHighlight;
 
         private static readonly Color ColorFree     = new Color(0.6f,  0.6f,  0.6f);
         private static readonly Color ColorProduct  = new Color(0.2f,  0.8f,  0.2f);
         private static readonly Color ColorBox      = new Color(0.2f,  0.8f,  0.2f);
-        private static readonly Color ColorTask     = new Color(0.9f,  0.12f, 0.68f);
+        private static readonly Color ColorTask     = new Color(1.0f,  0.45f, 0.1f);
         private static readonly Color ColorDimmed   = new Color(0.15f, 0.15f, 0.15f, 0.4f);
         private static readonly Color ColorSelected = new Color(0.2f,  0.6f,  1.0f);
 
         // Tintes translúcidos para el SlotOverlay (modo layered)
-        private static readonly Color OverlayHover    = new Color(0.4f, 0.8f, 1.0f, 0.30f);
-        private static readonly Color OverlaySelected = new Color(0.2f, 0.6f, 1.0f, 0.55f);
-        private static readonly Color OverlayTask     = new Color(0.9f, 0.12f, 0.68f, 0.55f);
-        private static readonly Color OverlayDimmed   = new Color(0.05f, 0.05f, 0.05f, 0.65f);
+        private static readonly Color OverlayHover            = new Color(0.4f, 0.8f, 1.0f, 0.30f);
+        private static readonly Color OverlaySelected         = new Color(0.2f, 0.6f, 1.0f, 0.55f);
+        private static readonly Color OverlayTask             = new Color(1.0f, 0.45f, 0.1f, 0.55f);
+        private static readonly Color OverlayDimmed           = new Color(0.05f, 0.05f, 0.05f, 0.65f);
+        private static readonly Color OverlayFilterHighlight  = new Color(0.15f, 1.0f, 0.25f, 0.6f);
 
         private bool UseLayered => _contentVisual != null || _slotOverlay != null || _pelletVisual != null;
         private bool HasContent => !string.IsNullOrEmpty(ProductId) || IsBox;
@@ -116,6 +118,15 @@ namespace WarehouseTwin.Warehouse
             RefreshVisual();
         }
 
+        /// <summary>
+        /// Marca la ubicación como match de un filtro activo (ej. filtrar por producto). Muestra un overlay verde brillante.
+        /// </summary>
+        public void SetFilterHighlight(bool highlighted)
+        {
+            _filterHighlight = highlighted;
+            RefreshVisual();
+        }
+
         public void SetSelectionHighlight(bool highlighted)
         {
             _selected = highlighted;
@@ -159,11 +170,15 @@ namespace WarehouseTwin.Warehouse
                 return;
             }
 
-            // Prioridad: selected > dimmed > estado base. Hover brillo solo en modo selección.
+            // Prioridad: selected > filterHighlight > dimmed > estado base. Hover brillo solo en modo selección.
             Color color;
             if (_selected)
             {
                 color = ColorSelected;
+            }
+            else if (_filterHighlight)
+            {
+                color = new Color(OverlayFilterHighlight.r, OverlayFilterHighlight.g, OverlayFilterHighlight.b, 1f);
             }
             else if (_dimmed)
             {
@@ -209,13 +224,12 @@ namespace WarehouseTwin.Warehouse
                 _contentVisual.SetActive(occupied);
             }
 
-            // SlotOverlay: prioridad Selected > Dim > Task > Hover.
-            // Cuando hay filtro activo y la ubicación NO matchea (dimmed), se pinta un overlay oscuro encima
-            // para indicar "filtrada fuera" sin esconder la estructura.
+            // SlotOverlay: prioridad Selected > FilterHighlight > Dim > Task > Hover.
             if (_slotOverlay != null)
             {
                 Color? overlay = null;
                 if (_selected)                                overlay = OverlaySelected;
+                else if (_filterHighlight)                    overlay = OverlayFilterHighlight;
                 else if (_dimmed)                             overlay = OverlayDimmed;
                 else if (CurrentState == LocationState.Task) overlay = OverlayTask;
                 else if (_hover)                              overlay = OverlayHover;
