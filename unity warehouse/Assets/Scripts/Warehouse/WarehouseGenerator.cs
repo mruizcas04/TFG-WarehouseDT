@@ -81,7 +81,11 @@ namespace WarehouseTwin.Warehouse
         [Tooltip("Offset vertical (en metros) sumado a la posición Y del techo. Sube o baja el techo si no encaja con las paredes.")]
         [SerializeField] private float ceilingYOffset = 0f;
         [Tooltip("Cuánto sobresale el techo más allá del borde de las paredes (en metros). Útil para que el techo TAPE el borde superior de las paredes y no quede un hueco visible al cielo.")]
-        [SerializeField] private float ceilingOverhang = 1.0f;
+        [SerializeField] private float ceilingOverhang = 3.0f;
+        [Tooltip("Offset X del techo (en metros). Útil para centrar el techo si el pivot del FBX no está centrado en la geometría del tile y queda desplazado en una dirección.")]
+        [SerializeField] private float ceilingXOffset = 0f;
+        [Tooltip("Offset Z del techo (en metros). Como ceilingXOffset pero en el otro eje horizontal.")]
+        [SerializeField] private float ceilingZOffset = 0f;
         [Tooltip("Prefab de lámpara (ej. lamp_1). Si está vacío no se colocan lámparas.")]
         [SerializeField] private GameObject lampPrefab;
         [Tooltip("Distancia entre lámparas (en metros, ambas direcciones).")]
@@ -514,8 +518,8 @@ namespace WarehouseTwin.Warehouse
                                       && isInterior && tileIndex % roofWindowEvery == 0;
                     GameObject prefab = useWindow ? roofWindowPrefab : ceilingPrefab;
 
-                    float cx = startX + i * effectiveTileX + effectiveTileX / 2f;
-                    float cz = startZ + j * effectiveTileZ + effectiveTileZ / 2f;
+                    float cx = startX + i * effectiveTileX + effectiveTileX / 2f + ceilingXOffset;
+                    float cz = startZ + j * effectiveTileZ + effectiveTileZ / 2f + ceilingZOffset;
                     GameObject tile = Instantiate(prefab, transform);
                     tile.name = useWindow ? $"Ceiling_Window_{i}_{j}" : $"Ceiling_{i}_{j}";
                     tile.transform.localPosition = new Vector3(cx, y, cz);
