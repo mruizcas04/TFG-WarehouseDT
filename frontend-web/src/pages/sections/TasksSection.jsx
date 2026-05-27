@@ -218,6 +218,7 @@ const twinButtonStyle = {
 export default function TasksSection({ onRequestLocationSelection }) {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
+  const [timeFilter, setTimeFilter] = useState('all') // 'all' | 'month' | 'week' | 'today'
   const [form, setForm] = useState({
     assigned_to: '',
     type: 'entrada',
@@ -440,6 +441,37 @@ export default function TasksSection({ onRequestLocationSelection }) {
     traslados: movements?.filter(m => m.type === 'traslado').length ?? 0,
   }
 
+  // ── Filtro de tiempo para métricas (total / mes / semana / hoy) ───────────
+  const TIME_FILTERS = [
+    { key: 'all',   label: 'Total' },
+    { key: 'month', label: 'Este mes' },
+    { key: 'week',  label: 'Esta semana' },
+    { key: 'today', label: 'Hoy' },
+  ]
+  const movMetricsFiltered = (() => {
+    if (!movements) return { total: 0, entradas: 0, salidas: 0, traslados: 0 }
+    const now = new Date()
+    let cutoff = null
+    if (timeFilter === 'today') {
+      cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    } else if (timeFilter === 'week') {
+      const day = now.getDay() // 0 = domingo, 1 = lunes
+      const daysToMonday = (day + 6) % 7
+      cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysToMonday)
+    } else if (timeFilter === 'month') {
+      cutoff = new Date(now.getFullYear(), now.getMonth(), 1)
+    }
+    const filtered = cutoff
+      ? movements.filter(m => new Date(m.timestamp) >= cutoff)
+      : movements
+    return {
+      total:     filtered.length,
+      entradas:  filtered.filter(m => m.type === 'entrada').length,
+      salidas:   filtered.filter(m => m.type === 'salida').length,
+      traslados: filtered.filter(m => m.type === 'traslado').length,
+    }
+  })()
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -449,13 +481,30 @@ export default function TasksSection({ onRequestLocationSelection }) {
         </button>
       </div>
 
-      {/* Panel de métricas de movimientos */}
+      {/* Filtro de tiempo para métricas */}
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {TIME_FILTERS.map(({ key, label }) => (
+          <button key={key} onClick={() => setTimeFilter(key)}
+            style={{
+              padding: '5px 14px', borderRadius: '20px',
+              border: timeFilter === key ? 'none' : '0.5px solid #D3D1C7',
+              background: timeFilter === key ? '#185FA5' : '#F1EFE8',
+              color: timeFilter === key ? 'white' : '#5F5E5A',
+              fontSize: '12px', fontWeight: timeFilter === key ? '500' : '400',
+              cursor: 'pointer',
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Panel de métricas de movimientos (filtrados por tiempo) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
         {[
-          { label: 'Total movimientos', value: movMetrics.total,     bg: '#F8F8F6', numColor: '#1C1C1A', lblColor: '#888780' },
-          { label: 'Entradas',          value: movMetrics.entradas,  bg: '#EAF3DE', numColor: '#3B6D11', lblColor: '#3B6D11' },
-          { label: 'Salidas',           value: movMetrics.salidas,   bg: '#FAEEDA', numColor: '#854F0B', lblColor: '#854F0B' },
-          { label: 'Traslados',         value: movMetrics.traslados, bg: '#EEEDFE', numColor: '#534AB7', lblColor: '#534AB7' },
+          { label: 'Total movimientos', value: movMetricsFiltered.total,     bg: '#F8F8F6', numColor: '#1C1C1A', lblColor: '#888780' },
+          { label: 'Entradas',          value: movMetricsFiltered.entradas,  bg: '#EAF3DE', numColor: '#3B6D11', lblColor: '#3B6D11' },
+          { label: 'Salidas',           value: movMetricsFiltered.salidas,   bg: '#FAEEDA', numColor: '#854F0B', lblColor: '#854F0B' },
+          { label: 'Traslados',         value: movMetricsFiltered.traslados, bg: '#EEEDFE', numColor: '#534AB7', lblColor: '#534AB7' },
         ].map(m => (
           <div key={m.label} style={{ background: m.bg, borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '18px 20px' }}>
             <div style={{ fontSize: '30px', fontWeight: '600', color: m.numColor, lineHeight: 1 }}>

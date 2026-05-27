@@ -8,6 +8,7 @@ import ProductsSection from './sections/ProductsSection'
 import UsersSection from './sections/UsersSection'
 import TasksSection from './sections/TasksSection'
 import StatsSection from './sections/StatsSection'
+import SettingsSection from './sections/SettingsSection'
 
 const menuItems = [
   {
@@ -33,6 +34,10 @@ const menuItems = [
   {
     id: 'stats', label: 'Estadísticas',
     icon: <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="9" width="3" height="5" rx="0.5" stroke="currentColor" strokeWidth="1.2"/><rect x="6" y="5" width="3" height="9" rx="0.5" stroke="currentColor" strokeWidth="1.2"/><rect x="11" y="1" width="3" height="13" rx="0.5" stroke="currentColor" strokeWidth="1.2"/></svg>
+  },
+  {
+    id: 'settings', label: 'Ajustes',
+    icon: <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.2"/><path d="M7.5 1v2M7.5 12v2M1 7.5h2M12 7.5h2M3 3l1.5 1.5M10.5 10.5L12 12M3 12l1.5-1.5M10.5 4.5L12 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
   },
 ]
 
@@ -113,6 +118,7 @@ export default function Dashboard() {
       case 'tasks': return <TasksSection onRequestLocationSelection={handleRequestLocationSelection} />
       case 'users': return <UsersSection />
       case 'stats': return <StatsSection />
+      case 'settings': return <SettingsSection onLogout={handleLogout} />
       default: return null
     }
   }
@@ -161,22 +167,6 @@ export default function Dashboard() {
           ))}
         </nav>
 
-        {/* Footer */}
-        <div style={{ padding: '12px 8px', borderTop: '0.5px solid #E5E4E0' }}>
-          <button
-            onClick={handleLogout}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '9px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-              fontSize: '13px', color: '#A32D2D', background: 'transparent', textAlign: 'left',
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-              <path d="M6 13H3a1 1 0 01-1-1V3a1 1 0 011-1h3M10 10l3-2.5L10 5M13 7.5H6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Cerrar sesión
-          </button>
-        </div>
       </aside>
 
       {/* Main */}
