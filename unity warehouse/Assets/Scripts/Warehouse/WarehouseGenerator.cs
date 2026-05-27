@@ -90,6 +90,12 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private int roofWindowEvery = 3;
         [Tooltip("Offset vertical de TODO el techo (en metros). Sube/baja si no encaja con las paredes.")]
         [SerializeField] private float roofYOffset = 0f;
+        [Tooltip("Offset Y EXTRA solo para los tiles del techo curvo. Útil si el pivot del roof_round está a distinta altura que el del roof_flat. Positivo para subirlo, negativo para bajarlo.")]
+        [SerializeField] private float roofRoundExtraY = 0f;
+        [Tooltip("Offset horizontal X de TODO el techo (en metros). Para nudgear si los tiles no cuadran con las paredes.")]
+        [SerializeField] private float roofXOffset = 0f;
+        [Tooltip("Offset horizontal Z de TODO el techo (en metros). Para nudgear si los tiles no cuadran con las paredes.")]
+        [SerializeField] private float roofZOffset = 0f;
         [Tooltip("Rotación euler de los tiles del techo plano.")]
         [SerializeField] private Vector3 roofFlatRotation = Vector3.zero;
         [Tooltip("Rotación euler de los tiles del techo curvo (y claraboyas).")]
@@ -494,7 +500,8 @@ namespace WarehouseTwin.Warehouse
         /// </summary>
         private void BuildRoof(float minX, float maxX, float minZ, float maxZ, float ceilingY)
         {
-            float y = ceilingY + roofYOffset;
+            float yFlat  = ceilingY + roofYOffset;
+            float yRound = ceilingY + roofYOffset + roofRoundExtraY;
             Quaternion flatRot  = Quaternion.Euler(roofFlatRotation);
             Quaternion roundRot = Quaternion.Euler(roofRoundRotation);
 
@@ -506,10 +513,10 @@ namespace WarehouseTwin.Warehouse
                 float stripMaxZ = midZ + roofRoundStripWidth / 2f;
 
                 if (stripMinZ > minZ)
-                    BuildRoofStrip(minX, maxX, minZ, stripMinZ, y, roofFlatPrefab, null, flatRot, flatRot, "Flat_S");
-                BuildRoofStrip(minX, maxX, stripMinZ, stripMaxZ, y, roofRoundPrefab, roofWindowPrefab, roundRot, roundRot, "Round");
+                    BuildRoofStrip(minX, maxX, minZ, stripMinZ, yFlat, roofFlatPrefab, null, flatRot, flatRot, "Flat_S");
+                BuildRoofStrip(minX, maxX, stripMinZ, stripMaxZ, yRound, roofRoundPrefab, roofWindowPrefab, roundRot, roundRot, "Round");
                 if (stripMaxZ < maxZ)
-                    BuildRoofStrip(minX, maxX, stripMaxZ, maxZ, y, roofFlatPrefab, null, flatRot, flatRot, "Flat_N");
+                    BuildRoofStrip(minX, maxX, stripMaxZ, maxZ, yFlat, roofFlatPrefab, null, flatRot, flatRot, "Flat_N");
             }
             else
             {
@@ -519,16 +526,17 @@ namespace WarehouseTwin.Warehouse
                 float stripMaxX = midX + roofRoundStripWidth / 2f;
 
                 if (stripMinX > minX)
-                    BuildRoofStrip(minX, stripMinX, minZ, maxZ, y, roofFlatPrefab, null, flatRot, flatRot, "Flat_W");
-                BuildRoofStrip(stripMinX, stripMaxX, minZ, maxZ, y, roofRoundPrefab, roofWindowPrefab, roundRot, roundRot, "Round");
+                    BuildRoofStrip(minX, stripMinX, minZ, maxZ, yFlat, roofFlatPrefab, null, flatRot, flatRot, "Flat_W");
+                BuildRoofStrip(stripMinX, stripMaxX, minZ, maxZ, yRound, roofRoundPrefab, roofWindowPrefab, roundRot, roundRot, "Round");
                 if (stripMaxX < maxX)
-                    BuildRoofStrip(stripMaxX, maxX, minZ, maxZ, y, roofFlatPrefab, null, flatRot, flatRot, "Flat_E");
+                    BuildRoofStrip(stripMaxX, maxX, minZ, maxZ, yFlat, roofFlatPrefab, null, flatRot, flatRot, "Flat_E");
             }
         }
 
         /// <summary>
         /// Tilea un strip del techo cubriendo (minX..maxX, minZ..maxZ) a altura y.
         /// Si windowPrefab != null, intercala claraboyas cada roofWindowEvery tiles.
+        /// Aplica roofXOffset y roofZOffset a las posiciones para nudgear el techo si no cuadra.
         /// </summary>
         private void BuildRoofStrip(float minX, float maxX, float minZ, float maxZ, float y,
                                     GameObject basePrefab, GameObject windowPrefab,
@@ -551,8 +559,8 @@ namespace WarehouseTwin.Warehouse
                     GameObject prefab = useWindow ? windowPrefab : basePrefab;
                     Quaternion rot    = useWindow ? windowRot   : baseRot;
 
-                    float cx = minX + i * effTileX + effTileX / 2f;
-                    float cz = minZ + j * effTileZ + effTileZ / 2f;
+                    float cx = minX + i * effTileX + effTileX / 2f + roofXOffset;
+                    float cz = minZ + j * effTileZ + effTileZ / 2f + roofZOffset;
                     GameObject tile = Instantiate(prefab, transform);
                     tile.name = useWindow ? $"Roof_Window_{namePrefix}_{i}_{j}" : $"Roof_{namePrefix}_{i}_{j}";
                     tile.transform.localPosition = new Vector3(cx, y, cz);

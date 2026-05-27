@@ -18,7 +18,7 @@ namespace WarehouseTwin.Warehouse
 
         [Header("Rotación")]
         [SerializeField] private float rotationSpeed = 200f;
-        [SerializeField] private float minVertical   = 10f;  // ángulo mínimo vertical
+        [SerializeField] private float minVertical   = -45f; // ángulo mínimo vertical (negativo para poder mirar hacia arriba al techo)
         [SerializeField] private float maxVertical   = 80f;  // ángulo máximo vertical
 
         private float _yaw   = 0f;
