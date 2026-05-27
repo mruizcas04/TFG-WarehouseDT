@@ -152,6 +152,20 @@ namespace WarehouseTwin.Bridge
 #pragma warning restore CS0618
         }
 
+        /// <summary>
+        /// Notifica a React de cualquier click sobre una ubicación, independientemente del modo
+        /// (selección o normal). Se usa para mostrar info / botón de "vista alzado" cuando se elige
+        /// una estantería en modo normal.
+        /// </summary>
+        public static void NotifyLocationClicked(string locationId, string locationLabel)
+        {
+            if (Instance == null) return;
+            string payload = (locationId + "|" + locationLabel).Replace("'", "\\'");
+#pragma warning disable CS0618
+            Application.ExternalEval($"if(window.onUnityLocationClicked){{window.onUnityLocationClicked('{payload}');}}");
+#pragma warning restore CS0618
+        }
+
         public void SetSelectionHighlight(string locationId)
         {
             LocationObject loc = FindLocationObject(locationId);

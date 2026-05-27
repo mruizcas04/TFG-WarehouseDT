@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 
-const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, containerStyle }, ref) => {
+const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, onLocationClicked, containerStyle }, ref) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const unityInstanceRef = useRef(null);
   const scriptLoadedRef = useRef(false);
 
   useImperativeHandle(ref, () => ({
-    setFilter(type) {
-      if (unityInstanceRef.current) {
-        unityInstanceRef.current.SendMessage("WarehouseManager", "SetFilter", JSON.stringify({ type }));
-      }
-    },
     setProductFilter(productId) {
       if (unityInstanceRef.current) {
         unityInstanceRef.current.SendMessage("WarehouseManager", "SetFilter", JSON.stringify({ type: "product_id", value: productId }));
       }
+    },
+    clearFilter() {
+      unityInstanceRef.current?.SendMessage("WarehouseManager", "SetFilter", JSON.stringify({ type: "all" }));
     },
     enterSelectionMode(filter) {
       unityInstanceRef.current?.SendMessage("WarehouseManager", "EnterLocationSelectionMode", JSON.stringify(filter));
@@ -29,6 +27,22 @@ const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, contai
     clearSelectionHighlight(locationId) {
       unityInstanceRef.current?.SendMessage("WarehouseManager", "ClearSelectionHighlight", locationId);
     },
+    resetCameraView() {
+      unityInstanceRef.current?.SendMessage("WarehouseManager", "ResetCameraView", "");
+    },
+    focusOnShelf(locationId) {
+      unityInstanceRef.current?.SendMessage("WarehouseManager", "FocusOnShelf", locationId);
+    },
+    exitShelfFocus() {
+      unityInstanceRef.current?.SendMessage("WarehouseManager", "ExitShelfFocus", "");
+    },
+    requestFullscreen() {
+      const canvas = document.getElementById("unity-canvas");
+      const elem = canvas?.parentElement || canvas || document.documentElement;
+      if (elem.requestFullscreen) elem.requestFullscreen();
+      else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+      else if (elem.mozRequestFullScreen) elem.mozRequestFullScreen();
+    },
   }));
 
   useEffect(() => {
@@ -36,8 +50,15 @@ const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, contai
       const [locationId, locationLabel] = data.split('|');
       if (onLocationSelected) onLocationSelected(locationId, locationLabel);
     };
-    return () => { delete window.onUnityLocationSelected; };
-  }, [onLocationSelected]);
+    window.onUnityLocationClicked = (data) => {
+      const [locationId, locationLabel] = data.split('|');
+      if (onLocationClicked) onLocationClicked(locationId, locationLabel);
+    };
+    return () => {
+      delete window.onUnityLocationSelected;
+      delete window.onUnityLocationClicked;
+    };
+  }, [onLocationSelected, onLocationClicked]);
 
 useEffect(() => {
   if (scriptLoadedRef.current) return;
