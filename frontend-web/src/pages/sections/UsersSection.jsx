@@ -55,7 +55,7 @@ export default function UsersSection() {
   const inputStyle = { width: '100%', border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '9px 12px', fontSize: '13px', color: '#1C1C1A', outline: 'none', boxSizing: 'border-box' }
   const labelStyle = { display: 'block', fontSize: '11px', fontWeight: '500', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }
 
-  const roleLabel = (role) => role === 'admin' ? 'Administrador' : 'Trabajador'
+  const roleLabel = (role) => role === 'admin' ? 'Administrador' : 'Operario'
   const roleBadge = (role) => role === 'admin'
     ? { bg: '#EEEDFE', color: '#534AB7' }
     : { bg: '#EAF3DE', color: '#3B6D11' }
@@ -190,7 +190,7 @@ export default function UsersSection() {
             <div>
               <label style={labelStyle}>Rol</label>
               <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} style={inputStyle}>
-                <option value="worker">Trabajador</option>
+                <option value="worker">Operario</option>
                 <option value="admin">Administrador</option>
               </select>
             </div>

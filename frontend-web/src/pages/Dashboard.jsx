@@ -35,11 +35,12 @@ const menuItems = [
     id: 'stats', label: 'Estadísticas',
     icon: <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="9" width="3" height="5" rx="0.5" stroke="currentColor" strokeWidth="1.2"/><rect x="6" y="5" width="3" height="9" rx="0.5" stroke="currentColor" strokeWidth="1.2"/><rect x="11" y="1" width="3" height="13" rx="0.5" stroke="currentColor" strokeWidth="1.2"/></svg>
   },
-  {
-    id: 'settings', label: 'Ajustes',
-    icon: <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.2"/><path d="M7.5 1v2M7.5 12v2M1 7.5h2M12 7.5h2M3 3l1.5 1.5M10.5 10.5L12 12M3 12l1.5-1.5M10.5 4.5L12 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-  },
 ]
+
+const settingsItem = {
+  id: 'settings', label: 'Ajustes',
+  icon: <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.2"/><path d="M7.5 1v2M7.5 12v2M1 7.5h2M12 7.5h2M3 3l1.5 1.5M10.5 10.5L12 12M3 12l1.5-1.5M10.5 4.5L12 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+}
 
 export default function Dashboard() {
   const [activeSection, setActiveSection] = useState('home')
@@ -166,6 +167,24 @@ export default function Dashboard() {
             </button>
           ))}
         </nav>
+
+        {/* Ajustes — pie del sidebar */}
+        <div style={{ padding: '8px 8px 12px', borderTop: '0.5px solid #E5E4E0' }}>
+          <button
+            onClick={() => setActiveSection(settingsItem.id)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '9px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+              fontSize: '13px', fontWeight: activeSection === settingsItem.id ? '500' : '400',
+              background: activeSection === settingsItem.id ? '#E6F1FB' : 'transparent',
+              color: activeSection === settingsItem.id ? '#185FA5' : '#5F5E5A',
+              textAlign: 'left',
+            }}
+          >
+            {settingsItem.icon}
+            {settingsItem.label}
+          </button>
+        </div>
 
       </aside>
 

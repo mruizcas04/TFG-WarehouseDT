@@ -90,6 +90,7 @@
 -define:ENABLE_TIMELINE
 -define:ENABLE_LEGACY_INPUT_MANAGER
 -define:TEXTCORE_FONT_ENGINE_1_5_OR_NEWER
+-define:UNITY_POST_PROCESSING_STACK_V2
 -define:CSHARP_7_OR_LATER
 -define:CSHARP_7_3_OR_NEWER
 -r:"C:/Program Files/Unity/Hub/Editor/2022.3.49f1/Editor/Data/NetStandard/compat/2.1.0/shims/netfx/mscorlib.dll"
@@ -281,6 +282,7 @@
 -r:"Library/PackageCache/com.unity.nuget.newtonsoft-json@3.2.2/Runtime/AOT/Newtonsoft.Json.dll"
 -r:"Library/PackageCache/com.unity.visualscripting@1.9.4/Runtime/VisualScripting.Flow/Dependencies/NCalc/Unity.VisualScripting.Antlr3.Runtime.dll"
 -r:"Library/Bee/artifacts/2000b0aP.dag/endel.nativewebsocket.ref.dll"
+-r:"Library/Bee/artifacts/2000b0aP.dag/Unity.Postprocessing.Runtime.ref.dll"
 -r:"Library/Bee/artifacts/2000b0aP.dag/Unity.TextMeshPro.ref.dll"
 -r:"Library/Bee/artifacts/2000b0aP.dag/Unity.Timeline.ref.dll"
 -r:"Library/Bee/artifacts/2000b0aP.dag/Unity.VisualScripting.Core.ref.dll"
@@ -292,7 +294,6 @@
 "Assets/Scripts/Bridge/ReactBridge.cs"
 "Assets/Scripts/Data/DTOs.cs"
 "Assets/Scripts/Network/ApiClient.cs"
-"Assets/Scripts/Network/UnityMainThreadDispatcher.cs"
 "Assets/Scripts/Network/WebSocketClient.cs"
 "Assets/Scripts/Warehouse/LocationObject.cs"
 "Assets/Scripts/Warehouse/OrbitCamera.cs"

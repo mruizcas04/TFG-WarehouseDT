@@ -102,19 +102,19 @@ export default function StatsSection() {
       {/* Tabla de trabajadores */}
       <div>
         <h3 style={{ fontSize: '13px', fontWeight: '500', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '12px' }}>
-          Rendimiento por trabajador
+          Rendimiento por operario
         </h3>
 
         {data.workers.length === 0 ? (
           <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '40px', textAlign: 'center', color: '#888780', fontSize: '13px' }}>
-            No hay trabajadores activos
+            No hay operarios activos
           </div>
         ) : (
           <div style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', overflow: 'hidden' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: '#FAFAFA' }}>
-                  {['Trabajador', 'Completadas', 'Pendientes', 'Tasa de completado'].map((h, i) => (
+                  {['Operario', 'Completadas', 'Pendientes', 'Tasa de completado'].map((h, i) => (
                     <th
                       key={i}
                       style={{

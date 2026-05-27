@@ -528,7 +528,7 @@ export default function TasksSection({ onRequestLocationSelection }) {
                 style={selectStyle}
                 required
               >
-                <option value="">Selecciona un trabajador</option>
+                <option value="">Selecciona un operario</option>
                 {recommendation
                   ? recommendation.map(r => (
                       <option key={r.user_id} value={r.user_id}>
@@ -706,7 +706,7 @@ export default function TasksSection({ onRequestLocationSelection }) {
           <div style={{ width: '1px', height: '20px', background: '#E5E4E0', flexShrink: 0, margin: '0 4px' }} />
           <input
             type="text"
-            placeholder="Buscar por producto o trabajador..."
+            placeholder="Buscar por producto o operario..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             style={{ flex: 1, minWidth: '160px', border: '0.5px solid #D3D1C7', borderRadius: '8px', padding: '6px 10px', fontSize: '12px', color: '#1C1C1A', outline: 'none' }}

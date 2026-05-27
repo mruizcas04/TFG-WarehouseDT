@@ -1923,7 +1923,6 @@ struct UxmlTraits_t04D4BAFC17E00FF0738CDF8EFD2F12ADC5646025;
 struct UxmlTraits_t7E6C29A16AC070C42209A51B9F4A8486C5FC9D9C;
 struct UxmlTraits_t56D844C316C7882ACDC515D546D8CCDDAE040F95;
 struct CameraCallback_t844E527BFE37BC0495E7F67993E43C07642DA9DD;
-struct StateChanged_t6DC116251B1ED50EC475CFF0195AB6625478485F;
 struct LazyCAttrData_t4F8036F83C070762609DB213B69F7FAA2D34ACA3;
 struct KeyGeneratedEventHandler_t6F47C1DD87E832FEDC53AEEE3762FC1C37A866CA;
 struct DataRowTree_tE2B5C209F0D2D3B72A2F747AEFD4F76CBDB92AAF;
@@ -19473,21 +19472,6 @@ struct CspProviderFlags_tE84737C4FE8BB969ADE9D11702DB91D3165D668F
 {
 	int32_t ___value__;
 };
-struct CullingGroup_t0732D3CC044BAE2BE39748CBF5D96DDB6DBF62E7  : public RuntimeObject
-{
-	intptr_t ___m_Ptr;
-	StateChanged_t6DC116251B1ED50EC475CFF0195AB6625478485F* ___m_OnStateChanged;
-};
-struct CullingGroup_t0732D3CC044BAE2BE39748CBF5D96DDB6DBF62E7_marshaled_pinvoke
-{
-	intptr_t ___m_Ptr;
-	Il2CppMethodPointer ___m_OnStateChanged;
-};
-struct CullingGroup_t0732D3CC044BAE2BE39748CBF5D96DDB6DBF62E7_marshaled_com
-{
-	intptr_t ___m_Ptr;
-	Il2CppMethodPointer ___m_OnStateChanged;
-};
 struct CultureTypes_t9C53D5D76961875C9CE5A4B095716DAABFBB1382 
 {
 	int32_t ___value__;
@@ -23196,6 +23180,10 @@ struct UxmlFactory_t1BC8F3254EBA5E85475338D3FF430F892CA21838  : public UxmlFacto
 {
 };
 struct MonoOrStereoscopicEye_t081A39BC8F4F6989A7575C6A8D3AC64ACBD4E6DA 
+{
+	int32_t ___value__;
+};
+struct StereoscopicEye_t30CC7EDE30A53D77DA8D865A2C52A86F2F625008 
 {
 	int32_t ___value__;
 };
@@ -55100,15 +55088,15 @@ const Il2CppTypeDefinitionSizes g_typeDefinitionSize5393 = { sizeof(BootConfigDa
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize5394;
 const Il2CppTypeDefinitionSizes g_typeDefinitionSize5394 = { sizeof(int32_t)+ sizeof(RuntimeObject), sizeof(int32_t), 0, 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize5395;
-const Il2CppTypeDefinitionSizes g_typeDefinitionSize5395 = { sizeof(CameraCallback_t844E527BFE37BC0495E7F67993E43C07642DA9DD), sizeof(Il2CppMethodPointer), 0, 0 };
+const Il2CppTypeDefinitionSizes g_typeDefinitionSize5395 = { sizeof(int32_t)+ sizeof(RuntimeObject), sizeof(int32_t), 0, 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize5396;
-const Il2CppTypeDefinitionSizes g_typeDefinitionSize5396 = { sizeof(Camera_tA92CC927D7439999BC82DBEDC0AA45B470F9E184), -1, sizeof(Camera_tA92CC927D7439999BC82DBEDC0AA45B470F9E184_StaticFields), 0 };
+const Il2CppTypeDefinitionSizes g_typeDefinitionSize5396 = { sizeof(CameraCallback_t844E527BFE37BC0495E7F67993E43C07642DA9DD), sizeof(Il2CppMethodPointer), 0, 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize5397;
-const Il2CppTypeDefinitionSizes g_typeDefinitionSize5397 = { sizeof(CullingGroupEvent_tC79BA328A8280C29F6002F591614081A0E87D110)+ sizeof(RuntimeObject), sizeof(CullingGroupEvent_tC79BA328A8280C29F6002F591614081A0E87D110), 0, 0 };
+const Il2CppTypeDefinitionSizes g_typeDefinitionSize5397 = { sizeof(Camera_tA92CC927D7439999BC82DBEDC0AA45B470F9E184), -1, sizeof(Camera_tA92CC927D7439999BC82DBEDC0AA45B470F9E184_StaticFields), 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize5398;
-const Il2CppTypeDefinitionSizes g_typeDefinitionSize5398 = { sizeof(StateChanged_t6DC116251B1ED50EC475CFF0195AB6625478485F), sizeof(Il2CppMethodPointer), 0, 0 };
+const Il2CppTypeDefinitionSizes g_typeDefinitionSize5398 = { sizeof(CullingGroupEvent_tC79BA328A8280C29F6002F591614081A0E87D110)+ sizeof(RuntimeObject), sizeof(CullingGroupEvent_tC79BA328A8280C29F6002F591614081A0E87D110), 0, 0 };
 extern const Il2CppTypeDefinitionSizes g_typeDefinitionSize5399;
-const Il2CppTypeDefinitionSizes g_typeDefinitionSize5399 = { sizeof(CullingGroup_t0732D3CC044BAE2BE39748CBF5D96DDB6DBF62E7), sizeof(CullingGroup_t0732D3CC044BAE2BE39748CBF5D96DDB6DBF62E7_marshaled_pinvoke), 0, 0 };
+const Il2CppTypeDefinitionSizes g_typeDefinitionSize5399 = { sizeof(StateChanged_t6DC116251B1ED50EC475CFF0195AB6625478485F), sizeof(Il2CppMethodPointer), 0, 0 };
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
