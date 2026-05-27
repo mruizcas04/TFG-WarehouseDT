@@ -131,6 +131,22 @@ namespace WarehouseTwin.Warehouse
         [Tooltip("Escala uniforme para las puertas. Si quedan muy pequeñas respecto a la pared, sube a 2 o 3.")]
         [SerializeField] private float doorScale = 2f;
 
+        [Header("Carteles numéricos de pasillo (opcional)")]
+        [Tooltip("Prefabs de dígitos 0-9 para numerar pasillos. Asigna los 10 prefabs row_number_X del pack en orden (índice 0 = row_number_0, etc.).")]
+        [SerializeField] private GameObject[] rowNumberPrefabs = new GameObject[10];
+        [Tooltip("Altura del cartel sobre el suelo (metros).")]
+        [SerializeField] private float aisleSignHeight = 4f;
+        [Tooltip("Ancho aproximado de cada dígito (metros). Se usa para separar dígitos en números multidígito.")]
+        [SerializeField] private float aisleSignDigitWidth = 0.7f;
+        [Tooltip("Offset Z (metros) del cartel de la entrada FRONTAL. Negativo lo coloca antes del primer shelf del pasillo, positivo dentro.")]
+        [SerializeField] private float aisleSignFrontZOffset = -1.5f;
+        [Tooltip("Offset Z (metros) del cartel de la entrada TRASERA respecto al final del último shelf. Positivo lo coloca después del último shelf, negativo dentro.")]
+        [SerializeField] private float aisleSignBackZOffset = 1.5f;
+        [Tooltip("Rotación euler aplicada al cartel FRONTAL.")]
+        [SerializeField] private Vector3 aisleSignFrontRotation = Vector3.zero;
+        [Tooltip("Rotación euler aplicada al cartel TRASERO (típicamente 180° en Y respecto al frontal para que mire al otro pasillo).")]
+        [SerializeField] private Vector3 aisleSignBackRotation = new Vector3(0, 180, 0);
+
         [Header("Paredes con ventana (opcional)")]
         [Tooltip("Prefab de pared con ventana (ej. wall_2_one). Si está asignado, sustituye cada N tiles de pared.")]
         [SerializeField] private GameObject wallWindowedPrefab;
@@ -408,6 +424,9 @@ namespace WarehouseTwin.Warehouse
                 }
             }
 
+            // --- Carteles numéricos en cada pasillo (opcional) ---
+            BuildAisleSigns(aisleXPos, aisleZOffset);
+
             // Pintar en amarillo las ubicaciones con tareas activas
             foreach (string locationId in activeTaskSet)
             {
@@ -477,21 +496,17 @@ namespace WarehouseTwin.Warehouse
             float wallY   = wallYOffset;
             Quaternion baseRot = Quaternion.Euler(wallRotationOffset);
 
-            // Pared FRONT (Z=minZ, interior en +Z): sin rotación, cara +Z del prefab queda mirando al interior.
-            TileWall(minX, maxX, "Front", wallY, minZ, baseRot, yScale, axisAlongX: true);
-            // Pared BACK (Z=maxZ, interior en -Z): rotada 180° en Y para que su cara +Z mire al interior.
-            TileWall(minX, maxX, "Back", wallY, maxZ, baseRot * Quaternion.Euler(0, 180, 0), yScale, axisAlongX: true);
-            // Pared LEFT (X=minX, interior en +X): rotada +90° en Y para que su cara +Z mire al interior.
-            TileWall(minZ, maxZ, "Left", wallY, minX, baseRot * Quaternion.Euler(0, 90, 0), yScale, axisAlongX: false);
-            // Pared RIGHT (X=maxX, interior en -X): rotada -90° en Y para que su cara +Z mire al interior.
-            TileWall(minZ, maxZ, "Right", wallY, maxX, baseRot * Quaternion.Euler(0, -90, 0), yScale, axisAlongX: false);
+            // Las paredes con puerta NO admiten ventanas (para que ventana y puerta no compitan visualmente).
+            TileWall(minX, maxX, "Front", wallY, minZ, baseRot, yScale, axisAlongX: true, allowWindowed: !doorOnFrontWall);
+            TileWall(minX, maxX, "Back",  wallY, maxZ, baseRot * Quaternion.Euler(0, 180, 0), yScale, axisAlongX: true, allowWindowed: !doorOnBackWall);
+            TileWall(minZ, maxZ, "Left",  wallY, minX, baseRot * Quaternion.Euler(0, 90, 0),  yScale, axisAlongX: false, allowWindowed: !doorOnLeftWall);
+            TileWall(minZ, maxZ, "Right", wallY, maxX, baseRot * Quaternion.Euler(0, -90, 0), yScale, axisAlongX: false, allowWindowed: !doorOnRightWall);
         }
 
-        private void TileWall(float axisMin, float axisMax, string side, float cy, float perpendicularCoord, Quaternion rotation, float yScale, bool axisAlongX)
+        private void TileWall(float axisMin, float axisMax, string side, float cy, float perpendicularCoord, Quaternion rotation, float yScale, bool axisAlongX, bool allowWindowed = true)
         {
             float wallLength = axisMax - axisMin;
             int numTiles = Mathf.CeilToInt(wallLength / wallTileWidth);
-            // Estiramos cada tile ligeramente para que el total cubra EXACTAMENTE axisMin..axisMax (sin overshoot).
             float effectiveTileWidth = wallLength / numTiles;
             float horizontalScale    = effectiveTileWidth / wallTileWidth;
 
@@ -499,11 +514,9 @@ namespace WarehouseTwin.Warehouse
             {
                 float center = axisMin + i * effectiveTileWidth + effectiveTileWidth / 2f;
 
-                // Sustituir por pared con ventana en posiciones intermedias.
-                // Para paredes de 2 tiles o menos: una ventana en el tile central.
-                // Para paredes más largas: cada wallWindowedEvery tiles empezando por el tile 1 (no en esquinas).
+                // Ventanas solo en paredes que las admiten (no las que tienen puerta).
                 bool useWindowed = false;
-                if (wallWindowedPrefab != null && wallWindowedEvery > 0)
+                if (allowWindowed && wallWindowedPrefab != null && wallWindowedEvery > 0)
                 {
                     if (numTiles <= 2)
                         useWindowed = (i == numTiles / 2);
@@ -599,6 +612,61 @@ namespace WarehouseTwin.Warehouse
                     tile.transform.localScale = new Vector3(s.x * scaleX, s.y, s.z * scaleZ);
                     tileIndex++;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Coloca un cartel numérico en AMBAS entradas de cada pasillo.
+        /// Front y back tienen offsets y rotaciones INDEPENDIENTES para que puedas ajustar cada lado por separado.
+        /// </summary>
+        private void BuildAisleSigns(Dictionary<int, float> aisleXPos, Dictionary<int, float> aisleZOffset)
+        {
+            if (rowNumberPrefabs == null || rowNumberPrefabs.Length < 10) return;
+            bool hasAnyDigit = false;
+            for (int i = 0; i < 10; i++)
+                if (rowNumberPrefabs[i] != null) { hasAnyDigit = true; break; }
+            if (!hasAnyDigit) return;
+
+            Quaternion frontRot = Quaternion.Euler(aisleSignFrontRotation);
+            Quaternion backRot  = Quaternion.Euler(aisleSignBackRotation);
+
+            foreach (var kvp in aisleXPos)
+            {
+                int aisleNumber = kvp.Key;
+                float aisleX    = kvp.Value;
+                string digits   = aisleNumber.ToString();
+                float totalWidth = (digits.Length - 1) * aisleSignDigitWidth;
+                float startX    = aisleX - totalWidth / 2f;
+
+                // Z frontal: medido respecto al inicio del pasillo (z=0). Negativo = antes del primer shelf.
+                float frontZ = aisleSignFrontZOffset;
+                // Z trasero: medido respecto al final del último shelf. Positivo = después del último shelf.
+                float lastShelfEndZ = aisleZOffset.ContainsKey(aisleNumber)
+                                      ? aisleZOffset[aisleNumber] - shelfGap
+                                      : 0f;
+                float backZ = lastShelfEndZ + aisleSignBackZOffset;
+
+                PlaceAisleNumber(aisleNumber, digits, startX, frontZ, frontRot, "Front");
+                PlaceAisleNumber(aisleNumber, digits, startX, backZ,  backRot,  "Back");
+            }
+        }
+
+        private void PlaceAisleNumber(int aisleNumber, string digits, float startX, float z, Quaternion rotation, string sideName)
+        {
+            for (int i = 0; i < digits.Length; i++)
+            {
+                int digit = digits[i] - '0';
+                if (digit < 0 || digit > 9) continue;
+                GameObject prefab = rowNumberPrefabs[digit];
+                if (prefab == null) continue;
+
+                GameObject sign = Instantiate(prefab, transform);
+                sign.name = $"AisleSign_{aisleNumber}_{sideName}_{i}";
+                sign.transform.localPosition = new Vector3(
+                    startX + i * aisleSignDigitWidth,
+                    aisleSignHeight,
+                    z);
+                sign.transform.localRotation = rotation;
             }
         }
 
