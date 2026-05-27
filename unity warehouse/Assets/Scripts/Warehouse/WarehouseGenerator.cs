@@ -500,37 +500,10 @@ namespace WarehouseTwin.Warehouse
         /// </summary>
         private void BuildRoof(float minX, float maxX, float minZ, float maxZ, float ceilingY)
         {
-            float yFlat  = ceilingY + roofYOffset;
-            float yRound = ceilingY + roofYOffset + roofRoundExtraY;
-            Quaternion flatRot  = Quaternion.Euler(roofFlatRotation);
-            Quaternion roundRot = Quaternion.Euler(roofRoundRotation);
-
-            if (roofRoundStripAlongX)
-            {
-                // Strip curvo a lo largo de X, su ancho es en Z (centrado)
-                float midZ      = (minZ + maxZ) / 2f;
-                float stripMinZ = midZ - roofRoundStripWidth / 2f;
-                float stripMaxZ = midZ + roofRoundStripWidth / 2f;
-
-                if (stripMinZ > minZ)
-                    BuildRoofStrip(minX, maxX, minZ, stripMinZ, yFlat, roofFlatPrefab, null, flatRot, flatRot, "Flat_S");
-                BuildRoofStrip(minX, maxX, stripMinZ, stripMaxZ, yRound, roofRoundPrefab, roofWindowPrefab, roundRot, roundRot, "Round");
-                if (stripMaxZ < maxZ)
-                    BuildRoofStrip(minX, maxX, stripMaxZ, maxZ, yFlat, roofFlatPrefab, null, flatRot, flatRot, "Flat_N");
-            }
-            else
-            {
-                // Strip curvo a lo largo de Z, su ancho es en X (centrado)
-                float midX      = (minX + maxX) / 2f;
-                float stripMinX = midX - roofRoundStripWidth / 2f;
-                float stripMaxX = midX + roofRoundStripWidth / 2f;
-
-                if (stripMinX > minX)
-                    BuildRoofStrip(minX, stripMinX, minZ, maxZ, yFlat, roofFlatPrefab, null, flatRot, flatRot, "Flat_W");
-                BuildRoofStrip(stripMinX, stripMaxX, minZ, maxZ, yRound, roofRoundPrefab, roofWindowPrefab, roundRot, roundRot, "Round");
-                if (stripMaxX < maxX)
-                    BuildRoofStrip(stripMaxX, maxX, minZ, maxZ, yFlat, roofFlatPrefab, null, flatRot, flatRot, "Flat_E");
-            }
+            // Todo el techo plano. Sin strips ni curvas. Tilea roofFlatPrefab cubriendo el área entera.
+            float y = ceilingY + roofYOffset;
+            Quaternion flatRot = Quaternion.Euler(roofFlatRotation);
+            BuildRoofStrip(minX, maxX, minZ, maxZ, y, roofFlatPrefab, null, flatRot, flatRot, "Flat");
         }
 
         /// <summary>
@@ -631,37 +604,12 @@ namespace WarehouseTwin.Warehouse
             float startZ  = (minZ + maxZ) / 2f - spreadZ / 2f;
             float lampY   = ceilingY - lampDropFromCeiling;
 
-            // Calcular zona del strip curvo (si hay techo configurado), para saltar lámparas en ese rango.
-            bool roofConfigured = roofFlatPrefab != null && roofRoundPrefab != null;
-            float stripMin = 0f, stripMax = 0f;
-            if (roofConfigured)
-            {
-                if (roofRoundStripAlongX)
-                {
-                    float midZ = (minZ + maxZ) / 2f;
-                    stripMin = midZ - roofRoundStripWidth / 2f;
-                    stripMax = midZ + roofRoundStripWidth / 2f;
-                }
-                else
-                {
-                    float midX = (minX + maxX) / 2f;
-                    stripMin = midX - roofRoundStripWidth / 2f;
-                    stripMax = midX + roofRoundStripWidth / 2f;
-                }
-            }
-
             for (int i = 0; i < lampsX; i++)
             {
                 for (int j = 0; j < lampsZ; j++)
                 {
                     float lampX = startX + i * lampSpacing;
                     float lampZ = startZ + j * lampSpacing;
-
-                    if (roofConfigured)
-                    {
-                        float coord = roofRoundStripAlongX ? lampZ : lampX;
-                        if (coord > stripMin && coord < stripMax) continue;  // está bajo el techo curvo → omitir
-                    }
 
                     GameObject lamp = Instantiate(lampPrefab, transform);
                     lamp.name = $"Lamp_{i}_{j}";
