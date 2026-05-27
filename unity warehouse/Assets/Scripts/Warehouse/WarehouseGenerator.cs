@@ -92,6 +92,8 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float lampLightIntensity = 2.0f;
         [Tooltip("Rango de la luz de cada lámpara (metros). Aumentar reduce zonas oscuras entre lámparas.")]
         [SerializeField] private float lampLightRange = 15f;
+        [Tooltip("Tipo de sombras que proyectan las lámparas. None = más rápido pero todo plano. Soft = bonito pero pesado en WebGL con muchas lámparas.")]
+        [SerializeField] private LightShadows lampShadows = LightShadows.None;
         [Tooltip("Prefab de techo con claraboya (ej. roof_window). Si está asignado, se sustituye cada N tiles del techo por una claraboya.")]
         [SerializeField] private GameObject roofWindowPrefab;
         [Tooltip("Frecuencia: cada cuántos tiles del techo se pone una ventana. 0 = ninguna.")]
@@ -575,7 +577,7 @@ namespace WarehouseTwin.Warehouse
                         l.color     = lampLightColor;
                         l.intensity = lampLightIntensity;
                         l.range     = lampLightRange;
-                        l.shadows   = LightShadows.None;
+                        l.shadows   = lampShadows;
                     }
                 }
             }
