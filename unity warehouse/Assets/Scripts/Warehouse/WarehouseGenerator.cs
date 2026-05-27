@@ -72,27 +72,11 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float wallYOffset = 0f;
         [Tooltip("Cuánto se extienden las paredes por encima de la altura del almacén (en metros). Sirve para que tapen cualquier hueco con el techo sin importar el pivot del FBX. 0.5-1m suele bastar.")]
         [SerializeField] private float wallTopOverlap = 1.0f;
-        [Tooltip("Prefab del techo (ej. roof_flat). Si está vacío no hay techo.")]
-        [SerializeField] private GameObject ceilingPrefab;
-        [Tooltip("Tamaño nativo del prefab de techo (lado del cuadrado, en metros).")]
-        [SerializeField] private float ceilingTileSize = 5f;
-        [Tooltip("Rotación euler aplicada al prefab de techo. Si lo ves al revés (cara visible mirando hacia arriba en vez de abajo) prueba (180,0,0).")]
-        [SerializeField] private Vector3 ceilingRotationOffset = Vector3.zero;
-        [Tooltip("Offset vertical (en metros) sumado a la posición Y del techo. Sube o baja el techo si no encaja con las paredes.")]
-        [SerializeField] private float ceilingYOffset = 0f;
-        [Tooltip("Cuánto sobresale el techo más allá del borde de las paredes (en metros). Útil para que el techo TAPE el borde superior de las paredes y no quede un hueco visible al cielo.")]
-        [SerializeField] private float ceilingOverhang = 3.0f;
-        [Tooltip("Offset X del techo (en metros). Útil para centrar el techo si el pivot del FBX no está centrado en la geometría del tile y queda desplazado en una dirección.")]
-        [SerializeField] private float ceilingXOffset = 0f;
-        [Tooltip("Offset Z del techo (en metros). Como ceilingXOffset pero en el otro eje horizontal.")]
-        [SerializeField] private float ceilingZOffset = 0f;
-        [Tooltip("Si está activo, usa UNA SOLA pieza de techo escalada para cubrir todo el almacén (sin tiling, sin costuras). Más simple y limpio. La textura se estira pero no hay problemas de alineación.")]
-        [SerializeField] private bool useSingleCeilingPiece = false;
         [Tooltip("Prefab de lámpara (ej. lamp_1). Si está vacío no se colocan lámparas.")]
         [SerializeField] private GameObject lampPrefab;
         [Tooltip("Distancia entre lámparas (en metros, ambas direcciones).")]
         [SerializeField] private float lampSpacing = 10f;
-        [Tooltip("Cuánto bajan las lámparas del techo (en metros). 0 = pegadas al techo, 0.5 = colgando 50cm.")]
+        [Tooltip("Cuánto bajan las lámparas (en metros). 0 = pegadas al techo lógico (wallHeight), 0.5 = colgando 50cm por debajo.")]
         [SerializeField] private float lampDropFromCeiling = 0.5f;
         [Tooltip("Si está activo, añade un Light component real a cada lámpara para iluminar la escena.")]
         [SerializeField] private bool lampsEmitLight = true;
@@ -104,10 +88,6 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private float lampLightRange = 15f;
         [Tooltip("Tipo de sombras que proyectan las lámparas. None = más rápido pero todo plano. Soft = bonito pero pesado en WebGL con muchas lámparas.")]
         [SerializeField] private LightShadows lampShadows = LightShadows.None;
-        [Tooltip("Prefab de techo con claraboya (ej. roof_window). Si está asignado, se sustituye cada N tiles del techo por una claraboya.")]
-        [SerializeField] private GameObject roofWindowPrefab;
-        [Tooltip("Frecuencia: cada cuántos tiles del techo se pone una ventana. 0 = ninguna.")]
-        [SerializeField] private int roofWindowEvery = 6;
 
         [Header("Carteles numéricos de pasillo (opcional)")]
         [Tooltip("Prefabs de dígitos 0-9 para numerar pasillos. Asigna los 10 prefabs row_number_X del pack en orden (índice 0 = row_number_0, etc.).")]
@@ -273,12 +253,6 @@ namespace WarehouseTwin.Warehouse
                     new Vector3(wallThickness, wallHeight, fL));
                 CreateWall("Wall_Right", fMaxX + wallThickness / 2f, wallHeight / 2f, fCZ,
                     new Vector3(wallThickness, wallHeight, fL));
-            }
-
-            // --- Techo (opcional) ---
-            if (ceilingPrefab != null && ceilingTileSize > 0.01f)
-            {
-                BuildCeilingTiles(fMinX, fMaxX, fMinZ, fMaxZ, wallHeight);
             }
 
             // --- Lámparas (opcional) ---
@@ -487,74 +461,6 @@ namespace WarehouseTwin.Warehouse
         }
 
         /// <summary>
-        /// Tilea el techo en grid a la altura wallHeight + ceilingYOffset, con rotación ceilingRotationOffset.
-        /// Si hay un roofWindowPrefab asignado, sustituye cada N tiles por una claraboya.
-        /// </summary>
-        private void BuildCeilingTiles(float minX, float maxX, float minZ, float maxZ, float ceilingY)
-        {
-            // Aplicamos overhang: el techo se extiende un poco más allá de las paredes para taparles el borde superior.
-            float startX = minX - ceilingOverhang;
-            float endX   = maxX + ceilingOverhang;
-            float startZ = minZ - ceilingOverhang;
-            float endZ   = maxZ + ceilingOverhang;
-            Quaternion ceilingRotSingle = Quaternion.Euler(ceilingRotationOffset);
-            float ySingle = ceilingY + ceilingYOffset;
-
-            // Modo "una sola pieza": instanciamos un único techo escalado para cubrir todo el área.
-            if (useSingleCeilingPiece)
-            {
-                float widthX = endX - startX;
-                float widthZ = endZ - startZ;
-                float cx     = (startX + endX) / 2f + ceilingXOffset;
-                float cz     = (startZ + endZ) / 2f + ceilingZOffset;
-                GameObject tile = Instantiate(ceilingPrefab, transform);
-                tile.name = "Ceiling_Single";
-                tile.transform.localPosition = new Vector3(cx, ySingle, cz);
-                tile.transform.localRotation = ceilingRotSingle;
-                Vector3 ss = tile.transform.localScale;
-                tile.transform.localScale = new Vector3(
-                    ss.x * (widthX / ceilingTileSize),
-                    ss.y,
-                    ss.z * (widthZ / ceilingTileSize));
-                return;
-            }
-
-            int tilesX = Mathf.CeilToInt((endX - startX) / ceilingTileSize);
-            int tilesZ = Mathf.CeilToInt((endZ - startZ) / ceilingTileSize);
-
-            // Estiramos cada tile para que el conjunto cubra EXACTAMENTE startX..endX y startZ..endZ.
-            float effectiveTileX = (endX - startX) / tilesX;
-            float effectiveTileZ = (endZ - startZ) / tilesZ;
-            float scaleX = effectiveTileX / ceilingTileSize;
-            float scaleZ = effectiveTileZ / ceilingTileSize;
-
-            Quaternion ceilingRot = Quaternion.Euler(ceilingRotationOffset);
-            float y = ceilingY + ceilingYOffset;
-            int tileIndex = 0;
-
-            for (int i = 0; i < tilesX; i++)
-            {
-                for (int j = 0; j < tilesZ; j++)
-                {
-                    bool isInterior = i > 0 && i < tilesX - 1 && j > 0 && j < tilesZ - 1;
-                    bool useWindow  = roofWindowPrefab != null && roofWindowEvery > 0
-                                      && isInterior && tileIndex % roofWindowEvery == 0;
-                    GameObject prefab = useWindow ? roofWindowPrefab : ceilingPrefab;
-
-                    float cx = startX + i * effectiveTileX + effectiveTileX / 2f + ceilingXOffset;
-                    float cz = startZ + j * effectiveTileZ + effectiveTileZ / 2f + ceilingZOffset;
-                    GameObject tile = Instantiate(prefab, transform);
-                    tile.name = useWindow ? $"Ceiling_Window_{i}_{j}" : $"Ceiling_{i}_{j}";
-                    tile.transform.localPosition = new Vector3(cx, y, cz);
-                    tile.transform.localRotation = ceilingRot;
-                    Vector3 s = tile.transform.localScale;
-                    tile.transform.localScale = new Vector3(s.x * scaleX, s.y, s.z * scaleZ);
-                    tileIndex++;
-                }
-            }
-        }
-
-        /// <summary>
         /// Coloca un cartel numérico en la entrada de cada pasillo. Soporta números de varios dígitos.
         /// </summary>
         private void BuildAisleSigns(Dictionary<int, float> aisleXPos)
@@ -595,7 +501,7 @@ namespace WarehouseTwin.Warehouse
         }
 
         /// <summary>
-        /// Coloca lámparas en grid colgando del techo (respetando ceilingYOffset).
+        /// Coloca lámparas en grid colgando del techo lógico (a la altura wallHeight - drop).
         /// </summary>
         private void BuildLamps(float minX, float maxX, float minZ, float maxZ, float ceilingY)
         {
@@ -609,7 +515,7 @@ namespace WarehouseTwin.Warehouse
             float spreadZ = (lampsZ - 1) * lampSpacing;
             float startX  = (minX + maxX) / 2f - spreadX / 2f;
             float startZ  = (minZ + maxZ) / 2f - spreadZ / 2f;
-            float lampY   = ceilingY + ceilingYOffset - lampDropFromCeiling;
+            float lampY   = ceilingY - lampDropFromCeiling;
 
             for (int i = 0; i < lampsX; i++)
             {
