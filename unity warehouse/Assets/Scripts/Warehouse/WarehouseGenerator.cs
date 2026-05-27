@@ -71,7 +71,29 @@ namespace WarehouseTwin.Warehouse
         [Tooltip("Offset vertical (en metros) sumado a la posición Y de las paredes. Útil si el pivot del FBX no está en la base — sube/baja hasta que las paredes lleguen al suelo y al techo.")]
         [SerializeField] private float wallYOffset = 0f;
         [Tooltip("Cuánto se extienden las paredes por encima de la altura del almacén (en metros). Sirve para que tapen cualquier hueco con el techo sin importar el pivot del FBX. 0.5-1m suele bastar.")]
-        [SerializeField] private float wallTopOverlap = 1.0f;
+        [SerializeField] private float wallTopOverlap = 0.3f;
+
+        [Header("Techo (plano lados + curvo centro)")]
+        [Tooltip("Prefab del techo plano (ej. roof_flat). Se usa en los lados del almacén.")]
+        [SerializeField] private GameObject roofFlatPrefab;
+        [Tooltip("Prefab del techo curvo (ej. roof_round). Se usa en el strip central del almacén.")]
+        [SerializeField] private GameObject roofRoundPrefab;
+        [Tooltip("Prefab de claraboya (ej. roof_window). Se intercala en el strip central.")]
+        [SerializeField] private GameObject roofWindowPrefab;
+        [Tooltip("Tamaño nativo de cada tile del techo (cuadrado, en metros).")]
+        [SerializeField] private float roofTileSize = 5f;
+        [Tooltip("Ancho del strip central curvo (en metros). El resto a cada lado se cubre con roof plano.")]
+        [SerializeField] private float roofRoundStripWidth = 5f;
+        [Tooltip("Si está activo, el strip curvo va a lo largo del eje X. Si no, a lo largo del eje Z.")]
+        [SerializeField] private bool roofRoundStripAlongX = true;
+        [Tooltip("Cada cuántos tiles del strip curvo se pone una claraboya. 0 = sin claraboyas.")]
+        [SerializeField] private int roofWindowEvery = 3;
+        [Tooltip("Offset vertical de TODO el techo (en metros). Sube/baja si no encaja con las paredes.")]
+        [SerializeField] private float roofYOffset = 0f;
+        [Tooltip("Rotación euler de los tiles del techo plano.")]
+        [SerializeField] private Vector3 roofFlatRotation = Vector3.zero;
+        [Tooltip("Rotación euler de los tiles del techo curvo (y claraboyas).")]
+        [SerializeField] private Vector3 roofRoundRotation = Vector3.zero;
         [Tooltip("Prefab de lámpara (ej. lamp_1). Si está vacío no se colocan lámparas.")]
         [SerializeField] private GameObject lampPrefab;
         [Tooltip("Distancia entre lámparas (en metros, ambas direcciones).")]
@@ -253,6 +275,12 @@ namespace WarehouseTwin.Warehouse
                     new Vector3(wallThickness, wallHeight, fL));
                 CreateWall("Wall_Right", fMaxX + wallThickness / 2f, wallHeight / 2f, fCZ,
                     new Vector3(wallThickness, wallHeight, fL));
+            }
+
+            // --- Techo (3 strips: plano + curvo + plano) ---
+            if (roofFlatPrefab != null && roofTileSize > 0.01f)
+            {
+                BuildRoof(fMinX, fMaxX, fMinZ, fMaxZ, wallHeight);
             }
 
             // --- Lámparas (opcional) ---
@@ -461,6 +489,82 @@ namespace WarehouseTwin.Warehouse
         }
 
         /// <summary>
+        /// Construye el techo en 3 strips: plano-curvo-plano. El curvo va centrado a lo largo del eje configurado.
+        /// Las claraboyas (roof_window) se intercalan en el strip curvo.
+        /// </summary>
+        private void BuildRoof(float minX, float maxX, float minZ, float maxZ, float ceilingY)
+        {
+            float y = ceilingY + roofYOffset;
+            Quaternion flatRot  = Quaternion.Euler(roofFlatRotation);
+            Quaternion roundRot = Quaternion.Euler(roofRoundRotation);
+
+            if (roofRoundStripAlongX)
+            {
+                // Strip curvo a lo largo de X, su ancho es en Z (centrado)
+                float midZ      = (minZ + maxZ) / 2f;
+                float stripMinZ = midZ - roofRoundStripWidth / 2f;
+                float stripMaxZ = midZ + roofRoundStripWidth / 2f;
+
+                if (stripMinZ > minZ)
+                    BuildRoofStrip(minX, maxX, minZ, stripMinZ, y, roofFlatPrefab, null, flatRot, flatRot, "Flat_S");
+                BuildRoofStrip(minX, maxX, stripMinZ, stripMaxZ, y, roofRoundPrefab, roofWindowPrefab, roundRot, roundRot, "Round");
+                if (stripMaxZ < maxZ)
+                    BuildRoofStrip(minX, maxX, stripMaxZ, maxZ, y, roofFlatPrefab, null, flatRot, flatRot, "Flat_N");
+            }
+            else
+            {
+                // Strip curvo a lo largo de Z, su ancho es en X (centrado)
+                float midX      = (minX + maxX) / 2f;
+                float stripMinX = midX - roofRoundStripWidth / 2f;
+                float stripMaxX = midX + roofRoundStripWidth / 2f;
+
+                if (stripMinX > minX)
+                    BuildRoofStrip(minX, stripMinX, minZ, maxZ, y, roofFlatPrefab, null, flatRot, flatRot, "Flat_W");
+                BuildRoofStrip(stripMinX, stripMaxX, minZ, maxZ, y, roofRoundPrefab, roofWindowPrefab, roundRot, roundRot, "Round");
+                if (stripMaxX < maxX)
+                    BuildRoofStrip(stripMaxX, maxX, minZ, maxZ, y, roofFlatPrefab, null, flatRot, flatRot, "Flat_E");
+            }
+        }
+
+        /// <summary>
+        /// Tilea un strip del techo cubriendo (minX..maxX, minZ..maxZ) a altura y.
+        /// Si windowPrefab != null, intercala claraboyas cada roofWindowEvery tiles.
+        /// </summary>
+        private void BuildRoofStrip(float minX, float maxX, float minZ, float maxZ, float y,
+                                    GameObject basePrefab, GameObject windowPrefab,
+                                    Quaternion baseRot, Quaternion windowRot, string namePrefix)
+        {
+            if (basePrefab == null) return;
+            int tilesX = Mathf.CeilToInt((maxX - minX) / roofTileSize);
+            int tilesZ = Mathf.CeilToInt((maxZ - minZ) / roofTileSize);
+            float effTileX = (maxX - minX) / tilesX;
+            float effTileZ = (maxZ - minZ) / tilesZ;
+            float scaleX = effTileX / roofTileSize;
+            float scaleZ = effTileZ / roofTileSize;
+            int tileIndex = 0;
+
+            for (int i = 0; i < tilesX; i++)
+            {
+                for (int j = 0; j < tilesZ; j++)
+                {
+                    bool useWindow = windowPrefab != null && roofWindowEvery > 0 && tileIndex % roofWindowEvery == 0;
+                    GameObject prefab = useWindow ? windowPrefab : basePrefab;
+                    Quaternion rot    = useWindow ? windowRot   : baseRot;
+
+                    float cx = minX + i * effTileX + effTileX / 2f;
+                    float cz = minZ + j * effTileZ + effTileZ / 2f;
+                    GameObject tile = Instantiate(prefab, transform);
+                    tile.name = useWindow ? $"Roof_Window_{namePrefix}_{i}_{j}" : $"Roof_{namePrefix}_{i}_{j}";
+                    tile.transform.localPosition = new Vector3(cx, y, cz);
+                    tile.transform.localRotation = rot;
+                    Vector3 s = tile.transform.localScale;
+                    tile.transform.localScale = new Vector3(s.x * scaleX, s.y, s.z * scaleZ);
+                    tileIndex++;
+                }
+            }
+        }
+
+        /// <summary>
         /// Coloca un cartel numérico en la entrada de cada pasillo. Soporta números de varios dígitos.
         /// </summary>
         private void BuildAisleSigns(Dictionary<int, float> aisleXPos)
@@ -502,6 +606,8 @@ namespace WarehouseTwin.Warehouse
 
         /// <summary>
         /// Coloca lámparas en grid colgando del techo lógico (a la altura wallHeight - drop).
+        /// Si hay techo curvo configurado, las lámparas QUE CAERÍAN sobre el strip curvo se OMITEN
+        /// (sólo cuelgan del techo plano).
         /// </summary>
         private void BuildLamps(float minX, float maxX, float minZ, float maxZ, float ceilingY)
         {
@@ -517,16 +623,41 @@ namespace WarehouseTwin.Warehouse
             float startZ  = (minZ + maxZ) / 2f - spreadZ / 2f;
             float lampY   = ceilingY - lampDropFromCeiling;
 
+            // Calcular zona del strip curvo (si hay techo configurado), para saltar lámparas en ese rango.
+            bool roofConfigured = roofFlatPrefab != null && roofRoundPrefab != null;
+            float stripMin = 0f, stripMax = 0f;
+            if (roofConfigured)
+            {
+                if (roofRoundStripAlongX)
+                {
+                    float midZ = (minZ + maxZ) / 2f;
+                    stripMin = midZ - roofRoundStripWidth / 2f;
+                    stripMax = midZ + roofRoundStripWidth / 2f;
+                }
+                else
+                {
+                    float midX = (minX + maxX) / 2f;
+                    stripMin = midX - roofRoundStripWidth / 2f;
+                    stripMax = midX + roofRoundStripWidth / 2f;
+                }
+            }
+
             for (int i = 0; i < lampsX; i++)
             {
                 for (int j = 0; j < lampsZ; j++)
                 {
+                    float lampX = startX + i * lampSpacing;
+                    float lampZ = startZ + j * lampSpacing;
+
+                    if (roofConfigured)
+                    {
+                        float coord = roofRoundStripAlongX ? lampZ : lampX;
+                        if (coord > stripMin && coord < stripMax) continue;  // está bajo el techo curvo → omitir
+                    }
+
                     GameObject lamp = Instantiate(lampPrefab, transform);
                     lamp.name = $"Lamp_{i}_{j}";
-                    lamp.transform.localPosition = new Vector3(
-                        startX + i * lampSpacing,
-                        lampY,
-                        startZ + j * lampSpacing);
+                    lamp.transform.localPosition = new Vector3(lampX, lampY, lampZ);
 
                     if (lampsEmitLight)
                     {
