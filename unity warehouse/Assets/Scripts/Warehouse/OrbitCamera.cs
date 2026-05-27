@@ -68,7 +68,7 @@ namespace WarehouseTwin.Warehouse
         public void SetVerticalBounds(float floorY, float ceilingY, float safetyMargin = 1.5f)
         {
             minCameraY = floorY + safetyMargin;
-            maxCameraY = ceilingY - safetyMargin;
+            maxCameraY = Mathf.Max(ceilingY - safetyMargin, minCameraY + 1f);
         }
 
         /// <summary>
@@ -133,8 +133,10 @@ namespace WarehouseTwin.Warehouse
             Vector3 offset      = rotation * new Vector3(0f, 0f, -distance);
             Vector3 position    = target + offset;
 
-            // Clampear Y para que no atraviese suelo ni techo
-            position.y = Mathf.Clamp(position.y, minCameraY, maxCameraY);
+            // Clampear Y para que no atraviese suelo ni techo. Fallback a 1.5 si no se han configurado los bounds.
+            float effectiveMinY = (minCameraY > 0f) ? minCameraY : 1.5f;
+            float effectiveMaxY = (maxCameraY > effectiveMinY) ? maxCameraY : effectiveMinY + 20f;
+            position.y = Mathf.Clamp(position.y, effectiveMinY, effectiveMaxY);
             transform.position = position;
 
             // Mirar siempre al target

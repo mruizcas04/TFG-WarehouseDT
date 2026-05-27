@@ -128,6 +128,8 @@ namespace WarehouseTwin.Warehouse
         [SerializeField] private Vector3 doorRotation = Vector3.zero;
         [Tooltip("Offset vertical de la puerta (metros). Útil si el pivot no está en la base.")]
         [SerializeField] private float doorYOffset = 0f;
+        [Tooltip("Escala uniforme para las puertas. Si quedan muy pequeñas respecto a la pared, sube a 2 o 3.")]
+        [SerializeField] private float doorScale = 2f;
 
         [Header("Paredes con ventana (opcional)")]
         [Tooltip("Prefab de pared con ventana (ej. wall_2_one). Si está asignado, sustituye cada N tiles de pared.")]
@@ -135,17 +137,17 @@ namespace WarehouseTwin.Warehouse
         [Tooltip("Cada cuántos tiles de pared se pone uno con ventana. 0 = nunca.")]
         [SerializeField] private int wallWindowedEvery = 4;
 
-        [Header("Decoración (opcional)")]
-        [Tooltip("Prefabs decorativos que se esparcen aleatoriamente en el margen del almacén (entre racks y paredes). Loader, trolleys, bins, sacks, etc.")]
+        [Header("Decoración en esquinas (opcional)")]
+        [Tooltip("Prefabs decorativos. Se colocan SOLO en las 4 esquinas del almacén, no en el centro. Vacío = sin decoración (puedes colocarlas manualmente en la escena).")]
         [SerializeField] private GameObject[] decorPrefabs;
-        [Tooltip("Número de decoraciones a instanciar. 0 = ninguna.")]
-        [SerializeField] private int decorCount = 12;
-        [Tooltip("Semilla de aleatoriedad para que la decoración sea determinista entre rebuilds.")]
+        [Tooltip("Cuántas decoraciones colocar por esquina.")]
+        [SerializeField] private int decorPerCorner = 3;
+        [Tooltip("Semilla de aleatoriedad para que el resultado sea determinista entre rebuilds.")]
         [SerializeField] private int decorSeed = 42;
-        [Tooltip("Distancia mínima de las decoraciones a las paredes (metros).")]
-        [SerializeField] private float decorWallMargin = 1.5f;
-        [Tooltip("Distancia mínima de las decoraciones a los racks (metros).")]
-        [SerializeField] private float decorRackMargin = 2.0f;
+        [Tooltip("Distancia desde la pared a la zona donde se colocan las decoraciones (metros).")]
+        [SerializeField] private float decorWallInset = 2.0f;
+        [Tooltip("Tamaño del cluster por esquina (metros). Define el área donde se reparten los prefabs de esa esquina.")]
+        [SerializeField] private float decorCornerSize = 4.0f;
 
         [Header("Carteles numéricos de pasillo (opcional)")]
         [Tooltip("Prefabs de dígitos 0-9 para numerar pasillos. Asigna los 10 prefabs row_number_X del pack en orden (índice 0 = row_number_0, etc.).")]
@@ -417,15 +419,14 @@ namespace WarehouseTwin.Warehouse
 
                 BuildRackStructure(shelfGO, shelf.levels.Count, shelfLength);
 
-                if (!isDoubleBack)
+                // Tracking común (también para back-doubles) para que los carteles del fondo se calculen bien
+                if (!aisleZOffset.ContainsKey(aisle)) aisleZOffset[aisle] = 0f;
+                aisleZOffset[aisle] += shelfLength + shelfGap;
+
+                if (!isDoubleBack && shelf.is_double)
                 {
-                    // Guardar Z de estanterías dobles frontales para sincronizar la trasera
-                    if (shelf.is_double)
-                    {
-                        if (!frontDoubleZ.ContainsKey(aisle)) frontDoubleZ[aisle] = new List<float>();
-                        frontDoubleZ[aisle].Add(placedZ);
-                    }
-                    aisleZOffset[aisle] += shelfLength + shelfGap;
+                    if (!frontDoubleZ.ContainsKey(aisle)) frontDoubleZ[aisle] = new List<float>();
+                    frontDoubleZ[aisle].Add(placedZ);
                 }
             }
 
@@ -566,52 +567,50 @@ namespace WarehouseTwin.Warehouse
             door.name = name;
             door.transform.localPosition = new Vector3(x, y, z);
             door.transform.localRotation = rotation;
+            Vector3 s = door.transform.localScale;
+            door.transform.localScale = new Vector3(s.x * doorScale, s.y * doorScale, s.z * doorScale);
         }
 
         /// <summary>
-        /// Esparce decoraciones procedurales en el margen libre del almacén
-        /// (zona entre los racks y las paredes). Determinista vía decorSeed.
+        /// Coloca decoraciones SOLO en las 4 esquinas del almacén, no en el centro.
+        /// Para colocar decoración a mano libre el usuario las pone en la escena (no procedural).
         /// </summary>
         private void BuildDecorations(float rackMinX, float rackMaxX, float rackMinZ, float rackMaxZ,
                                        float floorMinX, float floorMaxX, float floorMinZ, float floorMaxZ)
         {
-            if (decorPrefabs == null || decorPrefabs.Length == 0 || decorCount <= 0) return;
+            if (decorPrefabs == null || decorPrefabs.Length == 0 || decorPerCorner <= 0) return;
 
-            // Filtrar prefabs nulos
             var validPrefabs = new List<GameObject>();
             foreach (var p in decorPrefabs) if (p != null) validPrefabs.Add(p);
             if (validPrefabs.Count == 0) return;
 
-            // Zona segura: entre paredes (con margen) y racks (con margen)
-            float safeMinX = floorMinX + decorWallMargin;
-            float safeMaxX = floorMaxX - decorWallMargin;
-            float safeMinZ = floorMinZ + decorWallMargin;
-            float safeMaxZ = floorMaxZ - decorWallMargin;
-            float rackZoneMinX = rackMinX - decorRackMargin;
-            float rackZoneMaxX = rackMaxX + decorRackMargin;
-            float rackZoneMinZ = rackMinZ - decorRackMargin;
-            float rackZoneMaxZ = rackMaxZ + decorRackMargin;
-
             System.Random rng = new System.Random(decorSeed);
-            int placed = 0, attempts = 0, maxAttempts = decorCount * 20;
 
-            while (placed < decorCount && attempts < maxAttempts)
+            // 4 esquinas: SW, SE, NW, NE
+            Vector2[] cornerOrigins = new Vector2[]
             {
-                attempts++;
-                float x = (float)(rng.NextDouble() * (safeMaxX - safeMinX) + safeMinX);
-                float z = (float)(rng.NextDouble() * (safeMaxZ - safeMinZ) + safeMinZ);
+                new Vector2(floorMinX + decorWallInset, floorMinZ + decorWallInset),  // SW
+                new Vector2(floorMaxX - decorWallInset - decorCornerSize, floorMinZ + decorWallInset),  // SE
+                new Vector2(floorMinX + decorWallInset, floorMaxZ - decorWallInset - decorCornerSize),  // NW
+                new Vector2(floorMaxX - decorWallInset - decorCornerSize, floorMaxZ - decorWallInset - decorCornerSize),  // NE
+            };
+            string[] cornerNames = { "SW", "SE", "NW", "NE" };
 
-                // Saltar si cae dentro de la zona de racks
-                if (x > rackZoneMinX && x < rackZoneMaxX && z > rackZoneMinZ && z < rackZoneMaxZ) continue;
+            for (int c = 0; c < cornerOrigins.Length; c++)
+            {
+                Vector2 origin = cornerOrigins[c];
+                for (int n = 0; n < decorPerCorner; n++)
+                {
+                    float x = origin.x + (float)(rng.NextDouble() * decorCornerSize);
+                    float z = origin.y + (float)(rng.NextDouble() * decorCornerSize);
+                    GameObject prefab = validPrefabs[rng.Next(validPrefabs.Count)];
+                    float rotY = (float)(rng.NextDouble() * 360.0);
 
-                GameObject prefab = validPrefabs[rng.Next(validPrefabs.Count)];
-                float rotY = (float)(rng.NextDouble() * 360.0);
-
-                GameObject deco = Instantiate(prefab, transform);
-                deco.name = $"Decor_{placed}_{prefab.name}";
-                deco.transform.localPosition = new Vector3(x, 0f, z);
-                deco.transform.localRotation = Quaternion.Euler(0f, rotY, 0f);
-                placed++;
+                    GameObject deco = Instantiate(prefab, transform);
+                    deco.name = $"Decor_{cornerNames[c]}_{n}_{prefab.name}";
+                    deco.transform.localPosition = new Vector3(x, 0f, z);
+                    deco.transform.localRotation = Quaternion.Euler(0f, rotY, 0f);
+                }
             }
         }
 
