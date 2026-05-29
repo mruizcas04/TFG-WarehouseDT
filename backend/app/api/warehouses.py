@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.db.database import get_db
 from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem, Box, Product, Category, Task, TaskStatus
 from app.schemas.schemas import (
-    WarehouseCreate, WarehouseNameUpdate, WarehouseResponse, WarehouseFullResponse,
+    WarehouseCreate, WarehouseNameUpdate, WarehouseExpand, WarehouseResponse, WarehouseFullResponse,
     ShelfFullResponse, LevelFullResponse, LocationFullResponse,
     InventoryItemFullResponse
 )
@@ -262,6 +262,120 @@ async def get_warehouse_full(
         active_task_locations=active_task_locations,
         active_task_info=active_task_info,
     )
+
+
+@router.post("/{warehouse_id}/expand", response_model=WarehouseResponse)
+async def expand_warehouse(
+    warehouse_id: uuid.UUID,
+    expand_data: WarehouseExpand,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    result = await db.execute(
+        select(Warehouse).where(
+            Warehouse.id == warehouse_id,
+            Warehouse.company_id == current_user.company_id
+        )
+    )
+    warehouse = result.scalar_one_or_none()
+    if not warehouse:
+        raise HTTPException(status_code=404, detail="Almacén no encontrado")
+
+    shelves_result = await db.execute(
+        select(Shelf).where(Shelf.warehouse_id == warehouse_id)
+    )
+    existing_shelves = shelves_result.scalars().all()
+
+    new_shelf_count = 0
+    new_location_count = 0
+
+    # 1. Ampliar filas existentes
+    sorted_aisle_nums = sorted(set(s.aisle_number for s in existing_shelves))
+    for ext in expand_data.extend_aisles:
+        aisle_num = ext.aisle_number
+        aisle_shelves = [s for s in existing_shelves if s.aisle_number == aisle_num]
+        if not aisle_shelves:
+            raise HTTPException(status_code=400, detail=f"Fila {aisle_num} no encontrada")
+
+        is_double = any(s.is_double for s in aisle_shelves)
+        max_shelf_num = max(s.shelf_number for s in aisle_shelves)
+
+        back_aisle_num = None
+        if is_double:
+            idx = sorted_aisle_nums.index(aisle_num)
+            if idx + 1 < len(sorted_aisle_nums):
+                back_aisle_num = sorted_aisle_nums[idx + 1]
+
+        for i, shelf_cfg in enumerate(ext.new_shelves, start=1):
+            new_shelf_num = max_shelf_num + i
+            shelf = Shelf(
+                id=uuid.uuid4(), warehouse_id=warehouse_id,
+                aisle_number=aisle_num, shelf_number=new_shelf_num, is_double=is_double,
+            )
+            db.add(shelf)
+            new_shelf_count += 1
+            for level_num in range(1, shelf_cfg.num_levels + 1):
+                level = Level(id=uuid.uuid4(), shelf_id=shelf.id, level_number=level_num)
+                db.add(level)
+                for pos in range(1, shelf_cfg.num_locations + 1):
+                    db.add(Location(id=uuid.uuid4(), level_id=level.id, position_number=pos))
+                    new_location_count += 1
+
+            if is_double and back_aisle_num:
+                back_shelf = Shelf(
+                    id=uuid.uuid4(), warehouse_id=warehouse_id,
+                    aisle_number=back_aisle_num, shelf_number=new_shelf_num, is_double=False,
+                )
+                db.add(back_shelf)
+                new_shelf_count += 1
+                for level_num in range(1, shelf_cfg.num_levels + 1):
+                    level = Level(id=uuid.uuid4(), shelf_id=back_shelf.id, level_number=level_num)
+                    db.add(level)
+                    for pos in range(1, shelf_cfg.num_locations + 1):
+                        db.add(Location(id=uuid.uuid4(), level_id=level.id, position_number=pos))
+                        new_location_count += 1
+
+    # 2. Añadir filas nuevas
+    db_aisle = (max(s.aisle_number for s in existing_shelves) + 1) if existing_shelves else 1
+    for aisle_cfg in expand_data.new_aisles:
+        for front_num, shelf_cfg in enumerate(aisle_cfg.shelves, start=1):
+            shelf = Shelf(
+                id=uuid.uuid4(), warehouse_id=warehouse_id,
+                aisle_number=db_aisle, shelf_number=front_num, is_double=shelf_cfg.is_double,
+            )
+            db.add(shelf)
+            new_shelf_count += 1
+            for level_num in range(1, shelf_cfg.num_levels + 1):
+                level = Level(id=uuid.uuid4(), shelf_id=shelf.id, level_number=level_num)
+                db.add(level)
+                for pos in range(1, shelf_cfg.num_locations + 1):
+                    db.add(Location(id=uuid.uuid4(), level_id=level.id, position_number=pos))
+                    new_location_count += 1
+        db_aisle += 1
+
+        double_shelves = [s for s in aisle_cfg.shelves if s.is_double]
+        if double_shelves:
+            for back_num, shelf_cfg in enumerate(double_shelves, start=1):
+                back_shelf = Shelf(
+                    id=uuid.uuid4(), warehouse_id=warehouse_id,
+                    aisle_number=db_aisle, shelf_number=back_num, is_double=False,
+                )
+                db.add(back_shelf)
+                new_shelf_count += 1
+                for level_num in range(1, shelf_cfg.num_levels + 1):
+                    level = Level(id=uuid.uuid4(), shelf_id=back_shelf.id, level_number=level_num)
+                    db.add(level)
+                    for pos in range(1, shelf_cfg.num_locations + 1):
+                        db.add(Location(id=uuid.uuid4(), level_id=level.id, position_number=pos))
+                        new_location_count += 1
+            db_aisle += 1
+
+    warehouse.num_shelves = (warehouse.num_shelves or 0) + new_shelf_count
+    warehouse.total_locations = (warehouse.total_locations or 0) + new_location_count
+
+    await db.commit()
+    await db.refresh(warehouse)
+    return warehouse
 
 
 @router.put("/{warehouse_id}", response_model=WarehouseResponse)

@@ -2,20 +2,11 @@
 """
 seed_mock_stats.py
 ------------------
-Genera datos mock para la sección de Estadísticas.
-
-Ejecutar desde el directorio backend/ con el entorno virtual activo:
+Genera datos mock para la seccion de Estadisticas.
 
     cd backend
-    python seed_mock_stats.py
-
-Crea (de forma idempotente — si ya existen no los duplica):
-  · 4 workers ficticios con perfiles de rendimiento distintos
-  · ~101 tareas distribuidas en los últimos 30 días
-  · ~90 movimientos asociados a tareas completadas
-
-Para eliminar los datos mock luego:
-    python seed_mock_stats.py --clean
+    python seed_mock_stats.py          # crear datos
+    python seed_mock_stats.py --clean  # borrar datos mock
 """
 
 import asyncio
@@ -38,66 +29,83 @@ from app.models.models import (
     UserRole, TaskType, TaskStatus, MovementType,
 )
 
-# ── Perfiles de workers mock ──────────────────────────────────────────────────
-#  (n_completadas, n_pendientes_hoy, n_pendientes_old)
+# ── Perfiles
+# Cada worker tiene:
+#   (hoy, semana*, mes*, anteriores, pendientes_hoy, pendientes_atrasadas)
+#   * semana = esta semana SIN contar hoy
+#   * mes    = este mes SIN contar esta semana
 
 MOCK_WORKERS = [
     {
-        "name":  "Ana García",
-        "email": "ana.garcia@mock.test",
-        "profile": (40, 5, 1),   # alto rendimiento, pocas deudas
+        "name":     "Ana Garcia",
+        "email":    "ana.garcia@mock.test",
+        "profile":  (5, 8, 15, 12, 5, 1),
+        "is_online": True,
     },
     {
-        "name":  "Carlos Martínez",
-        "email": "carlos.martinez@mock.test",
-        "profile": (22, 3, 2),   # rendimiento medio
+        "name":     "Carlos Martinez",
+        "email":    "carlos.martinez@mock.test",
+        "profile":  (2, 5,  9,  6, 3, 2),
+        "is_online": True,
     },
     {
-        "name":  "Elena López",
-        "email": "elena.lopez@mock.test",
-        "profile": (8, 6, 3),    # nueva/acumulación alta
+        "name":     "Elena Lopez",
+        "email":    "elena.lopez@mock.test",
+        "profile":  (1, 2,  3,  2, 6, 3),
+        "is_online": False,
     },
     {
-        "name":  "Marcos Pérez",
-        "email": "marcos.perez@mock.test",
-        "profile": (31, 2, 0),   # constante y al día
+        "name":     "Marcos Perez",
+        "email":    "marcos.perez@mock.test",
+        "profile":  (3, 7, 13,  8, 2, 0),
+        "is_online": False,
     },
 ]
 
 MOCK_EMAILS = {w["email"] for w in MOCK_WORKERS}
 PASSWORD_HASH = get_password_hash("MockPass123!")
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
-def rand_past(days_min: float, days_max: float) -> datetime:
-    return datetime.utcnow() - timedelta(days=random.uniform(days_min, days_max))
-
-def rand_type() -> TaskType:
+def rand_type():
     return random.choice(list(TaskType))
 
-def rand_mov_type() -> MovementType:
+def rand_mov_type():
     return random.choice(list(MovementType))
 
-# ── Seed ─────────────────────────────────────────────────────────────────────
+def rand_in_range(start: datetime, end: datetime) -> datetime:
+    delta = (end - start).total_seconds()
+    return start + timedelta(seconds=random.uniform(0, delta))
+
 
 async def seed():
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with Session() as db:
-        # Buscar admin activo
         result = await db.execute(
             select(User).where(User.role == UserRole.admin, User.is_active == True)
         )
         admin = result.scalars().first()
         if not admin:
-            print("[ERROR] No hay ningun admin activo. Crea una cuenta primero.")
+            print("[ERROR] No hay ningun admin activo.")
             return
 
         company_id = admin.company_id
-        print(f"[OK] Admin: {admin.email}  |  company_id: {company_id}\n")
+        print(f"[OK] Admin: {admin.email}\n")
 
-        today_start = datetime.combine(date.today(), datetime.min.time())
+        today       = date.today()
+        now         = datetime.now()
+        today_start = datetime.combine(today, datetime.min.time())
+        week_start  = datetime.combine(today - timedelta(days=today.weekday()), datetime.min.time())
+        month_start = datetime.combine(today.replace(day=1), datetime.min.time())
+
+        # Ventanas de tiempo para cada bucket
+        windows = {
+            "today":  (today_start,              now),
+            "week":   (week_start,               today_start),
+            "month":  (month_start,              week_start),
+            "old":    (now - timedelta(days=90), month_start),
+        }
 
         workers: list[User] = []
         for wdata in MOCK_WORKERS:
@@ -119,8 +127,8 @@ async def seed():
                     is_active=True,
                     is_email_verified=True,
                     must_change_password=False,
-                    # login de hoy para que aparezcan en la recomendación
-                    last_login=datetime.utcnow() - timedelta(hours=random.uniform(0.5, 5)),
+                    is_online=wdata["is_online"],
+                    last_login=datetime.now() - timedelta(hours=random.uniform(0.5, 4)),
                 )
                 db.add(w)
                 print(f"   [+] Worker creado: {wdata['name']}")
@@ -131,43 +139,45 @@ async def seed():
         n_tasks = n_movs = 0
 
         for worker, wdata in zip(workers, MOCK_WORKERS):
-            n_done, n_pending_today, n_pending_old = wdata["profile"]
+            n_today, n_week, n_month, n_old, n_pend_hoy, n_pend_old = wdata["profile"]
 
-            # ── Tareas completadas (últimos 30 días) ─────────────────────────
-            for _ in range(n_done):
-                created = rand_past(1, 30)
-                # Tiempo de resolución: entre 20 min y 8 h
-                completed = created + timedelta(hours=random.uniform(0.33, 8))
+            # Tareas completadas por bucket
+            for bucket, count in [("today", n_today), ("week", n_week),
+                                   ("month", n_month), ("old", n_old)]:
+                win_start, win_end = windows[bucket]
+                for _ in range(count):
+                    created    = rand_in_range(win_start, win_end)
+                    resolve_h  = random.uniform(0.25, 6)
+                    completed  = min(created + timedelta(hours=resolve_h), now)
 
-                task = Task(
-                    id=uuid.uuid4(),
-                    company_id=company_id,
-                    created_by=admin.id,
-                    assigned_to=worker.id,
-                    type=rand_type(),
-                    status=TaskStatus.completada,
-                    created_at=created,
-                    completed_at=completed,
-                )
-                db.add(task)
-                n_tasks += 1
-
-                # 1-2 movimientos por tarea
-                for _ in range(random.randint(1, 2)):
-                    db.add(Movement(
+                    task = Task(
                         id=uuid.uuid4(),
                         company_id=company_id,
-                        task_id=task.id,
-                        performed_by=worker.id,
-                        type=rand_mov_type(),
-                        timestamp=completed - timedelta(minutes=random.randint(1, 25)),
-                    ))
-                    n_movs += 1
+                        created_by=admin.id,
+                        assigned_to=worker.id,
+                        type=rand_type(),
+                        status=TaskStatus.completada,
+                        created_at=created,
+                        completed_at=completed,
+                    )
+                    db.add(task)
+                    n_tasks += 1
 
-            # ── Tareas pendientes de HOY ─────────────────────────────────────
-            for _ in range(n_pending_today):
-                created = today_start + timedelta(hours=random.uniform(0, 9))
-                task = Task(
+                    for _ in range(random.randint(1, 2)):
+                        db.add(Movement(
+                            id=uuid.uuid4(),
+                            company_id=company_id,
+                            task_id=task.id,
+                            performed_by=worker.id,
+                            type=rand_mov_type(),
+                            timestamp=completed - timedelta(minutes=random.randint(1, 20)),
+                        ))
+                        n_movs += 1
+
+            # Pendientes de hoy
+            for _ in range(n_pend_hoy):
+                created = rand_in_range(today_start, now)
+                db.add(Task(
                     id=uuid.uuid4(),
                     company_id=company_id,
                     created_by=admin.id,
@@ -175,14 +185,13 @@ async def seed():
                     type=rand_type(),
                     status=random.choice([TaskStatus.pendiente, TaskStatus.en_curso]),
                     created_at=created,
-                )
-                db.add(task)
+                ))
                 n_tasks += 1
 
-            # ── Tareas pendientes ANTIGUAS (atrasadas) ───────────────────────
-            for _ in range(n_pending_old):
-                created = rand_past(2, 7)
-                task = Task(
+            # Pendientes atrasadas (creadas antes de hoy)
+            for _ in range(n_pend_old):
+                created = rand_in_range(windows["old"][0], today_start)
+                db.add(Task(
                     id=uuid.uuid4(),
                     company_id=company_id,
                     created_by=admin.id,
@@ -190,72 +199,46 @@ async def seed():
                     type=rand_type(),
                     status=TaskStatus.pendiente,
                     created_at=created,
-                )
-                db.add(task)
+                ))
                 n_tasks += 1
 
         await db.commit()
 
     await engine.dispose()
 
-    print(f"\n[OK] Seed completado:")
-    print(f"   - {len(workers)} workers")
-    print(f"   - {n_tasks} tareas")
-    print(f"   - {n_movs} movimientos")
-    print(f"\n   Contrasena de todos los workers mock: MockPass123!")
-    print(f"\n   Distribucion de workers:")
+    print(f"\n[OK] Seed completado: {len(workers)} workers, {n_tasks} tareas, {n_movs} movimientos")
+    print("\n   Distribucion (hoy | semana | mes | antes | pend.hoy | atrasadas):")
     for wdata in MOCK_WORKERS:
-        d, p_hoy, p_old = wdata["profile"]
-        print(f"   - {wdata['name']:20s} -> {d} completadas, {p_hoy} pendientes hoy, {p_old} atrasadas")
+        p = wdata["profile"]
+        total = p[0] + p[1] + p[2] + p[3]
+        print(f"   - {wdata['name']:20s}  {p[0]:2d} | {p[1]:2d} | {p[2]:2d} | {p[3]:2d} | {p[4]:2d} | {p[5]:2d}  (total completadas: {total})")
+    print("\n   Contrasena: MockPass123!")
 
-
-# ── Clean ─────────────────────────────────────────────────────────────────────
 
 async def clean():
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with Session() as db:
-        # Encontrar los workers mock
-        result = await db.execute(
-            select(User).where(User.email.in_(MOCK_EMAILS))
-        )
+        result = await db.execute(select(User).where(User.email.in_(MOCK_EMAILS)))
         mock_workers = result.scalars().all()
         if not mock_workers:
             print("No hay datos mock que limpiar.")
             return
 
         mock_ids = [w.id for w in mock_workers]
-
-        # Borrar movimientos
-        mov_result = await db.execute(
-            delete(Movement).where(Movement.performed_by.in_(mock_ids))
-        )
-        # Borrar tareas
-        task_result = await db.execute(
-            delete(Task).where(Task.assigned_to.in_(mock_ids))
-        )
-        # Borrar workers
+        mov_r  = await db.execute(delete(Movement).where(Movement.performed_by.in_(mock_ids)))
+        task_r = await db.execute(delete(Task).where(Task.assigned_to.in_(mock_ids)))
         for w in mock_workers:
             await db.delete(w)
-
         await db.commit()
-        print(f"[OK] Limpieza completada:")
-        print(f"   - {len(mock_workers)} workers eliminados")
-        print(f"   - {task_result.rowcount} tareas eliminadas")
-        print(f"   - {mov_result.rowcount} movimientos eliminados")
 
     await engine.dispose()
+    print(f"[OK] Limpieza: {len(mock_workers)} workers, {task_r.rowcount} tareas, {mov_r.rowcount} movimientos")
 
-
-# ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--clean", action="store_true", help="Eliminar todos los datos mock")
+    parser.add_argument("--clean", action="store_true")
     args = parser.parse_args()
-
-    if args.clean:
-        asyncio.run(clean())
-    else:
-        asyncio.run(seed())
+    asyncio.run(clean() if args.clean else seed())

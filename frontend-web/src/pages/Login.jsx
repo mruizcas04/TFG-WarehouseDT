@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { login } from '../api/auth'
+import { login, getMe } from '../api/auth'
 import { useAuthStore } from '../store/authStore'
 
 const EyeIcon = () => (
@@ -33,6 +33,13 @@ export default function Login() {
     try {
       const data = await login(email, password)
       setAuth(data.access_token, { email })
+      const me = await getMe()
+      if (me.role !== 'admin') {
+        setAuth(null, null)
+        setError('Este panel es solo para administradores. Usa la app móvil.')
+        return
+      }
+      setAuth(data.access_token, me)
       navigate('/dashboard')
     } catch (err) {
       setError('Email o contraseña incorrectos')

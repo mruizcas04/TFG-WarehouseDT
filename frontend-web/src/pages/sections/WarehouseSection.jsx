@@ -1,12 +1,36 @@
 import { useState, useRef, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getWarehouses, createWarehouse, getWarehouseFull } from '../../api/warehouses'
+import { getWarehouses, createWarehouse, getWarehouseFull, expandWarehouse } from '../../api/warehouses'
 import { getProducts } from '../../api/products'
 import DigitalTwin from '../../components/DigitalTwin'
 import { useAuthStore } from '../../store/authStore'
 
 const DEFAULT_SHELF = { num_levels: 3, num_locations: 5 }
 const DEFAULT_AISLE = () => ({ is_double: false, shelves: [{ ...DEFAULT_SHELF }] })
+
+function buildLogicalAisles(shelves) {
+  const byAisle = {}
+  for (const s of shelves) {
+    if (!byAisle[s.aisle_number]) byAisle[s.aisle_number] = []
+    byAisle[s.aisle_number].push(s)
+  }
+  const nums = Object.keys(byAisle).map(Number).sort((a, b) => a - b)
+  const result = []
+  let i = 0
+  while (i < nums.length) {
+    const n = nums[i]
+    const isDouble = byAisle[n].some(s => s.is_double)
+    result.push({
+      frontAisleNumber: n,
+      backAisleNumber: isDouble && i + 1 < nums.length ? nums[i + 1] : null,
+      isDouble,
+      existingShelves: byAisle[n],
+      addedShelves: [],
+    })
+    i += isDouble ? 2 : 1
+  }
+  return result
+}
 
 const labelStyle = {
   display: 'block', fontSize: '11px', fontWeight: '500', color: '#888780',
@@ -32,6 +56,8 @@ export default function WarehouseSection({
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [aisles, setAisles] = useState([DEFAULT_AISLE()])
+  const [showExpandForm, setShowExpandForm] = useState(false)
+  const [expandState, setExpandState] = useState(null)
   const [selectedProduct, setSelectedProduct] = useState('')
   const internalRef = useRef(null)
   const digitalTwinRef = externalRef ?? internalRef
@@ -101,6 +127,89 @@ export default function WarehouseSection({
     },
   })
 
+  const expandMutation = useMutation({
+    mutationFn: ({ id, data }) => expandWarehouse(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['warehouses'])
+      queryClient.invalidateQueries(['warehouse-full'])
+      setShowExpandForm(false)
+      setExpandState(null)
+      digitalTwinRef.current?.reload()
+    },
+  })
+
+  const openExpandForm = () => {
+    if (!warehouseFull) return
+    setExpandState({ existingAisles: buildLogicalAisles(warehouseFull.shelves || []), newAisles: [] })
+    setShowExpandForm(true)
+  }
+
+  const handleExpandSubmit = (e) => {
+    e.preventDefault()
+    const extend_aisles = expandState.existingAisles
+      .filter(ea => ea.addedShelves.length > 0)
+      .map(ea => ({ aisle_number: ea.frontAisleNumber, new_shelves: ea.addedShelves }))
+    const new_aisles = expandState.newAisles.map(a => ({
+      shelves: a.shelves.map(s => ({ ...s, is_double: a.is_double }))
+    }))
+    expandMutation.mutate({ id: firstWarehouse.id, data: { extend_aisles, new_aisles } })
+  }
+
+  const addShelfToExisting = (aisleIdx) => {
+    setExpandState(prev => {
+      const updated = prev.existingAisles.map((ea, i) =>
+        i !== aisleIdx ? ea : { ...ea, addedShelves: [...ea.addedShelves, { ...DEFAULT_SHELF }] }
+      )
+      return { ...prev, existingAisles: updated }
+    })
+  }
+
+  const updateExpandAddedShelf = (aisleIdx, shelfIdx, field, value) => {
+    setExpandState(prev => {
+      const updated = prev.existingAisles.map((ea, i) => {
+        if (i !== aisleIdx) return ea
+        return {
+          ...ea,
+          addedShelves: ea.addedShelves.map((s, j) =>
+            j !== shelfIdx ? s : { ...s, [field]: Math.max(1, parseInt(value) || 1) }
+          ),
+        }
+      })
+      return { ...prev, existingAisles: updated }
+    })
+  }
+
+  const removeExpandAddedShelf = (aisleIdx, shelfIdx) => {
+    setExpandState(prev => {
+      const updated = prev.existingAisles.map((ea, i) =>
+        i !== aisleIdx ? ea : { ...ea, addedShelves: ea.addedShelves.filter((_, j) => j !== shelfIdx) }
+      )
+      return { ...prev, existingAisles: updated }
+    })
+  }
+
+  const addNewAisle = () => setExpandState(prev => ({ ...prev, newAisles: [...prev.newAisles, DEFAULT_AISLE()] }))
+  const removeNewAisle = (ai) => setExpandState(prev => ({ ...prev, newAisles: prev.newAisles.filter((_, i) => i !== ai) }))
+  const toggleNewAisleDouble = (ai) => setExpandState(prev => ({
+    ...prev,
+    newAisles: prev.newAisles.map((a, i) => i !== ai ? a : { ...a, is_double: !a.is_double }),
+  }))
+  const addShelfToNewAisle = (ai) => setExpandState(prev => ({
+    ...prev,
+    newAisles: prev.newAisles.map((a, i) => i !== ai ? a : { ...a, shelves: [...a.shelves, { ...DEFAULT_SHELF }] }),
+  }))
+  const removeShelfFromNewAisle = (ai, si) => setExpandState(prev => ({
+    ...prev,
+    newAisles: prev.newAisles.map((a, i) => i !== ai ? a : { ...a, shelves: a.shelves.filter((_, j) => j !== si) }),
+  }))
+  const updateNewAisleShelf = (ai, si, field, value) => setExpandState(prev => ({
+    ...prev,
+    newAisles: prev.newAisles.map((a, i) => i !== ai ? a : {
+      ...a,
+      shelves: a.shelves.map((s, j) => j !== si ? s : { ...s, [field]: Math.max(1, parseInt(value) || 1) }),
+    }),
+  }))
+
   const addAisle = () => setAisles([...aisles, DEFAULT_AISLE()])
   const removeAisle = (ai) => setAisles(aisles.filter((_, i) => i !== ai))
   const toggleAisleDouble = (ai) => {
@@ -163,6 +272,12 @@ export default function WarehouseSection({
             <button onClick={() => setShowForm(!showForm)}
               style={{ background: '#185FA5', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
               + Nuevo almacén
+            </button>
+          )}
+          {warehouse && !showExpandForm && (
+            <button onClick={openExpandForm}
+              style={{ background: '#F1EFE8', color: '#185FA5', border: '0.5px solid #C5DEFA', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+              + Ampliar almacén
             </button>
           )}
         </div>
@@ -251,6 +366,135 @@ export default function WarehouseSection({
                 {mutation.isLoading ? 'Creando...' : 'Crear almacén'}
               </button>
               <button type="button" onClick={() => setShowForm(false)}
+                style={{ background: '#F1EFE8', color: '#5F5E5A', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Formulario de expansión */}
+        {showExpandForm && expandState && (
+          <form onSubmit={handleExpandSubmit} style={{ background: 'white', borderRadius: '12px', border: '0.5px solid #E5E4E0', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#1C1C1A' }}>Ampliar almacén</h3>
+
+            {/* Filas existentes */}
+            <div>
+              <label style={labelStyle}>Filas existentes</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {expandState.existingAisles.map((ea, ai) => {
+                  const label = ea.isDouble
+                    ? `Filas ${ea.frontAisleNumber} y ${ea.backAisleNumber}`
+                    : `Fila ${ea.frontAisleNumber}`
+                  return (
+                    <div key={ai} style={{ border: '0.5px solid #E5E4E0', borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{ background: '#F8F8F6', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '500', color: '#5F5E5A' }}>{label}</span>
+                          {ea.isDouble && <span style={{ fontSize: '11px', fontWeight: '500', color: '#185FA5', background: '#DAEAF9', padding: '2px 8px', borderRadius: '20px' }}>Doble</span>}
+                          <span style={{ fontSize: '11px', color: '#888780' }}>{ea.existingShelves.length} estantería{ea.existingShelves.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <button type="button" onClick={() => addShelfToExisting(ai)}
+                          style={{ background: 'none', border: '0.5px solid #D3D1C7', color: '#185FA5', padding: '3px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}>
+                          + Estantería
+                        </button>
+                      </div>
+                      {ea.addedShelves.length > 0 && (
+                        <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 36px', gap: '8px', padding: '0 4px' }}>
+                            <span style={{ fontSize: '11px', color: '#B4B2A9' }}>#</span>
+                            <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nueva</span>
+                            <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Niveles</span>
+                            <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ubic./nivel</span>
+                            <span />
+                          </div>
+                          {ea.addedShelves.map((s, si) => (
+                            <div key={si} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 36px', gap: '8px', alignItems: 'center', background: '#F1F8FF', borderRadius: '8px', padding: '8px 10px' }}>
+                              <span style={{ fontSize: '12px', color: '#888780', textAlign: 'center' }}>{ea.existingShelves.length + si + 1}</span>
+                              <span style={{ fontSize: '13px', color: '#185FA5' }}>Estantería {ea.existingShelves.length + si + 1}</span>
+                              <input type="number" min="1" value={s.num_levels} onChange={e => updateExpandAddedShelf(ai, si, 'num_levels', e.target.value)} style={numInputStyle} />
+                              <input type="number" min="1" value={s.num_locations} onChange={e => updateExpandAddedShelf(ai, si, 'num_locations', e.target.value)} style={numInputStyle} />
+                              <button type="button" onClick={() => removeExpandAddedShelf(ai, si)}
+                                style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: '2px' }}>✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Filas nuevas */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <label style={labelStyle}>Filas nuevas {expandState.newAisles.length > 0 ? `(${expandState.newAisles.length})` : ''}</label>
+                <button type="button" onClick={addNewAisle}
+                  style={{ background: '#F1EFE8', color: '#185FA5', border: 'none', padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
+                  + Añadir fila
+                </button>
+              </div>
+              {expandState.newAisles.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {expandState.newAisles.map((aisle, ai) => (
+                    <div key={ai} style={{ border: `0.5px solid ${aisle.is_double ? '#B5D4F4' : '#E5E4E0'}`, borderRadius: '10px', overflow: 'hidden' }}>
+                      <div style={{ background: aisle.is_double ? '#EEF4FF' : '#F8F8F6', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '500', color: '#5F5E5A' }}>Nueva fila {ai + 1}</span>
+                          {aisle.is_double && <span style={{ fontSize: '11px', fontWeight: '500', color: '#185FA5', background: '#DAEAF9', padding: '2px 8px', borderRadius: '20px' }}>Doble</span>}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '12px', color: '#5F5E5A', userSelect: 'none' }}>
+                            <input type="checkbox" checked={aisle.is_double} onChange={() => toggleNewAisleDouble(ai)} style={{ cursor: 'pointer', width: '14px', height: '14px', accentColor: '#185FA5' }} />
+                            Fila doble
+                          </label>
+                          <button type="button" onClick={() => addShelfToNewAisle(ai)}
+                            style={{ background: 'none', border: '0.5px solid #D3D1C7', color: '#185FA5', padding: '3px 10px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}>
+                            + Estantería
+                          </button>
+                          <button type="button" onClick={() => removeNewAisle(ai)}
+                            style={{ background: 'none', border: 'none', color: '#C0392B', cursor: 'pointer', fontSize: '15px', lineHeight: 1, padding: '2px' }}>✕</button>
+                        </div>
+                      </div>
+                      <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 36px', gap: '8px', padding: '0 4px' }}>
+                          <span style={{ fontSize: '11px', color: '#B4B2A9' }}>#</span>
+                          <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Estantería</span>
+                          <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Niveles</span>
+                          <span style={{ fontSize: '11px', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ubic./nivel</span>
+                          <span />
+                        </div>
+                        {aisle.shelves.map((shelf, si) => (
+                          <div key={si} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 100px 36px', gap: '8px', alignItems: 'center', background: aisle.is_double ? '#EEF4FF' : '#FAFAF8', borderRadius: '8px', padding: '8px 10px' }}>
+                            <span style={{ fontSize: '12px', color: '#888780', textAlign: 'center' }}>{si + 1}</span>
+                            <span style={{ fontSize: '13px', color: aisle.is_double ? '#185FA5' : '#5F5E5A' }}>Estantería {si + 1}</span>
+                            <input type="number" min="1" value={shelf.num_levels} onChange={e => updateNewAisleShelf(ai, si, 'num_levels', e.target.value)} style={numInputStyle} />
+                            <input type="number" min="1" value={shelf.num_locations} onChange={e => updateNewAisleShelf(ai, si, 'num_locations', e.target.value)} style={numInputStyle} />
+                            <button type="button" onClick={() => removeShelfFromNewAisle(ai, si)} disabled={aisle.shelves.length === 1}
+                              style={{ background: 'none', border: 'none', color: aisle.shelves.length === 1 ? '#D3D1C7' : '#C0392B', cursor: aisle.shelves.length === 1 ? 'default' : 'pointer', fontSize: '16px', lineHeight: 1, padding: '2px' }}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {expandMutation.isError && (
+              <p style={{ color: '#C0392B', fontSize: '13px', margin: 0 }}>
+                {expandMutation.error?.response?.data?.detail || 'Error al ampliar el almacén'}
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="submit"
+                disabled={expandMutation.isLoading || (expandState.existingAisles.every(ea => ea.addedShelves.length === 0) && expandState.newAisles.length === 0)}
+                style={{ background: '#185FA5', color: 'white', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', opacity: (expandState.existingAisles.every(ea => ea.addedShelves.length === 0) && expandState.newAisles.length === 0) ? 0.5 : 1 }}>
+                {expandMutation.isLoading ? 'Guardando...' : 'Guardar cambios'}
+              </button>
+              <button type="button" onClick={() => { setShowExpandForm(false); setExpandState(null) }}
                 style={{ background: '#F1EFE8', color: '#5F5E5A', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
                 Cancelar
               </button>

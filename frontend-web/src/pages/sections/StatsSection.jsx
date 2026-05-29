@@ -139,7 +139,7 @@ export default function StatsSection() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div style={{
                             width: '32px', height: '32px', borderRadius: '50%',
-                            background: '#7C6DB5', color: 'white',
+                            background: '#E6F1FB', color: '#185FA5',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: '11px', fontWeight: '600', flexShrink: 0, letterSpacing: '0.03em',
                           }}>

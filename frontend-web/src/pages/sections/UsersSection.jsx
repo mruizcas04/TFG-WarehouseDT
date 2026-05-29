@@ -60,7 +60,10 @@ export default function UsersSection() {
     ? { bg: '#EEEDFE', color: '#534AB7' }
     : { bg: '#EAF3DE', color: '#3B6D11' }
 
-  const getInitials = (name) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  const getInitials = (name) => {
+    const parts = name.trim().split(/\s+/)
+    return parts.length >= 2 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase()
+  }
 
   const UserRow = ({ user, inactive = false }) => {
     const badge = roleBadge(user.role)
@@ -191,7 +194,6 @@ export default function UsersSection() {
               <label style={labelStyle}>Rol</label>
               <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} style={inputStyle}>
                 <option value="worker">Operario</option>
-                <option value="admin">Administrador</option>
               </select>
             </div>
           </div>

@@ -64,6 +64,14 @@ class WarehouseCreate(BaseModel):
 class WarehouseNameUpdate(BaseModel):
     name: str
 
+class ExtendAisleConfig(BaseModel):
+    aisle_number: int
+    new_shelves: list[ShelfConfig]
+
+class WarehouseExpand(BaseModel):
+    new_aisles: list[AisleConfig] = []
+    extend_aisles: list[ExtendAisleConfig] = []
+
 class WarehouseResponse(BaseModel):
     id: UUID
     company_id: Optional[UUID]

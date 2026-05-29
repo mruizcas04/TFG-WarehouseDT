@@ -5,6 +5,10 @@ const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, contai
   const [error, setError] = useState(null);
   const unityInstanceRef = useRef(null);
   const scriptLoadedRef = useRef(false);
+  const tokenRef = useRef(token);
+  const warehouseIdRef = useRef(warehouseId);
+  useEffect(() => { tokenRef.current = token; }, [token]);
+  useEffect(() => { warehouseIdRef.current = warehouseId; }, [warehouseId]);
 
   useImperativeHandle(ref, () => ({
     setProductFilter(productId) {
@@ -29,6 +33,14 @@ const DigitalTwin = forwardRef(({ warehouseId, token, onLocationSelected, contai
     },
     resetCameraView() {
       unityInstanceRef.current?.SendMessage("WarehouseManager", "ResetCameraView", "");
+    },
+    reload() {
+      if (unityInstanceRef.current) {
+        unityInstanceRef.current.SendMessage(
+          "WarehouseManager", "Initialize",
+          JSON.stringify({ token: tokenRef.current, warehouseId: warehouseIdRef.current })
+        );
+      }
     },
     requestFullscreen() {
       const canvas = document.getElementById("unity-canvas");

@@ -15,6 +15,11 @@ export const getWarehouseFull = async (id) => {
   return response.data
 }
 
+export const expandWarehouse = async (id, data) => {
+  const response = await client.post(`/warehouses/${id}/expand`, data)
+  return response.data
+}
+
 export const flattenLocations = (warehouse) => {
   const result = []
   for (const shelf of warehouse?.shelves || []) {

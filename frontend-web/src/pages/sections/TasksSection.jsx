@@ -301,7 +301,6 @@ export default function TasksSection({ onRequestLocationSelection }) {
     updateForm(patch)
   }
 
-  const workers = users?.filter(u => u.role === 'worker')
   const needsOrigin = form.type === 'salida' || form.type === 'traslado'
   const needsDestination = form.type === 'entrada' || form.type === 'traslado'
   const needsQuantity = form.type === 'entrada' || form.type === 'salida' || form.type === 'traslado'
@@ -528,14 +527,19 @@ export default function TasksSection({ onRequestLocationSelection }) {
                 style={selectStyle}
                 required
               >
-                <option value="">Selecciona un operario</option>
+                <option value="">Selecciona un usuario</option>
                 {recommendation
-                  ? recommendation.map(r => (
-                      <option key={r.user_id} value={r.user_id}>
-                        {r.is_recommended ? `⭐ ${r.name}` : r.name}
-                      </option>
-                    ))
-                  : workers?.map(w => <option key={w.id} value={w.id}>{w.name}</option>)
+                  ? <>
+                      {recommendation.map(r => (
+                        <option key={r.user_id} value={r.user_id}>
+                          {r.is_recommended ? `⭐ ${r.name}` : r.name}
+                        </option>
+                      ))}
+                      {users?.filter(u => u.role === 'admin').map(a => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </>
+                  : users?.map(u => <option key={u.id} value={u.id}>{u.name}</option>)
                 }
               </select>
               {(() => {
@@ -791,7 +795,7 @@ export default function TasksSection({ onRequestLocationSelection }) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {assignedUser ? (
                             <>
-                              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#7C6DB5', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '600', flexShrink: 0, letterSpacing: '0.03em' }}>
+                              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#E6F1FB', color: '#185FA5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '600', flexShrink: 0, letterSpacing: '0.03em' }}>
                                 {getInitials(assignedUser.name)}
                               </div>
                               <span style={{ fontSize: '13px', color: '#1C1C1A' }}>{assignedUser.name}</span>
