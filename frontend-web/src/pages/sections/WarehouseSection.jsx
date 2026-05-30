@@ -103,7 +103,7 @@ export default function WarehouseSection({
       for (const level of shelf.levels || []) {
         for (const loc of level.locations || []) {
           total++
-          if (loc.inventory && (loc.inventory.product_id || loc.inventory.box_id)) occupied++
+          if (loc.inventory?.product_id) occupied++
         }
       }
     }

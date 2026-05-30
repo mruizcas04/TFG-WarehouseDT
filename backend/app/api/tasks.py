@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete as sql_delete, func
 from app.db.database import get_db
-from app.models.models import User, Task, InventoryItem, Box, TaskStatus, Movement, Product, UserRole
+from app.models.models import User, Task, InventoryItem, TaskStatus, Movement, Product, UserRole
 from app.schemas.schemas import (
     TaskCreate, TaskResponse, TaskStatusUpdate,
     WorkerRecommendation, WorkerStats, StatsResponse,
@@ -59,15 +59,7 @@ async def create_task(
         )
         dest_inv = dest_inv_result.scalar_one_or_none()
         if dest_inv:
-            dest_product_id = dest_inv.product_id
-            dest_box = None
-            if dest_inv.box_id:
-                box_r = await db.execute(select(Box).where(Box.id == dest_inv.box_id))
-                dest_box = box_r.scalar_one_or_none()
-                if dest_box:
-                    dest_product_id = dest_box.product_id
-
-            if dest_product_id != task_data.product_id:
+            if dest_inv.product_id != task_data.product_id:
                 raise HTTPException(status_code=400, detail="La ubicación de destino ya contiene un producto diferente")
 
             prod_r = await db.execute(select(Product).where(Product.id == task_data.product_id))
@@ -75,15 +67,13 @@ async def create_task(
             if not prod or prod.units_per_location is None:
                 raise HTTPException(status_code=400, detail="La ubicación de destino ya tiene inventario y el producto no permite acumulación")
 
-            current_qty = dest_inv.quantity if dest_inv.product_id else (dest_box.current_quantity if dest_box else 0)
             incoming_qty = task_data.quantity or 1
-            if current_qty + incoming_qty > prod.units_per_location:
+            if dest_inv.quantity + incoming_qty > prod.units_per_location:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"La cantidad solicitada supera la capacidad máxima de la ubicación ({prod.units_per_location - current_qty} ud. disponibles)"
+                    detail=f"La cantidad solicitada supera la capacidad máxima de la ubicación ({prod.units_per_location - dest_inv.quantity} ud. disponibles)"
                 )
         elif task_data.product_id:
-            # Ubicación vacía — verificar igualmente que la cantidad no supera units_per_location
             prod_r = await db.execute(select(Product).where(Product.id == task_data.product_id))
             prod = prod_r.scalar_one_or_none()
             if prod and prod.units_per_location is not None:
@@ -114,26 +104,14 @@ async def create_task(
         if not origin_inv:
             raise HTTPException(status_code=400, detail="No hay inventario en la ubicación de origen")
 
-        # El producto puede estar suelto o dentro de una caja
-        origin_box = None
-        if origin_inv.box_id:
-            box_result = await db.execute(select(Box).where(Box.id == origin_inv.box_id))
-            origin_box = box_result.scalar_one_or_none()
-
-        product_matches = (
-            origin_inv.product_id == task_data.product_id or
-            (origin_box is not None and origin_box.product_id == task_data.product_id)
-        )
-        if not product_matches:
+        if origin_inv.product_id != task_data.product_id:
             raise HTTPException(status_code=400, detail="El producto seleccionado no se encuentra en la ubicación de origen")
 
-        # Validar que la cantidad no supere el contenido de la caja
-        if task_data.quantity and origin_box:
-            if task_data.quantity > origin_box.current_quantity:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"La cantidad solicitada ({task_data.quantity}) supera el contenido de la caja ({origin_box.current_quantity} ud.)"
-                )
+        if task_data.quantity and task_data.quantity > origin_inv.quantity:
+            raise HTTPException(
+                status_code=400,
+                detail=f"La cantidad solicitada ({task_data.quantity}) supera el inventario disponible ({origin_inv.quantity} ud.)"
+            )
 
     active_statuses = [TaskStatus.pendiente, TaskStatus.en_curso]
 

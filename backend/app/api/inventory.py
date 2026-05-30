@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.db.database import get_db
-from app.models.models import User, InventoryItem, Location, Level, Shelf, Warehouse, Task, TaskStatus, TaskType, Product, Box
+from app.models.models import User, InventoryItem, Location, Level, Shelf, Warehouse, Task, TaskStatus, TaskType, Product
 from app.schemas.schemas import InventoryItemResponse, ProductStockSummary
 from app.api.deps import get_current_user
 import uuid
@@ -26,34 +26,18 @@ async def get_inventory_summary(
 ):
     company_id = current_user.company_id
 
-    loose_sq = (
+    stock_sq = (
         select(
             InventoryItem.product_id,
-            func.coalesce(func.sum(InventoryItem.quantity), 0).label("loose_units"),
-            func.count(InventoryItem.id).label("loose_locations"),
+            func.coalesce(func.sum(InventoryItem.quantity), 0).label("total_units"),
+            func.count(InventoryItem.id).label("locations_count"),
         )
-        .join(Location, InventoryItem.location_id == Location.id)
-        .join(Level, Location.level_id == Level.id)
-        .join(Shelf, Level.shelf_id == Shelf.id)
-        .join(Warehouse, Shelf.warehouse_id == Warehouse.id)
-        .where(InventoryItem.product_id.isnot(None), Warehouse.company_id == company_id)
-        .group_by(InventoryItem.product_id)
-        .subquery()
-    )
-
-    box_sq = (
-        select(
-            Box.product_id,
-            func.coalesce(func.sum(Box.current_quantity), 0).label("box_units"),
-            func.count(InventoryItem.id).label("box_locations"),
-        )
-        .join(InventoryItem, InventoryItem.box_id == Box.id)
         .join(Location, InventoryItem.location_id == Location.id)
         .join(Level, Location.level_id == Level.id)
         .join(Shelf, Level.shelf_id == Shelf.id)
         .join(Warehouse, Shelf.warehouse_id == Warehouse.id)
         .where(Warehouse.company_id == company_id)
-        .group_by(Box.product_id)
+        .group_by(InventoryItem.product_id)
         .subquery()
     )
 
@@ -87,27 +71,22 @@ async def get_inventory_summary(
         .subquery()
     )
 
-    total_units_expr = (
-        func.coalesce(loose_sq.c.loose_units, 0) + func.coalesce(box_sq.c.box_units, 0)
-    )
-
     stmt = (
         select(
             Product.id.label("product_id"),
             Product.name.label("product_name"),
             Product.type.label("product_type"),
             Product.barcode.label("product_barcode"),
-            total_units_expr.label("total_units"),
-            (func.coalesce(loose_sq.c.loose_locations, 0) + func.coalesce(box_sq.c.box_locations, 0)).label("locations_count"),
+            func.coalesce(stock_sq.c.total_units, 0).label("total_units"),
+            func.coalesce(stock_sq.c.locations_count, 0).label("locations_count"),
             func.coalesce(pending_in_sq.c.pending_in, 0).label("pending_in"),
             func.coalesce(pending_out_sq.c.pending_out, 0).label("pending_out"),
         )
-        .outerjoin(loose_sq, Product.id == loose_sq.c.product_id)
-        .outerjoin(box_sq, Product.id == box_sq.c.product_id)
+        .outerjoin(stock_sq, Product.id == stock_sq.c.product_id)
         .outerjoin(pending_in_sq, Product.id == pending_in_sq.c.product_id)
         .outerjoin(pending_out_sq, Product.id == pending_out_sq.c.product_id)
         .where(Product.company_id == company_id)
-        .order_by(total_units_expr.desc())
+        .order_by(func.coalesce(stock_sq.c.total_units, 0).desc())
     )
 
     result = await db.execute(stmt)

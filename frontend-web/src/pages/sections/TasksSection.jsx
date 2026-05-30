@@ -5,7 +5,6 @@ import { getRecommendation } from '../../api/stats'
 import { getMovements } from '../../api/movements'
 import { getUsers } from '../../api/users'
 import { getProducts } from '../../api/products'
-import { getBoxes } from '../../api/boxes'
 import { getWarehouses, getWarehouseFull, flattenLocations } from '../../api/warehouses'
 
 const labelStyle = { display: 'block', fontSize: '11px', fontWeight: '500', color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }
@@ -137,27 +136,14 @@ function LocationPicker({ allLocations, value, onChange, label }) {
 }
 
 
-function LocationInventoryInfo({ inventory, products, boxes }) {
+function LocationInventoryInfo({ inventory, products }) {
   if (!inventory) return <span style={{ fontSize: '12px', color: '#B4B2A9' }}>Vacía</span>
-
-  if (inventory.box_id) {
-    const box = boxes?.find(b => b.id === inventory.box_id)
-    const qty = inventory.box_current_quantity ?? box?.current_quantity
-    const max = inventory.box_max_capacity ?? box?.max_capacity
-    const productName = products?.find(p => p.id === box?.product_id)?.name || '—'
-    return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#E8EEFF', color: '#2244AA', padding: '3px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '500' }}>
-        <span style={{ width: '7px', height: '7px', borderRadius: '2px', background: '#3366CC', flexShrink: 0 }} />
-        {productName} · {qty}/{max} ud.
-      </span>
-    )
-  }
 
   if (inventory.product_id) {
     const productName = products?.find(p => p.id === inventory.product_id)?.name || '—'
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#EAF3DE', color: '#3B6D11', padding: '3px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '500' }}>
-        Producto · {productName} · {inventory.quantity} ud.
+        {productName} · {inventory.quantity} ud.
       </span>
     )
   }
@@ -249,7 +235,6 @@ export default function TasksSection({ onRequestLocationSelection }) {
   const { data: tasks, isLoading } = useQuery({ queryKey: ['tasks'], queryFn: getTasks })
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: getUsers })
   const { data: products } = useQuery({ queryKey: ['products'], queryFn: getProducts })
-  const { data: boxes } = useQuery({ queryKey: ['boxes'], queryFn: getBoxes })
   const { data: warehouses } = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
   const { data: recommendation } = useQuery({
     queryKey: ['recommendation'],
@@ -290,14 +275,8 @@ export default function TasksSection({ onRequestLocationSelection }) {
   const handleOriginChange = (locationId, locationObj) => {
     setOriginLocation(locationObj)
     let patch = { origin_location_id: locationId, product_id: '', quantity: '' }
-
     const inv = locationObj?.inventory
-    if (inv?.box_id) {
-      const box = boxes?.find(b => b.id === inv.box_id)
-      if (box) patch.product_id = box.product_id
-    } else if (inv?.product_id) {
-      patch.product_id = inv.product_id
-    }
+    if (inv?.product_id) patch.product_id = inv.product_id
     updateForm(patch)
   }
 
@@ -306,11 +285,7 @@ export default function TasksSection({ onRequestLocationSelection }) {
   const needsQuantity = form.type === 'entrada' || form.type === 'salida' || form.type === 'traslado'
 
   const originInv = originLocation?.inventory
-  const originMaxQty = originInv?.box_id
-    ? (originInv.box_current_quantity ?? boxes?.find(b => b.id === originInv.box_id)?.current_quantity)
-    : originInv?.product_id
-    ? originInv.quantity
-    : null
+  const originMaxQty = originInv?.quantity ?? null
 
   const quantity = Number(form.quantity) || 0
 
@@ -611,7 +586,7 @@ export default function TasksSection({ onRequestLocationSelection }) {
               {form.origin_location_id && (
                 <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '11px', color: '#888780' }}>Contenido actual:</span>
-                  <LocationInventoryInfo inventory={originInv} products={products} boxes={boxes} />
+                  <LocationInventoryInfo inventory={originInv} products={products} />
                 </div>
               )}
               {form.origin_location_id && !originInv && (

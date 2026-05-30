@@ -67,7 +67,9 @@
       "Bash(COVERAGE_CORE=sysmon python -m pytest tests/integration --cov=app --cov-branch --cov-report=term --no-header -q --tb=no --cov-fail-under=0)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\mruiz\\\\TFG\" -Recurse -Directory -Name)",
       "Bash(Select-String -Pattern \"frontend|src|components\")",
-      "Bash(Head -20)"
+      "Bash(Head -20)",
+      "PowerShell(Head -20)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\mruiz\\\\TFG\\\\backend\\\\app\\\\api\\\\boxes.py\")"
     ]
   }
 }

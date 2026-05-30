@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
-from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem, Box, Product, Category, Task, TaskStatus
+from app.models.models import User, Warehouse, Shelf, Level, Location, InventoryItem, Product, Category, Task, TaskStatus
 from app.schemas.schemas import (
     WarehouseCreate, WarehouseNameUpdate, WarehouseExpand, WarehouseResponse, WarehouseFullResponse,
     ShelfFullResponse, LevelFullResponse, LocationFullResponse,
@@ -153,15 +153,7 @@ async def get_warehouse_full(
     )
     inventory_items = inventory_result.scalars().all()
 
-    box_ids = [item.box_id for item in inventory_items if item.box_id]
-    boxes_by_id = {}
-    if box_ids:
-        boxes_result = await db.execute(select(Box).where(Box.id.in_(box_ids)))
-        boxes_by_id = {box.id: box for box in boxes_result.scalars().all()}
-
-    direct_product_ids = [item.product_id for item in inventory_items if item.product_id]
-    box_product_ids = [box.product_id for box in boxes_by_id.values() if box.product_id]
-    all_product_ids = list(set(direct_product_ids + box_product_ids))
+    all_product_ids = list({item.product_id for item in inventory_items})
     products_by_id = {}
     if all_product_ids:
         products_result = await db.execute(select(Product).where(Product.id.in_(all_product_ids)))
@@ -189,10 +181,7 @@ async def get_warehouse_full(
             for loc in locations_by_level.get(level.id, []):
                 inv = inventory_by_location.get(loc.id)
                 if inv:
-                    box = boxes_by_id.get(inv.box_id) if inv.box_id else None
-                    effective_product_id = inv.product_id or (box.product_id if box else None)
-                    product = products_by_id.get(effective_product_id) if effective_product_id else None
-                    effective_quantity = inv.quantity if inv.product_id else (box.current_quantity if box else None)
+                    product = products_by_id.get(inv.product_id)
                     category = categories_by_id.get(product.category_id) if product and product.category_id else None
                     inventory_dto = InventoryItemFullResponse(
                         id=inv.id,
@@ -201,10 +190,7 @@ async def get_warehouse_full(
                         product_barcode=product.barcode if product else None,
                         product_category=category.name if category else None,
                         product_category_color=category.color if category else None,
-                        box_id=inv.box_id,
-                        quantity=effective_quantity,
-                        box_current_quantity=box.current_quantity if box else None,
-                        box_max_capacity=box.max_capacity if box else None,
+                        quantity=inv.quantity,
                     )
                 else:
                     inventory_dto = None

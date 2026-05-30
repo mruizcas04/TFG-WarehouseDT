@@ -88,15 +88,12 @@ class WarehouseResponse(BaseModel):
 
 class InventoryItemFullResponse(BaseModel):
     id: UUID
-    product_id: Optional[UUID]
+    product_id: UUID
     product_name: Optional[str] = None
     product_barcode: Optional[str] = None
     product_category: Optional[str] = None
     product_category_color: Optional[str] = None
-    box_id: Optional[UUID]
-    quantity: Optional[int]
-    box_current_quantity: Optional[int] = None
-    box_max_capacity: Optional[int] = None
+    quantity: int
 
     model_config = {"from_attributes": True}
 
@@ -233,30 +230,13 @@ class ProductResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
-# --- Box ---
-
-class BoxCreate(BaseModel):
-    product_id: UUID
-    current_quantity: int
-    max_capacity: int
-
-class BoxResponse(BaseModel):
-    id: UUID
-    company_id: Optional[UUID]
-    product_id: UUID
-    current_quantity: int
-    max_capacity: int
-
-    model_config = {"from_attributes": True}
-
 # --- InventoryItem ---
 
 class InventoryItemResponse(BaseModel):
     id: UUID
     location_id: UUID
-    product_id: Optional[UUID]
-    box_id: Optional[UUID]
-    quantity: Optional[int]
+    product_id: UUID
+    quantity: int
 
     model_config = {"from_attributes": True}
 
@@ -281,7 +261,6 @@ class TaskResponse(BaseModel):
     type: TaskType
     status: TaskStatus
     product_id: Optional[UUID]
-    box_id: Optional[UUID]
     quantity: Optional[int]
     origin_location_id: Optional[UUID]
     destination_location_id: Optional[UUID]
@@ -342,7 +321,6 @@ class MovementCreate(BaseModel):
     task_id: UUID
     type: MovementType
     product_id: Optional[UUID] = None
-    box_id: Optional[UUID] = None
     quantity: Optional[int] = None
     origin_location_id: Optional[UUID] = None
     destination_location_id: Optional[UUID] = None
@@ -354,7 +332,6 @@ class MovementResponse(BaseModel):
     performed_by: UUID
     type: MovementType
     product_id: Optional[UUID]
-    box_id: Optional[UUID]
     quantity: Optional[int]
     origin_location_id: Optional[UUID]
     destination_location_id: Optional[UUID]

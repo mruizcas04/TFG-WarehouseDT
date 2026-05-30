@@ -40,7 +40,6 @@ class Company(Base):
     warehouses: Mapped[list["Warehouse"]] = relationship("Warehouse", back_populates="company")
     products: Mapped[list["Product"]] = relationship("Product", back_populates="company")
     categories: Mapped[list["Category"]] = relationship("Category", back_populates="company")
-    boxes: Mapped[list["Box"]] = relationship("Box", back_populates="company")
     tasks: Mapped[list["Task"]] = relationship("Task", back_populates="company")
     movements: Mapped[list["Movement"]] = relationship("Movement", back_populates="company")
 
@@ -125,21 +124,6 @@ class Product(Base):
 
     company: Mapped["Company | None"] = relationship("Company", back_populates="products")
     category: Mapped["Category | None"] = relationship("Category", back_populates="products")
-    boxes: Mapped[list["Box"]] = relationship("Box", back_populates="product")
-
-
-class Box(Base):
-    __tablename__ = "boxes"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    company_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=True)
-    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
-    current_quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    max_capacity: Mapped[int] = mapped_column(Integer, nullable=False)
-
-    company: Mapped["Company | None"] = relationship("Company", back_populates="boxes")
-    product: Mapped["Product"] = relationship("Product", back_populates="boxes")
-    inventory_item: Mapped["InventoryItem | None"] = relationship("InventoryItem", back_populates="box", uselist=False)
 
 
 class InventoryItem(Base):
@@ -147,13 +131,11 @@ class InventoryItem(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=False, unique=True)
-    product_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
-    box_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("boxes.id"), nullable=True)
-    quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     location: Mapped["Location"] = relationship("Location", back_populates="inventory_item")
     product: Mapped["Product | None"] = relationship("Product")
-    box: Mapped["Box | None"] = relationship("Box", back_populates="inventory_item")
 
 
 class User(Base):
@@ -190,7 +172,6 @@ class Task(Base):
     type: Mapped[TaskType] = mapped_column(Enum(TaskType), nullable=False)
     status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus), nullable=False, default=TaskStatus.pendiente)
     product_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
-    box_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("boxes.id"), nullable=True)
     quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     origin_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
     destination_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
@@ -201,7 +182,6 @@ class Task(Base):
     admin: Mapped["User"] = relationship("User", foreign_keys=[created_by], back_populates="tasks_created")
     worker: Mapped["User"] = relationship("User", foreign_keys=[assigned_to], back_populates="tasks_assigned")
     product: Mapped["Product | None"] = relationship("Product", foreign_keys=[product_id])
-    box: Mapped["Box | None"] = relationship("Box", foreign_keys=[box_id])
     origin_location: Mapped["Location | None"] = relationship("Location", foreign_keys=[origin_location_id])
     destination_location: Mapped["Location | None"] = relationship("Location", foreign_keys=[destination_location_id])
     movements: Mapped[list["Movement"]] = relationship("Movement", back_populates="task")
@@ -216,7 +196,6 @@ class Movement(Base):
     performed_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     type: Mapped[MovementType] = mapped_column(Enum(MovementType), nullable=False)
     product_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
-    box_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("boxes.id"), nullable=True)
     quantity: Mapped[int | None] = mapped_column(Integer, nullable=True)
     origin_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
     destination_location_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
@@ -226,6 +205,5 @@ class Movement(Base):
     task: Mapped["Task"] = relationship("Task", back_populates="movements")
     performed_by_user: Mapped["User"] = relationship("User", foreign_keys=[performed_by])
     product: Mapped["Product | None"] = relationship("Product", foreign_keys=[product_id])
-    box: Mapped["Box | None"] = relationship("Box", foreign_keys=[box_id])
     origin_location: Mapped["Location | None"] = relationship("Location", foreign_keys=[origin_location_id])
     destination_location: Mapped["Location | None"] = relationship("Location", foreign_keys=[destination_location_id])
