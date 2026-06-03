@@ -17,7 +17,7 @@ namespace WarehouseTwin.Network
         public event Action<WebSocketEventDTO> OnTaskStatusChanged;
 
         [Header("Configuración")]
-        [SerializeField] private string wsUrl = "ws://localhost:8000/ws";
+        [SerializeField] private string wsUrl = "wss://tfg-production-1c10.up.railway.app";
 
         private WebSocket _socket;
         private bool _isConnected = false;

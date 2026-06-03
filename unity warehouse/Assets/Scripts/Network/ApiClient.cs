@@ -10,7 +10,7 @@ namespace WarehouseTwin.Network
     public class ApiClient : MonoBehaviour
     {
         [Header("Configuración")]
-        [SerializeField] private string baseUrl = "http://localhost:8000";
+        [SerializeField] private string baseUrl = "https://tfg-production-1c10.up.railway.app";
 
         [Header("Solo para testing en el editor")]
         [SerializeField] private string debugToken;

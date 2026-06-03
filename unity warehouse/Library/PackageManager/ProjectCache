@@ -5,16 +5,16 @@ m_ProjectFiles:
     m_ContentTrackingEnabled: 1
     m_ModificationDate:
       serializedVersion: 2
-      ticks: 639154765349865243
-    m_Hash: 3113004608
+      ticks: 639161016560722483
+    m_Hash: 453067627
   m_LockFileStatus:
     m_FilePath: C:/Users/mruiz/TFG/unity warehouse/Packages/packages-lock.json
     m_PathExists: 1
     m_ContentTrackingEnabled: 1
     m_ModificationDate:
       serializedVersion: 2
-      ticks: 639154765349911265
-    m_Hash: 1463325415
+      ticks: 639161016560732520
+    m_Hash: 3043632632
 m_EmbeddedPackageManifests:
   m_ManifestsStatus: {}
 m_LocalPackages:

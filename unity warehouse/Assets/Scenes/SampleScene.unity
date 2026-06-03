@@ -474,7 +474,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0ebb45e1ff7a6ea499768f12d28f55aa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  wsUrl: ws://localhost:8000/ws
+  wsUrl: wss://tfg-production-1c10.up.railway.app
 --- !u!114 &1121137544
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -499,7 +499,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6e78c2a1f70ea654f87375927c3f4e99, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  baseUrl: http://localhost:8000
+  baseUrl: https://tfg-production-1c10.up.railway.app
   debugToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3YjA1MzgzNS1jNDExLTQwNzItYTc3My1iMjFjZDY2OWU1YTYiLCJyb2xlIjoiYWRtaW4iLCJjb21wYW55X2lkIjoiMjU4ZGQ1ZDktNmI1Yi00Zjg3LWIwNzctN2IwODY5ODdlMzBjIiwibXVzdF9jaGFuZ2VfcGFzc3dvcmQiOmZhbHNlLCJleHAiOjE3Nzk3MjQxMzl9.gEJTi-cjFnXpW70nRGk9jhd2Is8tMldGwbyQU4Tivak
 --- !u!114 &1121137546
 MonoBehaviour:
