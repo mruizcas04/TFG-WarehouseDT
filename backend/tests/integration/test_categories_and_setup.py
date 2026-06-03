@@ -17,7 +17,7 @@ from unittest.mock import patch, AsyncMock
 
 import pytest
 
-from app.models.models import Category, InventoryItem, Box
+from app.models.models import Category, InventoryItem
 
 
 def _auth(token):
@@ -95,18 +95,18 @@ class TestLocationInventorySetup:
             )
 
         assert response.status_code == 201
-        # Confirm in DB: item points directly to the product, no box
+        # Confirm in DB: item points directly to the product
         from sqlalchemy import select
         item = (await db_session.execute(
             select(InventoryItem).where(InventoryItem.location_id == loc.id)
         )).scalar_one()
         assert item.product_id == product.id
-        assert item.box_id is None
+        assert item.quantity == 1
 
-    async def test_setup_with_quantity_greater_than_one_creates_box(
+    async def test_setup_with_quantity_greater_than_one_creates_item_with_quantity(
         self, client, base_data, admin_token, db_session
     ):
-        """quantity>1 → a Box is created and the InventoryItem points to it."""
+        """quantity>1 → InventoryItem is created with the full quantity stored directly."""
         loc = base_data["location1"]
         product = base_data["product1"]
 
@@ -123,10 +123,8 @@ class TestLocationInventorySetup:
         item = (await db_session.execute(
             select(InventoryItem).where(InventoryItem.location_id == loc.id)
         )).scalar_one()
-        assert item.product_id is None
-        assert item.box_id is not None
-        box = (await db_session.execute(select(Box).where(Box.id == item.box_id))).scalar_one()
-        assert box.current_quantity == 5
+        assert item.product_id == product.id
+        assert item.quantity == 5
 
     async def test_setup_on_unknown_location_returns_404(
         self, client, base_data, admin_token

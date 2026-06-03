@@ -18,7 +18,7 @@ Pattern: Arrange → Act → Assert
 import uuid
 import pytest
 
-from app.models.models import InventoryItem, Task, TaskType, TaskStatus
+from app.models.models import InventoryItem, Task, TaskType, TaskStatus, Category, Warehouse
 
 
 # ---------------------------------------------------------------------------
@@ -231,7 +231,6 @@ class TestWarehousesCrud:
         self, client, base_data, admin_token
     ):
         """DELETE /warehouses/{id} must remove the warehouse and return 204."""
-        # Create a new warehouse just to delete (so base_data stays intact)
         create_resp = await client.post(
             "/warehouses",
             headers={"Authorization": f"Bearer {admin_token}"},
@@ -244,6 +243,159 @@ class TestWarehousesCrud:
             f"/warehouses/{wid}", headers={"Authorization": f"Bearer {admin_token}"}
         )
         assert delete_resp.status_code == 204
+
+    async def test_create_warehouse_with_double_shelf(
+        self, client, base_data, admin_token
+    ):
+        """POST /warehouses with is_double=True must generate a mirrored back aisle."""
+        response = await client.post(
+            "/warehouses",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "name": "Double Warehouse",
+                "aisles": [{"shelves": [{"num_levels": 2, "num_locations": 3, "is_double": True}]}],
+            },
+        )
+        assert response.status_code == 201
+        body = response.json()
+        assert body["num_shelves"] == 2          # front + back
+        assert body["total_locations"] == 12    # 2 sides × 2 levels × 3 locs
+
+    async def test_expand_warehouse_with_new_aisle(
+        self, client, base_data, admin_token
+    ):
+        """POST /warehouses/{id}/expand with new_aisles adds shelves and updates counters."""
+        # Create a fresh warehouse to expand
+        create_resp = await client.post(
+            "/warehouses",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"name": "Expandable", "aisles": [{"shelves": [{"num_levels": 1, "num_locations": 2}]}]},
+        )
+        assert create_resp.status_code == 201
+        wid = create_resp.json()["id"]
+        original_locs = create_resp.json()["total_locations"]  # 2
+
+        response = await client.post(
+            f"/warehouses/{wid}/expand",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"new_aisles": [{"shelves": [{"num_levels": 1, "num_locations": 3}]}], "extend_aisles": []},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_locations"] == original_locs + 3
+        assert body["num_shelves"] == 2
+
+    async def test_expand_warehouse_extend_existing_aisle(
+        self, client, base_data, admin_token
+    ):
+        """POST /warehouses/{id}/expand with extend_aisles adds to an existing aisle."""
+        create_resp = await client.post(
+            "/warehouses",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"name": "Extendable", "aisles": [{"shelves": [{"num_levels": 1, "num_locations": 2}]}]},
+        )
+        wid = create_resp.json()["id"]
+
+        response = await client.post(
+            f"/warehouses/{wid}/expand",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "new_aisles": [],
+                "extend_aisles": [{"aisle_number": 1, "new_shelves": [{"num_levels": 1, "num_locations": 2}]}],
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["total_locations"] == 4  # 2 + 2
+
+    async def test_expand_unknown_warehouse_returns_404(
+        self, client, base_data, admin_token
+    ):
+        response = await client.post(
+            f"/warehouses/{uuid.uuid4()}/expand",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"new_aisles": [], "extend_aisles": []},
+        )
+        assert response.status_code == 404
+
+    async def test_expand_unknown_aisle_returns_400(
+        self, client, base_data, admin_token
+    ):
+        create_resp = await client.post(
+            "/warehouses",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"name": "W", "aisles": [{"shelves": [{"num_levels": 1, "num_locations": 1}]}]},
+        )
+        wid = create_resp.json()["id"]
+
+        response = await client.post(
+            f"/warehouses/{wid}/expand",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "new_aisles": [],
+                "extend_aisles": [{"aisle_number": 99, "new_shelves": [{"num_levels": 1, "num_locations": 1}]}],
+            },
+        )
+        assert response.status_code == 400
+
+    async def test_warehouse_full_with_categorized_product(
+        self, client, base_data, admin_token, db_session
+    ):
+        """GET /warehouses/{id}/full must populate category fields when the product has one."""
+        company = base_data["company"]
+        cat = Category(id=uuid.uuid4(), company_id=company.id, name="Electrónica", color="#0000FF")
+        db_session.add(cat)
+        product = base_data["product1"]
+        product.category_id = cat.id
+        db_session.add(product)
+        db_session.add(InventoryItem(
+            id=uuid.uuid4(),
+            location_id=base_data["location1"].id,
+            product_id=product.id,
+            quantity=2,
+        ))
+        await db_session.commit()
+
+        wid = str(base_data["warehouse"].id)
+        response = await client.get(f"/warehouses/{wid}/full", headers={"Authorization": f"Bearer {admin_token}"})
+        assert response.status_code == 200
+
+        locations = response.json()["shelves"][0]["levels"][0]["locations"]
+        occupied = [l for l in locations if l["inventory"] is not None]
+        assert len(occupied) == 1
+        assert occupied[0]["inventory"]["product_category"] == "Electrónica"
+        assert occupied[0]["inventory"]["product_category_color"] == "#0000FF"
+
+    async def test_warehouse_full_active_task_with_origin_location(
+        self, client, base_data, admin_token, db_session
+    ):
+        """GET /warehouses/{id}/full includes origin_location_id in active_task_info."""
+        admin = base_data["admin"]
+        worker = base_data["worker"]
+        origin = base_data["location1"]
+        product = base_data["product1"]
+
+        db_session.add(InventoryItem(
+            id=uuid.uuid4(), location_id=origin.id, product_id=product.id, quantity=3,
+        ))
+        db_session.add(Task(
+            id=uuid.uuid4(),
+            company_id=admin.company_id,
+            created_by=admin.id,
+            assigned_to=worker.id,
+            type=TaskType.salida,
+            status=TaskStatus.pendiente,
+            origin_location_id=origin.id,
+            product_id=product.id,
+            quantity=1,
+        ))
+        await db_session.commit()
+
+        wid = str(base_data["warehouse"].id)
+        response = await client.get(f"/warehouses/{wid}/full", headers={"Authorization": f"Bearer {admin_token}"})
+        assert response.status_code == 200
+        body = response.json()
+        assert str(origin.id) in body["active_task_locations"]
+        assert body["active_task_info"][str(origin.id)] == "salida"
 
 
 # ---------------------------------------------------------------------------

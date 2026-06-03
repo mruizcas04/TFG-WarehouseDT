@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ActivityIndicator, Alert, RefreshControl, StatusBar,
@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useWebSocket } from '../context/WebSocketContext';
 import { apiFetch } from '../api/client';
 import { formatLocation } from '../utils/formatLocation';
 import {
@@ -26,6 +27,7 @@ function getFirstName(name = '') {
 
 export default function TasksScreen() {
   const { user } = useAuth();
+  const { subscribe } = useWebSocket();
   const navigation = useNavigation();
   const [tasks, setTasks] = useState([]);
   const [locationsMap, setLocationsMap] = useState({});
@@ -78,6 +80,19 @@ export default function TasksScreen() {
       fetchTasks();
     }, [fetchTasks])
   );
+
+  useEffect(() => {
+    const unsubAssigned = subscribe('task_assigned', (data) => {
+      if (data.assigned_to === user?.id) fetchTasks();
+    });
+    const unsubStatus = subscribe('task_status_changed', () => {
+      fetchTasks();
+    });
+    return () => {
+      unsubAssigned();
+      unsubStatus();
+    };
+  }, [subscribe, user?.id, fetchTasks]);
 
   const onRefresh = () => {
     setRefreshing(true);

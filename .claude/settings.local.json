@@ -69,7 +69,10 @@
       "Bash(Select-String -Pattern \"frontend|src|components\")",
       "Bash(Head -20)",
       "PowerShell(Head -20)",
-      "Bash(Remove-Item \"c:\\\\Users\\\\mruiz\\\\TFG\\\\backend\\\\app\\\\api\\\\boxes.py\")"
+      "Bash(Remove-Item \"c:\\\\Users\\\\mruiz\\\\TFG\\\\backend\\\\app\\\\api\\\\boxes.py\")",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\mruiz\\\\TFG\\\\backend\\\\app\" -Recurse -Depth 2 -Exclude \"__pycache__\" | Where-Object { $_.FullName -notmatch '__pycache__' } | ForEach-Object { $_.FullName.Replace\\(\"c:\\\\Users\\\\mruiz\\\\TFG\\\\backend\\\\app\", \"app\"\\) } | Sort-Object)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\mruiz\\\\TFG\\\\backend\\\\tests\\\\\" -Recurse -File -Include \"*.py\" | Select-Object -ExpandProperty FullName)",
+      "Bash(venv\\\\Scripts\\\\python.exe -m pytest tests/ --cov=app --cov-report=term-missing -v --tb=short)"
     ]
   }
 }

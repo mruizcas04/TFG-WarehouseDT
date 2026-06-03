@@ -25,7 +25,7 @@ from fastapi import HTTPException
 
 from app.api.tasks import create_task, get_tasks_by_user, update_task_status
 from app.models.models import (
-    User, UserRole, Task, TaskStatus, TaskType, InventoryItem, Box,
+    User, UserRole, Task, TaskStatus, TaskType, InventoryItem,
 )
 from app.schemas.schemas import TaskCreate, TaskStatusUpdate
 

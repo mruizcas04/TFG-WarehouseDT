@@ -15,9 +15,7 @@ export default function UsersSection() {
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: getUsers,
-    refetchInterval: 5_000,            // polling rápido para que is_online se sienta en tiempo real
-    refetchIntervalInBackground: true, // sigue refrescando aunque la pestaña no esté enfocada
-    staleTime: 0,
+    staleTime: 30_000,
   })
   const { data: inactiveUsers, isLoading: isLoadingInactive } = useQuery({
     queryKey: ['users-inactive'],
@@ -102,21 +100,23 @@ export default function UsersSection() {
             {roleLabel(user.role)}
           </span>
         </td>
-        <td style={{ padding: '12px 20px' }}>
-          {user.role === 'worker' && !inactive ? (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: '5px',
-              background: user.is_online ? '#EDFAF3' : '#F8F8F6',
-              color: user.is_online ? '#1A9A5A' : '#888780',
-              padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: '500',
-            }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: user.is_online ? '#2ECC71' : '#D3D1C7', flexShrink: 0 }} />
-              {user.is_online ? 'Conectado' : 'Desconectado'}
-            </span>
-          ) : (
-            <span style={{ color: '#D3D1C7', fontSize: '12px' }}>—</span>
-          )}
-        </td>
+        {!inactive && (
+          <td style={{ padding: '12px 20px' }}>
+            {user.role === 'worker' ? (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                background: user.is_online ? '#EDFAF3' : '#F8F8F6',
+                color: user.is_online ? '#1A9A5A' : '#888780',
+                padding: '3px 9px', borderRadius: '20px', fontSize: '11px', fontWeight: '500',
+              }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: user.is_online ? '#2ECC71' : '#D3D1C7', flexShrink: 0 }} />
+                {user.is_online ? 'Conectado' : 'Desconectado'}
+              </span>
+            ) : (
+              <span style={{ color: '#D3D1C7', fontSize: '12px' }}>—</span>
+            )}
+          </td>
+        )}
         <td style={{ padding: '12px 20px', color: '#888780' }}>
           {new Date(user.created_at).toLocaleDateString('es-ES')}
         </td>

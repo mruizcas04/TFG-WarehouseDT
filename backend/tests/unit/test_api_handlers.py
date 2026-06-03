@@ -23,12 +23,6 @@ from app.api.products import (
     update_product,
     delete_product,
 )
-from app.api.boxes import (
-    get_boxes,
-    create_box,
-    get_box,
-    update_box,
-)
 from app.api.shelves import (
     get_shelves,
     get_shelf,
@@ -41,8 +35,8 @@ from app.api.locations import (
     get_location_by_nfc,
     update_location_nfc,
 )
-from app.models.models import Product, Box, Shelf, Level, Location
-from app.schemas.schemas import ProductCreate, BoxCreate, LocationNFCUpdate
+from app.models.models import Product, Shelf, Level, Location
+from app.schemas.schemas import ProductCreate, LocationNFCUpdate
 
 
 # ---------------------------------------------------------------------------
@@ -233,89 +227,6 @@ class TestDeleteProduct:
 
         with pytest.raises(HTTPException) as exc_info:
             await delete_product(product_id=uuid.uuid4(), db=db, current_user=_mock_user())
-
-        assert exc_info.value.status_code == 404
-
-
-# ===========================================================================
-# Boxes
-# ===========================================================================
-
-class TestGetBoxes:
-
-    async def test_returns_all_company_boxes(self):
-        db = _mock_db()
-        mock_box = MagicMock(spec=Box)
-        db.execute.return_value = _list_result(mock_box)
-
-        result = await get_boxes(db=db, current_user=_mock_user())
-
-        assert len(result) == 1
-
-
-class TestCreateBox:
-
-    async def test_creates_and_returns_box(self):
-        """create_box persists a Box and returns it."""
-        db = _mock_db()
-        user = _mock_user()
-        box_data = BoxCreate(product_id=uuid.uuid4(), current_quantity=5, max_capacity=10)
-
-        result = await create_box(box_data=box_data, db=db, current_user=user)
-
-        db.add.assert_called_once()
-        db.commit.assert_awaited_once()
-        assert result.current_quantity == 5
-        assert result.max_capacity == 10
-
-
-class TestGetBox:
-
-    async def test_found_returns_box(self):
-        db = _mock_db()
-        mock_box = MagicMock(spec=Box)
-        db.execute.return_value = _single(mock_box)
-
-        result = await get_box(box_id=uuid.uuid4(), db=db, current_user=_mock_user())
-
-        assert result is mock_box
-
-    async def test_not_found_raises_404(self):
-        db = _mock_db()
-        db.execute.return_value = _single(None)
-
-        with pytest.raises(HTTPException) as exc_info:
-            await get_box(box_id=uuid.uuid4(), db=db, current_user=_mock_user())
-
-        assert exc_info.value.status_code == 404
-
-
-class TestUpdateBox:
-
-    async def test_updates_and_returns_box(self):
-        db = _mock_db()
-        mock_box = MagicMock(spec=Box)
-        db.execute.return_value = _single(mock_box)
-
-        box_data = BoxCreate(product_id=uuid.uuid4(), current_quantity=8, max_capacity=20)
-        result = await update_box(box_id=uuid.uuid4(), box_data=box_data, db=db, current_user=_mock_user())
-
-        assert mock_box.current_quantity == 8
-        assert mock_box.max_capacity == 20
-        db.commit.assert_awaited_once()
-        assert result is mock_box
-
-    async def test_not_found_raises_404(self):
-        db = _mock_db()
-        db.execute.return_value = _single(None)
-
-        with pytest.raises(HTTPException) as exc_info:
-            await update_box(
-                box_id=uuid.uuid4(),
-                box_data=BoxCreate(product_id=uuid.uuid4(), current_quantity=1, max_capacity=5),
-                db=db,
-                current_user=_mock_user(),
-            )
 
         assert exc_info.value.status_code == 404
 

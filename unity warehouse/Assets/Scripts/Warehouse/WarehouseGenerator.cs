@@ -383,6 +383,7 @@ namespace WarehouseTwin.Warehouse
 
                         LocationObject locObj = locationGO.GetComponent<LocationObject>();
                         locObj.Initialize(location.id, LocationObject.StateFromInventory(location.inventory));
+                        
                         locObj.SetCellSize(new Vector3(
                             shelfDepth - locationPadding,
                             shelfHeight - locationPadding,

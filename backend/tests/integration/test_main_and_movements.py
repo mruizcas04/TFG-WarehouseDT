@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models.models import (
-    Box, InventoryItem, MovementType, Task, TaskType,
+    InventoryItem, MovementType, Task, TaskType,
 )
 from app.core.security import create_access_token
 
@@ -122,18 +122,18 @@ class TestMovementsHttp:
             )
 
         assert response.status_code == 201
-        # InventoryItem points to product directly, no box
+        # InventoryItem points to product directly
         from sqlalchemy import select
         item = (await db_session.execute(
             select(InventoryItem).where(InventoryItem.location_id == loc.id)
         )).scalar_one()
         assert item.product_id == product.id
-        assert item.box_id is None
+        assert item.quantity == 1
 
-    async def test_create_entrada_with_quantity_greater_than_one_creates_box(
+    async def test_create_entrada_with_quantity_greater_than_one_stores_quantity(
         self, client, base_data, admin_token, db_session
     ):
-        """quantity>1 entrada auto-creates a Box."""
+        """quantity>1 entrada stores the quantity directly on the InventoryItem."""
         loc = base_data["location1"]
         product = base_data["product1"]
         task = await self._seed_task(
@@ -159,10 +159,8 @@ class TestMovementsHttp:
         item = (await db_session.execute(
             select(InventoryItem).where(InventoryItem.location_id == loc.id)
         )).scalar_one()
-        assert item.box_id is not None
-        box = (await db_session.execute(select(Box).where(Box.id == item.box_id))).scalar_one()
-        assert box.current_quantity == 3
-        assert box.max_capacity == 3
+        assert item.product_id == product.id
+        assert item.quantity == 3
 
     async def test_create_entrada_without_destination_returns_400(
         self, client, base_data, admin_token, db_session

@@ -1,16 +1,10 @@
 """
-Integration tests for the accumulation and box-based flows that the existing
-suite touches only superficially.
+Integration tests for accumulation and inventory exit flows.
 
-Areas hit:
-  * tasks.py – entrada onto an already-occupied location when the product
-    allows accumulation (`units_per_location`) and the salida/traslado
-    branches that need to inspect the origin's box.
-  * movements.py – partial and full salida that mutate or remove a Box.
-
-These flows are the trickiest in the codebase because they interleave
-InventoryItem + Box state, so the assertions verify the DB state after
-each call rather than just the response shape.
+Areas covered:
+  * tasks.py  – entrada onto an already-occupied location (accumulation rules)
+  * tasks.py  – salida/traslado validation against origin inventory
+  * movements.py – partial and full salida that mutate or remove an InventoryItem
 
 Pattern: Arrange → Act → Assert
 """
@@ -22,7 +16,7 @@ import pytest
 from sqlalchemy import select
 
 from app.models.models import (
-    Box, InventoryItem, Movement, MovementType, Product,
+    InventoryItem, Movement, MovementType, Product,
     Task, TaskStatus, TaskType,
 )
 
@@ -59,10 +53,6 @@ class TestEntradaAccumulation:
     async def test_create_task_succeeds_when_destination_has_same_product_below_limit(
         self, client, base_data, admin_token, db_session
     ):
-        """
-        entrada task onto a location that already holds the same product is OK
-        when the product's units_per_location permits the new total.
-        """
         worker = base_data["worker"]
         loc = base_data["location1"]
         product = base_data["product1"]
@@ -125,11 +115,9 @@ class TestEntradaAccumulation:
     async def test_create_task_fails_when_product_does_not_allow_accumulation(
         self, client, base_data, admin_token, db_session
     ):
-        """Same product but no units_per_location → cannot accumulate, returns 400."""
         worker = base_data["worker"]
         loc = base_data["location1"]
         product = base_data["product1"]
-        # product.units_per_location stays None
         db_session.add(InventoryItem(
             id=uuid.uuid4(),
             location_id=loc.id,
@@ -155,7 +143,6 @@ class TestEntradaAccumulation:
     async def test_create_task_fails_when_quantity_exceeds_units_per_location_on_empty(
         self, client, base_data, admin_token, db_session
     ):
-        """Empty destination, but the requested qty alone exceeds units_per_location."""
         worker = base_data["worker"]
         loc = base_data["location1"]
         product = base_data["product1"]
@@ -178,12 +165,12 @@ class TestEntradaAccumulation:
 
 
 # ---------------------------------------------------------------------------
-# Tasks.salida / traslado with box-backed origin
+# Tasks.salida / traslado — origin inventory validation
 # ---------------------------------------------------------------------------
 
-class TestSalidaTrasladoBoxOrigin:
+class TestSalidaTrasladoOriginValidation:
 
-    async def test_salida_from_loose_origin_succeeds(
+    async def test_salida_from_product_origin_succeeds(
         self, client, base_data, admin_token, db_session
     ):
         worker = base_data["worker"]
@@ -193,7 +180,7 @@ class TestSalidaTrasladoBoxOrigin:
             id=uuid.uuid4(),
             location_id=origin.id,
             product_id=product.id,
-            quantity=1,
+            quantity=5,
         ))
         await db_session.commit()
 
@@ -207,24 +194,23 @@ class TestSalidaTrasladoBoxOrigin:
                     "type": "salida",
                     "origin_location_id": str(origin.id),
                     "product_id": str(product.id),
-                    "quantity": 1,
+                    "quantity": 3,
                 },
             )
         assert response.status_code == 201
 
-    async def test_salida_from_box_origin_quantity_exceeds_box_returns_400(
+    async def test_salida_quantity_exceeds_inventory_returns_400(
         self, client, base_data, admin_token, db_session
     ):
+        """Requesting more units than the location holds must return 400."""
         worker = base_data["worker"]
         origin = base_data["location1"]
         product = base_data["product1"]
-        box = base_data["box"]  # current_quantity=10
         db_session.add(InventoryItem(
             id=uuid.uuid4(),
             location_id=origin.id,
-            product_id=None,
-            box_id=box.id,
-            quantity=None,
+            product_id=product.id,
+            quantity=10,
         ))
         await db_session.commit()
 
@@ -236,25 +222,25 @@ class TestSalidaTrasladoBoxOrigin:
                 "type": "salida",
                 "origin_location_id": str(origin.id),
                 "product_id": str(product.id),
-                "quantity": 999,  # box only has 10
+                "quantity": 999,  # only 10 available
             },
         )
         assert response.status_code == 400
         assert "supera" in response.json()["detail"].lower()
 
-    async def test_salida_product_mismatch_with_box_returns_400(
+    async def test_salida_product_mismatch_returns_400(
         self, client, base_data, admin_token, db_session
     ):
+        """Requesting salida of a product not stored at the origin must return 400."""
         worker = base_data["worker"]
         origin = base_data["location1"]
-        wrong_product = base_data["product2"]  # box holds product1
-        box = base_data["box"]
+        product1 = base_data["product1"]
+        product2 = base_data["product2"]
         db_session.add(InventoryItem(
             id=uuid.uuid4(),
             location_id=origin.id,
-            product_id=None,
-            box_id=box.id,
-            quantity=None,
+            product_id=product1.id,
+            quantity=5,
         ))
         await db_session.commit()
 
@@ -265,7 +251,7 @@ class TestSalidaTrasladoBoxOrigin:
                 "assigned_to": str(worker.id),
                 "type": "salida",
                 "origin_location_id": str(origin.id),
-                "product_id": str(wrong_product.id),
+                "product_id": str(product2.id),  # wrong product
                 "quantity": 1,
             },
         )
@@ -274,19 +260,21 @@ class TestSalidaTrasladoBoxOrigin:
 
 
 # ---------------------------------------------------------------------------
-# Movements: partial / full salida from a Box
+# Movements: partial / full salida
 # ---------------------------------------------------------------------------
 
-class TestSalidaFromBoxHttp:
+class TestSalidaMovements:
 
-    async def test_partial_salida_decrements_box_keeps_item(
+    async def test_partial_salida_decrements_quantity_keeps_item(
         self, client, base_data, admin_token, db_session
     ):
+        """Partial exit reduces item.quantity; the InventoryItem stays."""
         admin = base_data["admin"]
         worker = base_data["worker"]
         origin = base_data["location1"]
-        box = base_data["box"]  # qty 10
+        product = base_data["product1"]
         task_id = uuid.uuid4()
+        item_id = uuid.uuid4()
         db_session.add_all([
             Task(
                 id=task_id,
@@ -295,13 +283,14 @@ class TestSalidaFromBoxHttp:
                 assigned_to=worker.id,
                 type=TaskType.salida,
                 origin_location_id=origin.id,
+                product_id=product.id,
+                quantity=3,
             ),
             InventoryItem(
-                id=uuid.uuid4(),
+                id=item_id,
                 location_id=origin.id,
-                product_id=None,
-                box_id=box.id,
-                quantity=None,
+                product_id=product.id,
+                quantity=10,
             ),
         ])
         await db_session.commit()
@@ -315,26 +304,26 @@ class TestSalidaFromBoxHttp:
                     "task_id": str(task_id),
                     "type": "salida",
                     "origin_location_id": str(origin.id),
-                    "product_id": str(base_data["product1"].id),
+                    "product_id": str(product.id),
                     "quantity": 3,
                 },
             )
         assert response.status_code == 201
-        await db_session.refresh(box)
-        assert box.current_quantity == 7
-        # Item still in location
+
         item = (await db_session.execute(
-            select(InventoryItem).where(InventoryItem.location_id == origin.id)
+            select(InventoryItem).where(InventoryItem.id == item_id)
         )).scalar_one_or_none()
         assert item is not None
+        assert item.quantity == 7
 
     async def test_full_salida_deletes_item(
         self, client, base_data, admin_token, db_session
     ):
+        """Full exit removes the InventoryItem, leaving the location free."""
         admin = base_data["admin"]
         worker = base_data["worker"]
         origin = base_data["location1"]
-        box = base_data["box"]  # qty 10
+        product = base_data["product1"]
         task_id = uuid.uuid4()
         db_session.add_all([
             Task(
@@ -344,13 +333,14 @@ class TestSalidaFromBoxHttp:
                 assigned_to=worker.id,
                 type=TaskType.salida,
                 origin_location_id=origin.id,
+                product_id=product.id,
+                quantity=10,
             ),
             InventoryItem(
                 id=uuid.uuid4(),
                 location_id=origin.id,
-                product_id=None,
-                box_id=box.id,
-                quantity=None,
+                product_id=product.id,
+                quantity=10,
             ),
         ])
         await db_session.commit()
@@ -364,12 +354,13 @@ class TestSalidaFromBoxHttp:
                     "task_id": str(task_id),
                     "type": "salida",
                     "origin_location_id": str(origin.id),
-                    "product_id": str(base_data["product1"].id),
-                    "quantity": 10,  # full
+                    "product_id": str(product.id),
+                    "quantity": 10,
                 },
             )
         assert response.status_code == 201
+
         item = (await db_session.execute(
             select(InventoryItem).where(InventoryItem.location_id == origin.id)
         )).scalar_one_or_none()
-        assert item is None  # InventoryItem removed
+        assert item is None

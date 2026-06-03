@@ -50,4 +50,10 @@ class WebSocketService:
             "destination_location_id": destination_location_id,
         })
 
+    async def broadcast_user_status_changed(self, user_id: str, is_online: bool):
+        await self.broadcast("user_status_changed", {
+            "user_id": user_id,
+            "is_online": is_online,
+        })
+
 websocket_service = WebSocketService()

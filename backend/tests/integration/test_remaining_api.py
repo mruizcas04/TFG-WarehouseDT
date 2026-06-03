@@ -6,7 +6,6 @@ This file covers endpoints that were not yet exercised:
   GET  /auth/users               — list company users (admin)
   DELETE /auth/users/{id}        — deactivate a user (admin)
   POST /auth/change-password     — password change flow
-  GET/POST/PUT  /boxes           — box management
   GET           /warehouses/{id}/shelves, /shelves/{id}, /shelves/{id}/levels, /levels/{id}
   GET/PUT       /levels/{id}/locations, /locations/{id}, /locations/nfc/{tag}
 
@@ -216,95 +215,6 @@ class TestAuthChangePassword:
             json={"current_password": "admin123", "new_password": "short"},
         )
         assert response.status_code == 422
-
-
-# ---------------------------------------------------------------------------
-# Boxes CRUD
-# ---------------------------------------------------------------------------
-
-class TestBoxesCrud:
-
-    async def test_admin_can_list_boxes_returns_200(
-        self, client, base_data, admin_token
-    ):
-        """GET /boxes must return all boxes for the company including the one in base_data."""
-        response = await client.get(
-            "/boxes", headers={"Authorization": f"Bearer {admin_token}"}
-        )
-        assert response.status_code == 200
-        assert isinstance(response.json(), list)
-        assert len(response.json()) >= 1
-
-    async def test_admin_can_create_box_returns_201(
-        self, client, base_data, admin_token
-    ):
-        """POST /boxes must create a new box linked to a product and return 201."""
-        response = await client.post(
-            "/boxes",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={
-                "product_id": str(base_data["product1"].id),
-                "current_quantity": 5,
-                "max_capacity": 10,
-            },
-        )
-        assert response.status_code == 201
-        body = response.json()
-        assert body["current_quantity"] == 5
-        assert body["max_capacity"] == 10
-
-    async def test_can_get_box_by_id_returns_200(
-        self, client, base_data, worker_token
-    ):
-        """GET /boxes/{id} must return the box details."""
-        box_id = str(base_data["box"].id)
-        response = await client.get(
-            f"/boxes/{box_id}", headers={"Authorization": f"Bearer {worker_token}"}
-        )
-        assert response.status_code == 200
-        assert response.json()["id"] == box_id
-
-    async def test_get_box_not_found_returns_404(
-        self, client, base_data, worker_token
-    ):
-        """GET /boxes/{id} for an unknown box must return 404."""
-        response = await client.get(
-            f"/boxes/{uuid.uuid4()}",
-            headers={"Authorization": f"Bearer {worker_token}"},
-        )
-        assert response.status_code == 404
-
-    async def test_admin_can_update_box_returns_200(
-        self, client, base_data, admin_token
-    ):
-        """PUT /boxes/{id} must update box quantities and return the updated record."""
-        box_id = str(base_data["box"].id)
-        response = await client.put(
-            f"/boxes/{box_id}",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={
-                "product_id": str(base_data["product1"].id),
-                "current_quantity": 8,
-                "max_capacity": 20,
-            },
-        )
-        assert response.status_code == 200
-        assert response.json()["current_quantity"] == 8
-
-    async def test_update_nonexistent_box_returns_404(
-        self, client, base_data, admin_token
-    ):
-        """PUT /boxes/{id} for an unknown box must return 404."""
-        response = await client.put(
-            f"/boxes/{uuid.uuid4()}",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={
-                "product_id": str(base_data["product1"].id),
-                "current_quantity": 1,
-                "max_capacity": 5,
-            },
-        )
-        assert response.status_code == 404
 
 
 # ---------------------------------------------------------------------------

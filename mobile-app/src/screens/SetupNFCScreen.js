@@ -105,8 +105,8 @@ export default function SetupNFCScreen() {
 
       const rawId = tag.id;
       const tagId = Array.isArray(rawId)
-        ? rawId.map(b => b.toString(16).padStart(2, '0')).join('')
-        : String(rawId);
+        ? rawId.map(b => b.toString(16).padStart(2, '0')).join('') // Android: [4, 163, 242] → "04a3f2"
+        : String(rawId); // iOS: string directo
 
       await apiFetch(`/locations/${location.id}/nfc`, {
         method: 'PUT',
@@ -507,11 +507,18 @@ const styles = StyleSheet.create({
 
   cameraContainer: {
     height: 200,
+    width: '100%',
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
     marginVertical: SPACING.md,
   },
-  camera: { flex: 1 },
+  camera: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
 
   productCard: {
     backgroundColor: COLORS.bg,

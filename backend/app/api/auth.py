@@ -11,6 +11,7 @@ from app.schemas.schemas import (
     ForgotPasswordRequest, ResetPasswordRequest,
 )
 from app.api.deps import get_current_admin, get_current_user, get_user_from_token
+from app.services.websocket_service import websocket_service
 from datetime import datetime, timedelta
 import uuid
 import secrets
@@ -54,6 +55,7 @@ async def login(
         )
     )
     await db.commit()
+    await websocket_service.broadcast_user_status_changed(str(user.id), True)
 
     access_token = create_access_token(data={
         "sub": str(user.id),
@@ -262,6 +264,7 @@ async def logout(
         update(User).where(User.id == current_user.id).values(is_online=False)
     )
     await db.commit()
+    await websocket_service.broadcast_user_status_changed(str(current_user.id), False)
 
 
 @router.post("/change-password", response_model=Token)

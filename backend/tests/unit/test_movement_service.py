@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch, call
 from fastapi import HTTPException
 
 from app.api.movements import create_movement
-from app.models.models import InventoryItem, Box, User, UserRole, MovementType
+from app.models.models import InventoryItem, User, UserRole, MovementType
 from app.schemas.schemas import MovementCreate
 
 
@@ -174,10 +174,10 @@ class TestSalidaValidation:
         user = _make_user()
         origin_id = uuid.uuid4()
 
-        # Item at origin: standalone product (no box)
+        # Item at origin: standalone product
         item = MagicMock(spec=InventoryItem)
-        item.box_id = None
         item.product_id = uuid.uuid4()
+        item.quantity = 5
 
         db.execute.return_value = MagicMock(
             **{"scalar_one_or_none.return_value": item}
@@ -241,27 +241,22 @@ class TestWebSocketBroadcast:
         assert "movement_id" in call_kwargs
         assert "data" in call_kwargs
 
-    async def test_movement_without_product_or_box_raises_400(self):
+    async def test_movement_without_product_raises_400(self):
         """
-        A non-salida movement that specifies neither product_id nor box_id
-        must be rejected immediately with HTTP 400 before any DB query.
-        This is the 'must affect something' invariant.
+        A movement with product_id=None must be rejected with HTTP 400
+        before any DB query.
         """
-        # Arrange
         db = _mock_db()
         user = _make_user()
 
         movement_data = MovementCreate(
             task_id=uuid.uuid4(),
             type=MovementType.entrada,
-            product_id=None,    # nothing specified
-            box_id=None,
+            product_id=None,
             destination_location_id=uuid.uuid4(),
         )
 
-        # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             await create_movement(movement_data, db, user)
         assert exc_info.value.status_code == 400
-        # No DB call should have been made
         db.execute.assert_not_called()

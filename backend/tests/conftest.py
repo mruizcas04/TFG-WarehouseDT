@@ -63,7 +63,7 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.db.database import get_db, Base
 from app.models.models import (
-    User, UserRole, Company, Warehouse, Shelf, Level, Location, Product, Box,
+    User, UserRole, Company, Warehouse, Shelf, Level, Location, Product,
 )
 from app.core.security import get_password_hash, create_access_token
 from app.core import email as email_module
@@ -173,7 +173,7 @@ async def base_data(db_session):
              ├─ worker (UserRole.worker)
              └─ warehouse ── shelf ── level ─┬─ location1 (empty)
                                               └─ location2 (empty)
-    product1 (barcode BAR001) ── box (10/20 units of product1)
+    product1 (barcode BAR001)
     product2 (barcode BAR002)
     """
     company = Company(id=uuid.uuid4(), name="Test Company")
@@ -242,14 +242,6 @@ async def base_data(db_session):
     db_session.add_all([product1, product2])
     await db_session.flush()
 
-    box = Box(
-        id=uuid.uuid4(),
-        company_id=company.id,
-        product_id=product1.id,
-        current_quantity=10,
-        max_capacity=20,
-    )
-    db_session.add(box)
     await db_session.commit()
 
     return {
@@ -263,7 +255,6 @@ async def base_data(db_session):
         "location2": location2,
         "product1": product1,
         "product2": product2,
-        "box": box,
     }
 
 

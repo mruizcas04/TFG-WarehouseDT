@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
 import { logoutApi } from '../api/auth'
 import HomeSection from './sections/HomeSection'
@@ -51,7 +52,27 @@ export default function Dashboard() {
   const [selectedLocationPreview, setSelectedLocationPreview] = useState(null)
   const digitalTwinRef = useRef(null)
   const logout = useAuthStore((state) => state.logout)
+  const token = useAuthStore((state) => state.token)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    if (!token) return
+    const ws = new WebSocket(`ws://127.0.0.1:8000/ws?token=${token}`)
+    ws.onmessage = (e) => {
+      try {
+        const { event, data } = JSON.parse(e.data)
+        if (event === 'user_status_changed') {
+          queryClient.setQueryData(['users'], (old) =>
+            old?.map(u => u.id === data.user_id ? { ...u, is_online: data.is_online } : u)
+          )
+        } else if (event === 'task_assigned' || event === 'task_status_changed') {
+          queryClient.invalidateQueries({ queryKey: ['tasks'] })
+        }
+      } catch {}
+    }
+    return () => ws.close()
+  }, [token, queryClient])
 
   useEffect(() => {
     if (activeSection === 'warehouse') setWarehouseLoaded(true)

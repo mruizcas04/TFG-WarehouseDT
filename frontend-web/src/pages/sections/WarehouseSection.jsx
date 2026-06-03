@@ -233,9 +233,12 @@ export default function WarehouseSection({
     setAisles(updated)
   }
 
-  const totalLocations = aisles.reduce((acc, aisle) => acc + aisle.shelves.reduce((a, s) => a + (aisle.is_double ? 2 : 1) * s.num_levels * s.num_locations, 0), 0)
-  const totalShelves = aisles.reduce((acc, aisle) => acc + aisle.shelves.length * (aisle.is_double ? 2 : 1), 0)
-  const totalRows = aisles.reduce((acc, aisle) => acc + (aisle.is_double ? 2 : 1), 0)
+  const totalLocations = aisles.reduce((acc, aisle) => 
+    acc + aisle.shelves.reduce((a, s) => a + (aisle.is_double ? 2 : 1) * s.num_levels * s.num_locations, 0), 0)
+  const totalShelves = aisles.reduce((acc, aisle) => 
+    acc + aisle.shelves.length * (aisle.is_double ? 2 : 1), 0)
+  const totalRows = aisles.reduce((acc, aisle) => 
+    acc + (aisle.is_double ? 2 : 1), 0)
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -292,7 +295,7 @@ export default function WarehouseSection({
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <label style={labelStyle}>Filas ({aisles.length})</label>
+                <label style={labelStyle}>Filas ({totalRows})</label>
                 <button type="button" onClick={addAisle}
                   style={{ background: '#F1EFE8', color: '#185FA5', border: 'none', padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}>
                   + Añadir fila

@@ -30,7 +30,7 @@ from app.api.tasks import (
 )
 from app.models.models import (
     User, UserRole, Task, TaskStatus, TaskType,
-    InventoryItem, Box, Movement, Product,
+    InventoryItem, Movement, Product,
 )
 from app.schemas.schemas import TaskCreate, TaskStatusUpdate
 

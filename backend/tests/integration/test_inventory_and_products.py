@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from app.models.models import (
-    Box, InventoryItem, Task, TaskType, TaskStatus,
+    InventoryItem, Task, TaskType, TaskStatus,
 )
 
 

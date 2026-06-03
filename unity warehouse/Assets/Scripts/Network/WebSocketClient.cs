@@ -31,9 +31,9 @@ namespace WarehouseTwin.Network
 
         private void Update()
         {
-#if !UNITY_WEBGL || UNITY_EDITOR
-            _socket?.DispatchMessageQueue();
-#endif
+            #if !UNITY_WEBGL || UNITY_EDITOR
+                _socket?.DispatchMessageQueue();
+            #endif
         }
 
         public async void ConnectAsync(string authToken)

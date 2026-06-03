@@ -26,7 +26,7 @@ from app.api.inventory import get_inventory, get_inventory_item
 from app.api.locations import setup_location_inventory
 from app.api.movements import create_movement
 from app.models.models import (
-    User, UserRole, InventoryItem, Box, Product, Movement, MovementType,
+    User, UserRole, InventoryItem, Product, Movement, MovementType,
 )
 from app.schemas.schemas import (
     ForgotPasswordRequest, ResetPasswordRequest,
@@ -254,7 +254,8 @@ class TestLocationSetupHandler:
         assert result == {"success": True}
         db.commit.assert_awaited_once()
 
-    async def test_setup_with_quantity_above_one_creates_box(self):
+    async def test_setup_with_quantity_above_one_creates_single_item(self):
+        """quantity>1 stores directly in InventoryItem.quantity — no Box created."""
         db = _mock_db()
         loc = MagicMock()
         product = MagicMock(spec=Product)
@@ -271,9 +272,9 @@ class TestLocationSetupHandler:
                 db=db,
                 current_user=_admin(),
             )
-        # First add was for Box, second add was for InventoryItem
-        assert db.add.call_count == 2
-        db.flush.assert_awaited_once()
+        # Only one add: the InventoryItem itself (no intermediate Box)
+        assert db.add.call_count == 1
+        db.commit.assert_awaited_once()
 
     async def test_setup_unknown_location_raises_404(self):
         db = _mock_db()
@@ -378,13 +379,13 @@ class TestCreateMovementBranches:
         added_types = [type(c.args[0]).__name__ for c in db.add.call_args_list]
         assert "Box" not in added_types
 
-    async def test_entrada_empty_loc_quantity_three_creates_box(self):
-        """quantity>1 entrada onto empty location auto-creates a Box."""
+    async def test_entrada_empty_loc_quantity_three_stores_quantity(self):
+        """quantity>1 entrada onto empty location stores quantity directly on InventoryItem."""
         db = _mock_db()
         user = self._user()
         db.execute.side_effect = [
             _single(None),  # destination empty
-            _single(None),  # product fetch returns None → fall through
+            _single(None),  # product fetch returns None → no units_per_location check
         ]
 
         with patch("app.api.movements.websocket_service") as ws:
@@ -399,9 +400,10 @@ class TestCreateMovementBranches:
                 ),
                 db, user,
             )
-        # Box plus InventoryItem plus Movement = 3 adds
+        # InventoryItem plus Movement = 2 adds (no Box)
         added_types = [type(c.args[0]).__name__ for c in db.add.call_args_list]
-        assert "Box" in added_types
+        assert "Box" not in added_types
+        assert "InventoryItem" in added_types
 
     async def test_entrada_accumulation_succeeds_with_units_per_location(self):
         """entrada onto an occupied loc with same product + units_per_location."""
@@ -570,7 +572,7 @@ class TestCreateMovementBranches:
 
         item = MagicMock(spec=InventoryItem)
         item.product_id = uuid.uuid4()
-        item.box_id = None
+        item.quantity = 1  # quantity_out == quantity → full exit → delete
 
         db.execute.return_value = _single(item)
 
