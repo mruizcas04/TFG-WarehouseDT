@@ -24,28 +24,36 @@ class WebSocketService:
         for connection in disconnected:
             self.disconnect(connection)
 
-    async def broadcast_inventory_updated(self, location_id: str, data: dict):
-        await self.broadcast("inventory_updated", {
-            "location_id": location_id,
-            **data
-        })
-
-    async def broadcast_movement_created(self, movement_id: str, data: dict):
+    async def broadcast_movement_created(self, movement_id: str, data: dict,
+                                          origin_inventory: dict | None = None,
+                                          destination_inventory: dict | None = None):
         await self.broadcast("movement_created", {
             "movement_id": movement_id,
-            **data
+            **data,
+            "origin_inventory": origin_inventory,
+            "destination_inventory": destination_inventory,
         })
 
-    async def broadcast_task_assigned(self, task_id: str, assigned_to: str):
+    async def broadcast_task_assigned(self, task_id: str, assigned_to: str, origin_location_id: str | None = None, destination_location_id: str | None = None):
         await self.broadcast("task_assigned", {
             "task_id": task_id,
-            "assigned_to": assigned_to
+            "assigned_to": assigned_to,
+            "origin_location_id": origin_location_id,
+            "destination_location_id": destination_location_id,
         })
 
-    async def broadcast_task_status_changed(self, task_id: str, status: str):
+    async def broadcast_task_status_changed(self, task_id: str, status: str, origin_location_id: str | None = None, destination_location_id: str | None = None):
         await self.broadcast("task_status_changed", {
             "task_id": task_id,
-            "status": status
+            "status": status,
+            "origin_location_id": origin_location_id,
+            "destination_location_id": destination_location_id,
+        })
+
+    async def broadcast_user_status_changed(self, user_id: str, is_online: bool):
+        await self.broadcast("user_status_changed", {
+            "user_id": user_id,
+            "is_online": is_online,
         })
 
 websocket_service = WebSocketService()

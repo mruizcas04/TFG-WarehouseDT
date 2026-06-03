@@ -10,7 +10,6 @@ export const createTask = async (data) => {
   return response.data
 }
 
-export const updateTaskStatus = async ({ id, status }) => {
-  const response = await client.put(`/tasks/${id}/status`, { status })
-  return response.data
+export const deleteTask = async (id) => {
+  await client.delete(`/tasks/${id}`)
 }

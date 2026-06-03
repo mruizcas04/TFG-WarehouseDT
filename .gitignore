@@ -15,6 +15,14 @@ unity/Temp/
 unity/Logs/
 unity/obj/
 unity/Build/
+unity/Builds/
+unity/UserSettings/
+unity/.vsconfig
+unity/**/*.csproj
+unity/**/*.sln
+unity/**/*.suo
+unity/**/*.tmp
+unity/**/*.unityproj
 
 # OS
 .DS_Store

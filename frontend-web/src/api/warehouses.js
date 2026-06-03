@@ -10,22 +10,33 @@ export const createWarehouse = async (data) => {
   return response.data
 }
 
-export const getWarehouse = async (id) => {
-  const response = await client.get(`/warehouses/${id}`)
+export const getWarehouseFull = async (id) => {
+  const response = await client.get(`/warehouses/${id}/full`)
   return response.data
 }
 
-export const getShelves = async (warehouseId) => {
-  const response = await client.get(`/warehouses/${warehouseId}/shelves`)
+export const expandWarehouse = async (id, data) => {
+  const response = await client.post(`/warehouses/${id}/expand`, data)
   return response.data
 }
 
-export const getLevels = async (shelfId) => {
-  const response = await client.get(`/shelves/${shelfId}/levels`)
-  return response.data
-}
-
-export const getLocations = async (levelId) => {
-  const response = await client.get(`/levels/${levelId}/locations`)
-  return response.data
+export const flattenLocations = (warehouse) => {
+  const result = []
+  for (const shelf of warehouse?.shelves || []) {
+    for (const level of shelf.levels || []) {
+      for (const loc of level.locations || []) {
+        result.push({
+          id: loc.id,
+          label: `Fila ${shelf.aisle_number} · Est. ${shelf.shelf_number} · Nivel ${level.level_number} · Pos. ${loc.position_number}`,
+          nfc_tag: loc.nfc_tag,
+          aisle_number: shelf.aisle_number,
+          shelf_number: shelf.shelf_number,
+          level_number: level.level_number,
+          position_number: loc.position_number,
+          inventory: loc.inventory || null,
+        })
+      }
+    }
+  }
+  return result
 }

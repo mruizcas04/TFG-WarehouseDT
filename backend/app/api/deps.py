@@ -42,3 +42,31 @@ async def get_current_admin(
             detail="Acceso restringido a administradores"
         )
     return current_user
+
+async def get_user_from_token(token: str, db: AsyncSession) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Credenciales inválidas",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    payload = decode_access_token(token)
+    if payload is None:
+        raise credentials_exception
+    
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise credentials_exception
+    
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if user is None:
+        raise credentials_exception
+    
+    if user.role != UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso restringido a administradores"
+        )
+    
+    return user

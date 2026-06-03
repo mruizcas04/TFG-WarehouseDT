@@ -1,0 +1,14 @@
+[run]
+# Tell coverage.py to trace through asyncio coroutines and threads, which
+# is what httpx.ASGITransport uses to dispatch integration-test requests.
+# Without this, FastAPI route handlers called through HTTP don't get
+# marked as covered even though they execute.
+concurrency = thread,greenlet
+source = app
+branch = True
+
+[report]
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
+    if __name__ == .__main__.:
