@@ -1,5 +1,5 @@
 // Cambia esta IP por la de tu PC en la red local (ejecuta `ipconfig` en Windows)
-export const API_URL = 'http://192.168.1.48:8000';
+export const API_URL = 'https://tfg-production-1c10.up.railway.app';
 
 export async function apiFetch(path, options = {}, token = null) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };

@@ -1,0 +1,13 @@
+node_modules
+.git
+.expo
+dist
+web-build
+build
+coverage
+*.log
+*.tar.gz
+*.zip
+*.mp4
+*.mov
+*.pdf
