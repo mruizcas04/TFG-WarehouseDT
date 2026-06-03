@@ -31,9 +31,7 @@ export default function HomeSection() {
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: getUsers })
 
   const warehouse = warehouses?.[0]
-  const totalLocations = warehouse
-    ? warehouse.num_shelves * warehouse.num_levels * warehouse.num_locations
-    : 0
+  const totalLocations = warehouse?.total_locations ?? 0
 
   const pendingTasks = tasks?.filter(t => t.status === 'pendiente') || []
   const activeTasks = tasks?.filter(t => t.status === 'en_curso') || []

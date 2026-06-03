@@ -5,6 +5,7 @@
             "previewLimit": 50,
             "server": "localhost",
             "port": 5434,
+            "askForPassword": true,
             "driver": "PostgreSQL",
             "name": "warehouse_db",
             "username": "warehouse_user",
