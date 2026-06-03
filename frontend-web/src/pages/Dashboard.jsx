@@ -58,7 +58,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!token) return
-    const ws = new WebSocket(`ws://127.0.0.1:8000/ws?token=${token}`)
+   const WS_URL =
+  import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000'
+
+const ws = new WebSocket(`${WS_URL}/ws?token=${token}`)
     ws.onmessage = (e) => {
       try {
         const { event, data } = JSON.parse(e.data)

@@ -1,6 +1,6 @@
 import client from './client'
 
-export const API_BASE = 'http://127.0.0.1:8000'
+export const API_BASE =  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
 export const getProducts = async () => {
   const response = await client.get('/products')
