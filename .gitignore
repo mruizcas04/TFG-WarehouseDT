@@ -9,21 +9,24 @@ venv/
 node_modules/
 .next/
 
-# Unity
-unity/Library/
-unity/Temp/
-unity/Logs/
-unity/obj/
-unity/Build/
-unity/Builds/
-unity/UserSettings/
-unity/.vsconfig
-unity/**/*.csproj
-unity/**/*.sln
-unity/**/*.suo
-unity/**/*.tmp
-unity/**/*.unityproj
-
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude
+.claude/
+
+# VSCode
+.vscode/
+
+# Unity
+unity warehouse/Library/
+unity warehouse/Logs/
+unity warehouse/Temp/
+unity warehouse/Obj/
+unity warehouse/UserSettings/
+
+# Visual Studio
+unity warehouse/*.csproj
+unity warehouse/*.sln
+unity warehouse/*.user
