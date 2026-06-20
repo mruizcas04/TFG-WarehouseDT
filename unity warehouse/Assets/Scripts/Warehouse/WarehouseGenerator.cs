@@ -857,31 +857,35 @@ namespace WarehouseTwin.Warehouse
         }
 
         // Actualiza el inventario visible de una ubicación y la marca como tarea activa.
-        // Cubre el caso en que la ubicación llega por WebSocket y no estaba en active_task_locations.
+        // Solo sobreescribe el metadata cuando el evento incluye datos reales de producto o caja;
+        // si no, SetState(Task) ya gestiona el TaskInfo sin borrar los datos existentes.
         private void UpdateLocationForTask(string locationId, InventoryItemDTO inventory)
         {
             if (string.IsNullOrEmpty(locationId)) return;
             if (!_locationObjects.TryGetValue(locationId, out LocationObject locObj)) return;
 
-            if (inventory != null)
+            bool hasRealInventory = inventory != null &&
+                                    (!string.IsNullOrEmpty(inventory.product_id) ||
+                                     !string.IsNullOrEmpty(inventory.box_id));
+            if (hasRealInventory)
             {
                 bool isBox = !string.IsNullOrEmpty(inventory.box_id);
                 locObj.SetMetadata(
-                    inventory.product_name  ?? "",
-                    inventory.quantity      ?? 0,
+                    inventory.product_name           ?? "",
+                    inventory.quantity               ?? 0,
                     isBox,
                     "Tarea activa",
-                    inventory.product_id            ?? "",
-                    inventory.product_barcode       ?? "",
-                    inventory.product_category      ?? "",
+                    inventory.product_id             ?? "",
+                    inventory.product_barcode        ?? "",
+                    inventory.product_category       ?? "",
                     inventory.product_category_color ?? ""
                 );
             }
             locObj.SetState(LocationState.Task);
         }
 
-        // Restaura el estado de una ubicación tras completarse/cancelarse una tarea,
-        // usando el estado e inventario que el backend envía en el evento.
+        // Restaura el estado de una ubicación tras completarse/cancelarse una tarea.
+        // Solo sobreescribe el metadata cuando el evento incluye inventario real.
         private void RestoreLocation(string locationId, string stateStr, InventoryItemDTO inventory)
         {
             if (string.IsNullOrEmpty(locationId)) return;
@@ -894,17 +898,20 @@ namespace WarehouseTwin.Warehouse
                 _         => LocationState.Free,
             };
 
-            if (inventory != null)
+            bool hasRealInventory = inventory != null &&
+                                    (!string.IsNullOrEmpty(inventory.product_id) ||
+                                     !string.IsNullOrEmpty(inventory.box_id));
+            if (hasRealInventory)
             {
                 bool isBox = !string.IsNullOrEmpty(inventory.box_id);
                 locObj.SetMetadata(
-                    inventory.product_name  ?? "",
-                    inventory.quantity      ?? 0,
+                    inventory.product_name           ?? "",
+                    inventory.quantity               ?? 0,
                     isBox,
                     "",
-                    inventory.product_id            ?? "",
-                    inventory.product_barcode       ?? "",
-                    inventory.product_category      ?? "",
+                    inventory.product_id             ?? "",
+                    inventory.product_barcode        ?? "",
+                    inventory.product_category       ?? "",
                     inventory.product_category_color ?? ""
                 );
             }
