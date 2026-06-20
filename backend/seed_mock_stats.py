@@ -79,6 +79,23 @@ MOCK_PRODUCT_BARCODES = {p["barcode"] for p in MOCK_PRODUCTS}
 
 PASSWORD_HASH = get_password_hash("MockPass123!")
 
+# No crear tareas falsas para forzar la visualizacion.
+# Las unidades deben salir del inventario real, no de tareas activas.
+CREATE_ACTIVE_TASK_PER_OCCUPIED_LOCATION = False
+
+
+def get_async_database_url():
+    """
+    Convierte la URL de PostgreSQL de Railway al formato compatible
+    con SQLAlchemy async + asyncpg.
+    """
+    db_url = settings.DATABASE_URL
+
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    return db_url
+
 
 # ── Utilidades ────────────────────────────────────────────────────────────────
 
@@ -98,7 +115,7 @@ def task_type_for_movement(tt: TaskType) -> MovementType:
 # ── Seed ──────────────────────────────────────────────────────────────────────
 
 async def seed():
-    engine  = create_async_engine(settings.DATABASE_URL, echo=False)
+    engine  = create_async_engine(get_async_database_url(), echo=False)
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with Session() as db:
@@ -189,9 +206,18 @@ async def seed():
                 select(Product).where(Product.barcode == pdata["barcode"])
             )).scalar_one_or_none()
             if existing_p:
-                print(f"   [=] Producto ya existe: {pdata['name']}")
+                # Actualizar tambien los productos existentes para asegurar que
+                # tienen categoria y unidades maximas por ubicacion.
+                existing_p.name = pdata["name"]
+                existing_p.type = pdata["type"]
+                existing_p.description = pdata["description"]
+                existing_p.category_id = cat_map.get(pdata["category"])
+                existing_p.units_per_location = pdata["units_per_location"]
+                print(f"   [=] Producto actualizado: {pdata['name']}"
+                      f"  |  max {pdata['units_per_location']} ud/ubic"
+                      f"  |  {pdata['category']}")
                 products.append(existing_p)
-                prod_upl[existing_p.id] = existing_p.units_per_location or pdata["units_per_location"]
+                prod_upl[existing_p.id] = pdata["units_per_location"]
             else:
                 p = Product(
                     id=uuid.uuid4(), company_id=company_id,
@@ -325,13 +351,40 @@ async def seed():
         random.shuffle(occ_pool)
         random.shuffle(free_pool)
 
+        n_tasks = n_movs = 0
+
+        # 9.1. Tareas activas para que la vista del almacen pueda mostrar
+        #      las unidades de TODOS los huecos con producto.
+        #      Algunas vistas usan la cantidad de la tarea activa para pintar
+        #      el texto del hueco; por eso copiamos la cantidad real del
+        #      InventoryItem en una tarea en_curso.
+        if CREATE_ACTIVE_TASK_PER_OCCUPIED_LOCATION and occupied_locs and workers:
+            online_workers = [w for w, wdata in zip(workers, MOCK_WORKERS) if wdata["is_online"]] or workers
+            for idx, (loc_id, product_id, qty) in enumerate(occupied_locs):
+                worker = online_workers[idx % len(online_workers)]
+                task = Task(
+                    id=uuid.uuid4(), company_id=company_id,
+                    created_by=admin.id, assigned_to=worker.id,
+                    type=TaskType.salida, status=TaskStatus.en_curso,
+                    origin_location_id=loc_id,
+                    destination_location_id=None,
+                    product_id=product_id,
+                    quantity=qty,
+                    created_at=now - timedelta(minutes=random.randint(3, 90)),
+                    completed_at=None,
+                )
+                db.add(task)
+                n_tasks += 1
+            await db.flush()
+            print(f"\n   [+] Tareas activas de inventario: {len(occupied_locs)} "
+                  f"(para mostrar unidades en todos los huecos ocupados)")
+
         def pick_occ():
             return occ_pool[random.randint(0, len(occ_pool) - 1)] if occ_pool else None
 
         def pick_free():
             return free_pool[random.randint(0, len(free_pool) - 1)] if free_pool else None
 
-        n_tasks = n_movs = 0
         for spec in task_specs:
             worker  = spec["worker"]
             ttype   = spec["type"]
@@ -403,7 +456,7 @@ async def seed():
 # ── Clean ─────────────────────────────────────────────────────────────────────
 
 async def clean():
-    engine  = create_async_engine(settings.DATABASE_URL, echo=False)
+    engine  = create_async_engine(get_async_database_url(), echo=False)
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with Session() as db:
