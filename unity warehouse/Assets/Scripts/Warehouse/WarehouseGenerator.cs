@@ -809,7 +809,7 @@ namespace WarehouseTwin.Warehouse
             }
 
             bool isBox = !string.IsNullOrEmpty(inv.box_id);
-            int qty = inv.quantity ?? 0;
+            int qty = inv.quantity;
             locObj.SetMetadata(inv.product_name ?? "", qty, isBox, locObj.TaskInfo, inv.product_id ?? "", inv.product_barcode ?? "", inv.product_category ?? "", inv.product_category_color ?? "");
         }
 
@@ -872,7 +872,7 @@ namespace WarehouseTwin.Warehouse
                 bool isBox = !string.IsNullOrEmpty(inventory.box_id);
                 locObj.SetMetadata(
                     inventory.product_name           ?? "",
-                    inventory.quantity               ?? 0,
+                    inventory.quantity,
                     isBox,
                     "Tarea activa",
                     inventory.product_id             ?? "",
@@ -906,7 +906,7 @@ namespace WarehouseTwin.Warehouse
                 bool isBox = !string.IsNullOrEmpty(inventory.box_id);
                 locObj.SetMetadata(
                     inventory.product_name           ?? "",
-                    inventory.quantity               ?? 0,
+                    inventory.quantity,
                     isBox,
                     "",
                     inventory.product_id             ?? "",

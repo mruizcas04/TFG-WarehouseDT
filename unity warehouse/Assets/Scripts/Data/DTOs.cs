@@ -13,7 +13,7 @@ namespace WarehouseTwin.Data
         public string product_category;
         public string product_category_color;
         public string box_id;
-        public int? quantity;
+        public int quantity;
     }
 
     [Serializable]
