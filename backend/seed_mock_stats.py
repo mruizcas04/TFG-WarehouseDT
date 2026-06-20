@@ -456,55 +456,142 @@ async def seed():
 # ── Clean ─────────────────────────────────────────────────────────────────────
 
 async def clean():
-    engine  = create_async_engine(get_async_database_url(), echo=False)
+    engine = create_async_engine(get_async_database_url(), echo=False)
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with Session() as db:
-        # Workers + sus tareas y movimientos
+        # 1. Localizar workers mock
         mock_workers = (await db.execute(
             select(User).where(User.email.in_(MOCK_WORKER_EMAILS))
         )).scalars().all()
-        if mock_workers:
-            mock_ids = [w.id for w in mock_workers]
-            mov_r  = await db.execute(delete(Movement).where(Movement.performed_by.in_(mock_ids)))
-            task_r = await db.execute(delete(Task).where(Task.assigned_to.in_(mock_ids)))
-            for w in mock_workers:
-                await db.delete(w)
-            print(f"[OK] Workers: {len(mock_workers)}, "
-                  f"tareas: {task_r.rowcount}, movimientos: {mov_r.rowcount}")
-        else:
-            print("[!] No habia workers mock")
 
-        # Productos mock + su inventario
+        worker_ids = [w.id for w in mock_workers]
+
+        # 2. Localizar productos mock
         mock_products = (await db.execute(
             select(Product).where(Product.barcode.in_(MOCK_PRODUCT_BARCODES))
         )).scalars().all()
-        if mock_products:
-            prod_ids = [p.id for p in mock_products]
-            inv_r = await db.execute(
-                delete(InventoryItem).where(InventoryItem.product_id.in_(prod_ids))
-            )
-            for p in mock_products:
-                await db.delete(p)
-            print(f"[OK] Productos: {len(mock_products)}, inventario: {inv_r.rowcount} items")
-        else:
-            print("[!] No habia productos mock")
 
-        # Categorias mock
+        product_ids = [p.id for p in mock_products]
+
+        # 3. Localizar tareas mock:
+        #    - tareas asignadas a workers mock
+        #    - tareas asociadas a productos mock
+        task_ids = set()
+
+        if worker_ids:
+            result = await db.execute(
+                select(Task.id).where(Task.assigned_to.in_(worker_ids))
+            )
+            task_ids.update(result.scalars().all())
+
+        if product_ids:
+            result = await db.execute(
+                select(Task.id).where(Task.product_id.in_(product_ids))
+            )
+            task_ids.update(result.scalars().all())
+
+        task_ids = list(task_ids)
+
+        # 4. Borrar movimientos ANTES de borrar tareas/productos
+        movements_deleted = 0
+
+        if task_ids:
+            result = await db.execute(
+                delete(Movement).where(Movement.task_id.in_(task_ids))
+            )
+            movements_deleted += result.rowcount or 0
+
+        if worker_ids:
+            result = await db.execute(
+                delete(Movement).where(Movement.performed_by.in_(worker_ids))
+            )
+            movements_deleted += result.rowcount or 0
+
+        if product_ids:
+            result = await db.execute(
+                delete(Movement).where(Movement.product_id.in_(product_ids))
+            )
+            movements_deleted += result.rowcount or 0
+
+        # 5. Borrar tareas
+        tasks_deleted = 0
+
+        if task_ids:
+            result = await db.execute(
+                delete(Task).where(Task.id.in_(task_ids))
+            )
+            tasks_deleted += result.rowcount or 0
+
+        # Por seguridad, repetir filtros directos por si queda alguna tarea suelta
+        if worker_ids:
+            result = await db.execute(
+                delete(Task).where(Task.assigned_to.in_(worker_ids))
+            )
+            tasks_deleted += result.rowcount or 0
+
+        if product_ids:
+            result = await db.execute(
+                delete(Task).where(Task.product_id.in_(product_ids))
+            )
+            tasks_deleted += result.rowcount or 0
+
+        # 6. Borrar inventario de productos mock
+        inventory_deleted = 0
+
+        if product_ids:
+            result = await db.execute(
+                delete(InventoryItem).where(InventoryItem.product_id.in_(product_ids))
+            )
+            inventory_deleted += result.rowcount or 0
+
+        # 7. Borrar productos mock
+        products_deleted = 0
+
+        if product_ids:
+            result = await db.execute(
+                delete(Product).where(Product.id.in_(product_ids))
+            )
+            products_deleted += result.rowcount or 0
+
+        # 8. Borrar workers mock
+        workers_deleted = 0
+
+        if worker_ids:
+            result = await db.execute(
+                delete(User).where(User.id.in_(worker_ids))
+            )
+            workers_deleted += result.rowcount or 0
+
+        # 9. Borrar categorías mock solo si ya no tienen productos asociados
+        categories_deleted = 0
+
         mock_cats = (await db.execute(
             select(Category).where(Category.name.in_(MOCK_CATEGORY_NAMES))
         )).scalars().all()
-        if mock_cats:
-            for c in mock_cats:
-                await db.delete(c)
-            print(f"[OK] Categorias eliminadas: {len(mock_cats)}")
-        else:
-            print("[!] No habia categorias mock")
+
+        for category in mock_cats:
+            product_using_category = (await db.execute(
+                select(Product.id)
+                .where(Product.category_id == category.id)
+                .limit(1)
+            )).scalar_one_or_none()
+
+            if product_using_category is None:
+                await db.delete(category)
+                categories_deleted += 1
 
         await db.commit()
 
-    await engine.dispose()
+        print("[OK] Limpieza completada")
+        print(f"   Movimientos eliminados : {movements_deleted}")
+        print(f"   Tareas eliminadas      : {tasks_deleted}")
+        print(f"   Inventario eliminado   : {inventory_deleted}")
+        print(f"   Productos eliminados   : {products_deleted}")
+        print(f"   Workers eliminados     : {workers_deleted}")
+        print(f"   Categorias eliminadas  : {categories_deleted}")
 
+    await engine.dispose()
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
