@@ -104,12 +104,15 @@ namespace WarehouseTwin.Warehouse
         {
             Debug.Log($"SetState {LocationId} — {CurrentState} → {newState}");
             CurrentState = newState;
-            // Auto-gestión de TaskInfo para eventos WebSocket que no pasan por SetMetadata
             if (newState == LocationState.Task && string.IsNullOrEmpty(TaskInfo))
                 TaskInfo = "Tarea activa";
-            else if (newState != LocationState.Task)
-                TaskInfo = "";
+            // TaskInfo NO se borra aquí — solo RestoreLocation lo limpia explícitamente.
             RefreshVisual();
+        }
+
+        public void SetTaskInfo(string taskInfo)
+        {
+            TaskInfo = taskInfo;
         }
 
         public void SetFilterDim(bool dimmed)

@@ -809,8 +809,16 @@ namespace WarehouseTwin.Warehouse
             }
 
             bool isBox = !string.IsNullOrEmpty(inv.box_id);
-            int qty = inv.quantity;
-            locObj.SetMetadata(inv.product_name ?? "", qty, isBox, locObj.TaskInfo, inv.product_id ?? "", inv.product_barcode ?? "", inv.product_category ?? "", inv.product_category_color ?? "");
+            // Los eventos WebSocket no incluyen los datos de producto completos (nombre, barcode,
+            // categoría) porque requieren joins que el backend no hace en el evento.
+            // Si product_name llega vacío, se preservan los datos existentes y solo se actualiza
+            // la cantidad, que sí viene siempre en el evento.
+            string name = !string.IsNullOrEmpty(inv.product_name)           ? inv.product_name           : locObj.ProductName;
+            string pid  = !string.IsNullOrEmpty(inv.product_id)             ? inv.product_id             : locObj.ProductId;
+            string bar  = !string.IsNullOrEmpty(inv.product_barcode)        ? inv.product_barcode        : locObj.Barcode;
+            string cat  = !string.IsNullOrEmpty(inv.product_category)       ? inv.product_category       : locObj.Category;
+            string cCol = !string.IsNullOrEmpty(inv.product_category_color) ? inv.product_category_color : locObj.CategoryColor;
+            locObj.SetMetadata(name, inv.quantity, isBox, locObj.TaskInfo, pid, bar, cat, cCol);
         }
 
         private static LocationState ParseLocationState(string state) => state switch
@@ -867,7 +875,6 @@ namespace WarehouseTwin.Warehouse
         }
 
         // Restaura el estado de una ubicación tras completarse/cancelarse una tarea.
-        // Solo sobreescribe el metadata cuando el evento incluye inventario real.
         private void RestoreLocation(string locationId, string stateStr, InventoryItemDTO inventory)
         {
             if (string.IsNullOrEmpty(locationId)) return;
@@ -880,23 +887,24 @@ namespace WarehouseTwin.Warehouse
                 _         => LocationState.Free,
             };
 
+            // La tarea está completa: limpiar TaskInfo explícitamente antes de cambiar estado.
+            locObj.SetTaskInfo("");
+
             bool hasRealInventory = inventory != null &&
                                     (!string.IsNullOrEmpty(inventory.product_id) ||
                                      !string.IsNullOrEmpty(inventory.box_id));
             if (hasRealInventory)
             {
                 bool isBox = !string.IsNullOrEmpty(inventory.box_id);
-                locObj.SetMetadata(
-                    inventory.product_name           ?? "",
-                    inventory.quantity,
-                    isBox,
-                    "",
-                    inventory.product_id             ?? "",
-                    inventory.product_barcode        ?? "",
-                    inventory.product_category       ?? "",
-                    inventory.product_category_color ?? ""
-                );
+                string name = !string.IsNullOrEmpty(inventory.product_name)           ? inventory.product_name           : locObj.ProductName;
+                string pid  = !string.IsNullOrEmpty(inventory.product_id)             ? inventory.product_id             : locObj.ProductId;
+                string bar  = !string.IsNullOrEmpty(inventory.product_barcode)        ? inventory.product_barcode        : locObj.Barcode;
+                string cat  = !string.IsNullOrEmpty(inventory.product_category)       ? inventory.product_category       : locObj.Category;
+                string cCol = !string.IsNullOrEmpty(inventory.product_category_color) ? inventory.product_category_color : locObj.CategoryColor;
+                int    qty  = inventory.quantity > 0 ? inventory.quantity : locObj.Quantity;
+                locObj.SetMetadata(name, qty, isBox, "", pid, bar, cat, cCol);
             }
+
             locObj.SetState(newState);
         }
     }
