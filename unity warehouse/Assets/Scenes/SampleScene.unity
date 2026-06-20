@@ -474,7 +474,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0ebb45e1ff7a6ea499768f12d28f55aa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  wsUrl: wss://tfg-production-1c10.up.railway.app
+  wsUrl: wss://tfg-production-1c10.up.railway.app/ws
 --- !u!114 &1121137544
 MonoBehaviour:
   m_ObjectHideFlags: 0
