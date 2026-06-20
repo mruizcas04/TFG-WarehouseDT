@@ -398,6 +398,8 @@ namespace WarehouseTwin.Warehouse
                         string barcode       = location.inventory?.product_barcode ?? "";
                         string category      = location.inventory?.product_category ?? "";
                         string categoryColor = location.inventory?.product_category_color ?? "";
+                        if (!string.IsNullOrEmpty(prodId))
+                            Debug.Log($"[REST] loc={location.id} prod={prodName} qty={qty} rawQty={location.inventory?.quantity}");
                         string taskInfo = "";
                         if (hasTask)
                         {

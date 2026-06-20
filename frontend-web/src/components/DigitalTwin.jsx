@@ -64,7 +64,7 @@ useEffect(() => {
   scriptLoadedRef.current = true;
 
     // Incrementa este número después de cada build de Unity para forzar recarga del navegador
-    const UNITY_BUILD = "20260622";
+    const UNITY_BUILD = "20260623";
     const buildUrl = "/unity";
     const config = {
       dataUrl:            `${buildUrl}/WebGL.data?v=${UNITY_BUILD}`,

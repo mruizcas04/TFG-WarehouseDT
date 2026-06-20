@@ -144,6 +144,7 @@ namespace WarehouseTwin.Warehouse
 
         private void OnMouseEnter()
         {
+            Debug.Log($"[Tooltip] {LocationId} state={CurrentState} qty={Quantity} name={ProductName} task={TaskInfo}");
             WarehouseTooltip tooltip = WarehouseTooltip.Instance;
             if (tooltip != null)
                 tooltip.Show(LocationLabel, ProductName, Quantity, TaskInfo, CurrentState, IsBox, Barcode, Category, CategoryColor);
