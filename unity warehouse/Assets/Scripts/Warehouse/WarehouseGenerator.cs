@@ -836,8 +836,8 @@ namespace WarehouseTwin.Warehouse
         private void HandleTaskAssigned(WebSocketEventDTO evt)
         {
             Debug.Log($"HandleTaskAssigned llamado — dest: {evt.data?.destination_location_id} — origin: {evt.data?.origin_location_id}");
-            UpdateLocationForTask(evt.data?.destination_location_id, evt.data?.destination_inventory);
-            UpdateLocationForTask(evt.data?.origin_location_id, evt.data?.origin_inventory);
+            UpdateLocationForTask(evt.data?.destination_location_id);
+            UpdateLocationForTask(evt.data?.origin_location_id);
         }
 
         private void HandleTaskStatusChanged(WebSocketEventDTO evt)
@@ -851,36 +851,18 @@ namespace WarehouseTwin.Warehouse
             }
             else if (status == "en_curso")
             {
-                UpdateLocationForTask(evt.data?.destination_location_id, evt.data?.destination_inventory);
-                UpdateLocationForTask(evt.data?.origin_location_id, evt.data?.origin_inventory);
+                UpdateLocationForTask(evt.data?.destination_location_id);
+                UpdateLocationForTask(evt.data?.origin_location_id);
             }
         }
 
-        // Actualiza el inventario visible de una ubicación y la marca como tarea activa.
-        // Solo sobreescribe el metadata cuando el evento incluye datos reales de producto o caja;
-        // si no, SetState(Task) ya gestiona el TaskInfo sin borrar los datos existentes.
-        private void UpdateLocationForTask(string locationId, InventoryItemDTO inventory)
+        // Marca una ubicación como tarea activa sin tocar el inventario existente.
+        // El REST load ya carga todos los datos correctos; el WebSocket solo cambia el estado.
+        // SetState(Task) gestiona TaskInfo automáticamente si estaba vacío.
+        private void UpdateLocationForTask(string locationId)
         {
             if (string.IsNullOrEmpty(locationId)) return;
             if (!_locationObjects.TryGetValue(locationId, out LocationObject locObj)) return;
-
-            bool hasRealInventory = inventory != null &&
-                                    (!string.IsNullOrEmpty(inventory.product_id) ||
-                                     !string.IsNullOrEmpty(inventory.box_id));
-            if (hasRealInventory)
-            {
-                bool isBox = !string.IsNullOrEmpty(inventory.box_id);
-                locObj.SetMetadata(
-                    inventory.product_name           ?? "",
-                    inventory.quantity,
-                    isBox,
-                    "Tarea activa",
-                    inventory.product_id             ?? "",
-                    inventory.product_barcode        ?? "",
-                    inventory.product_category       ?? "",
-                    inventory.product_category_color ?? ""
-                );
-            }
             locObj.SetState(LocationState.Task);
         }
 
