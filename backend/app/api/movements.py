@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.db.database import get_db
-from app.models.models import User, Movement, InventoryItem, Product
+from app.models.models import User, Movement, InventoryItem, Product, Category
 from app.schemas.schemas import MovementCreate, MovementResponse
 from app.api.deps import get_current_admin, get_current_user
 from app.services.websocket_service import websocket_service
@@ -10,14 +11,21 @@ import uuid
 
 router = APIRouter(prefix="/movements", tags=["movements"])
 
-def _inventory_to_dict(item: InventoryItem | None) -> dict | None:
+def _inventory_to_dict(item: InventoryItem | None, product: Product | None = None) -> dict | None:
     if item is None:
         return None
-    return {
+    result = {
         "id": str(item.id),
         "product_id": str(item.product_id),
         "quantity": item.quantity,
     }
+    if product:
+        cat = product.category
+        result["product_name"] = product.name or ""
+        result["product_barcode"] = product.barcode or ""
+        result["product_category"] = cat.name if cat else ""
+        result["product_category_color"] = cat.color if cat else ""
+    return result
 
 
 @router.get("", response_model=list[MovementResponse])
@@ -93,7 +101,9 @@ async def create_movement(
             if existing_item.product_id != movement_data.product_id:
                 raise HTTPException(status_code=400, detail="La ubicación ya contiene un producto diferente")
 
-            product_result = await db.execute(select(Product).where(Product.id == movement_data.product_id))
+            product_result = await db.execute(
+                select(Product).options(selectinload(Product.category)).where(Product.id == movement_data.product_id)
+            )
             product = product_result.scalar_one_or_none()
 
             if not product or product.units_per_location is None:
@@ -106,11 +116,14 @@ async def create_movement(
                 )
 
             existing_item.quantity += quantity
-            destination_inventory_dict = _inventory_to_dict(existing_item)
+            destination_inventory_dict = _inventory_to_dict(existing_item, product)
 
         else:
+            product = None
             if movement_data.product_id:
-                product_result = await db.execute(select(Product).where(Product.id == movement_data.product_id))
+                product_result = await db.execute(
+                    select(Product).options(selectinload(Product.category)).where(Product.id == movement_data.product_id)
+                )
                 product = product_result.scalar_one_or_none()
                 if product and product.units_per_location is not None and quantity > product.units_per_location:
                     raise HTTPException(
@@ -125,7 +138,7 @@ async def create_movement(
                 quantity=quantity,
             )
             db.add(item)
-            destination_inventory_dict = _inventory_to_dict(item)
+            destination_inventory_dict = _inventory_to_dict(item, product)
 
     elif movement_data.type.value == "salida":
         if movement_data.origin_location_id is None:
@@ -137,10 +150,14 @@ async def create_movement(
         item = result.scalar_one_or_none()
 
         if item:
+            prod_result = await db.execute(
+                select(Product).options(selectinload(Product.category)).where(Product.id == item.product_id)
+            )
+            salida_product = prod_result.scalar_one_or_none()
             quantity_out = movement_data.quantity or item.quantity
             if quantity_out < item.quantity:
                 item.quantity -= quantity_out
-                origin_inventory_dict = _inventory_to_dict(item)
+                origin_inventory_dict = _inventory_to_dict(item, salida_product)
             else:
                 await db.delete(item)
                 origin_inventory_dict = None
@@ -162,8 +179,13 @@ async def create_movement(
         if not item:
             raise HTTPException(status_code=400, detail="No hay inventario en la ubicación de origen")
 
+        prod_result = await db.execute(
+            select(Product).options(selectinload(Product.category)).where(Product.id == item.product_id)
+        )
+        traslado_product = prod_result.scalar_one_or_none()
+
         item.location_id = movement_data.destination_location_id
-        destination_inventory_dict = _inventory_to_dict(item)
+        destination_inventory_dict = _inventory_to_dict(item, traslado_product)
         origin_inventory_dict = None
 
     movement = Movement(

@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from app.db.database import get_db
-from app.models.models import User, Location, Level, Shelf, Warehouse, InventoryItem, Product
+from app.models.models import User, Location, Level, Shelf, Warehouse, InventoryItem, Product, Category
 from app.schemas.schemas import LocationResponse, LocationNFCUpdate, LocationInventorySetup
 from app.api.deps import get_current_admin, get_current_user
 from app.services.websocket_service import websocket_service
@@ -116,9 +116,12 @@ async def setup_location_inventory(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Esta ubicación ya tiene inventario")
 
     prod_result = await db.execute(
-        select(Product).where(Product.id == data.product_id, Product.company_id == current_user.company_id)
+        select(Product)
+        .options(selectinload(Product.category))
+        .where(Product.id == data.product_id, Product.company_id == current_user.company_id)
     )
-    if not prod_result.scalar_one_or_none():
+    product = prod_result.scalar_one_or_none()
+    if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Producto no encontrado")
 
     item = InventoryItem(
@@ -130,9 +133,14 @@ async def setup_location_inventory(
     db.add(item)
     await db.commit()
 
+    cat = product.category
     destination_inventory = {
         "id": str(item.id),
         "product_id": str(data.product_id),
+        "product_name": product.name or "",
+        "product_barcode": product.barcode or "",
+        "product_category": cat.name if cat else "",
+        "product_category_color": cat.color if cat else "",
         "quantity": data.quantity,
     }
     await websocket_service.broadcast_movement_created(

@@ -63,11 +63,13 @@ useEffect(() => {
   if (scriptLoadedRef.current) return;
   scriptLoadedRef.current = true;
 
+    // Incrementa este número después de cada build de Unity para forzar recarga del navegador
+    const UNITY_BUILD = "20260621";
     const buildUrl = "/unity";
     const config = {
-      dataUrl:            `${buildUrl}/WebGL.data`,
-      frameworkUrl:       `${buildUrl}/WebGL.framework.js`,
-      codeUrl:            `${buildUrl}/WebGL.wasm`,
+      dataUrl:            `${buildUrl}/WebGL.data?v=${UNITY_BUILD}`,
+      frameworkUrl:       `${buildUrl}/WebGL.framework.js?v=${UNITY_BUILD}`,
+      codeUrl:            `${buildUrl}/WebGL.wasm?v=${UNITY_BUILD}`,
       streamingAssetsUrl: "StreamingAssets",
       companyName:        "DefaultCompany",
       productName:        "unity warehouse",
@@ -75,7 +77,7 @@ useEffect(() => {
     };
 
     const script = document.createElement("script");
-    script.src = `${buildUrl}/WebGL.loader.js`;
+    script.src = `${buildUrl}/WebGL.loader.js?v=${UNITY_BUILD}`;
 
     script.onload = () => {
       const canvas = document.getElementById("unity-canvas");
