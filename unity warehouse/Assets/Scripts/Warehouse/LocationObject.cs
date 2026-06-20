@@ -143,7 +143,7 @@ namespace WarehouseTwin.Warehouse
         {
             WarehouseTooltip tooltip = WarehouseTooltip.Instance;
             if (tooltip != null)
-                tooltip.Show(LocationLabel, ProductName, Quantity, TaskInfo, CurrentState, Barcode, Category, CategoryColor);
+                tooltip.Show(LocationLabel, ProductName, Quantity, TaskInfo, CurrentState, IsBox, Barcode, Category, CategoryColor);
 
             _hover = true;
             RefreshVisual();

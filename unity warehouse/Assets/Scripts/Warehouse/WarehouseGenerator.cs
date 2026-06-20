@@ -836,42 +836,79 @@ namespace WarehouseTwin.Warehouse
         private void HandleTaskAssigned(WebSocketEventDTO evt)
         {
             Debug.Log($"HandleTaskAssigned llamado — dest: {evt.data?.destination_location_id} — origin: {evt.data?.origin_location_id}");
-            HighlightLocation(evt.data?.destination_location_id, LocationState.Task);
-            HighlightLocation(evt.data?.origin_location_id, LocationState.Task);
+            UpdateLocationForTask(evt.data?.destination_location_id, evt.data?.destination_inventory);
+            UpdateLocationForTask(evt.data?.origin_location_id, evt.data?.origin_inventory);
         }
 
         private void HandleTaskStatusChanged(WebSocketEventDTO evt)
         {
-            // Si la tarea se completa o cancela, quitar el amarillo
             string status = evt.data?.status;
             if (status == "completada" || status == "cancelada")
             {
-                // Restaurar al color real consultando el estado actual
-                RestoreLocation(evt.data?.destination_location_id);
-                RestoreLocation(evt.data?.origin_location_id);
+                RestoreLocation(evt.data?.destination_location_id, evt.data?.destination_state, evt.data?.destination_inventory);
+                RestoreLocation(evt.data?.origin_location_id, evt.data?.origin_state, evt.data?.origin_inventory);
                 Debug.Log($"Tarea {status} — restaurando colores");
             }
             else if (status == "en_curso")
             {
-                // Mantener amarillo mientras está en curso
-                HighlightLocation(evt.data?.destination_location_id, LocationState.Task);
-                HighlightLocation(evt.data?.origin_location_id, LocationState.Task);
+                UpdateLocationForTask(evt.data?.destination_location_id, evt.data?.destination_inventory);
+                UpdateLocationForTask(evt.data?.origin_location_id, evt.data?.origin_inventory);
             }
         }
 
-        private void HighlightLocation(string locationId, LocationState state)
+        // Actualiza el inventario visible de una ubicación y la marca como tarea activa.
+        // Cubre el caso en que la ubicación llega por WebSocket y no estaba en active_task_locations.
+        private void UpdateLocationForTask(string locationId, InventoryItemDTO inventory)
         {
             if (string.IsNullOrEmpty(locationId)) return;
-            Debug.Log($"HighlightLocation — buscando: {locationId} — encontrado: {_locationObjects.ContainsKey(locationId)}");
-            if (_locationObjects.TryGetValue(locationId, out LocationObject locObj))
-                locObj.SetState(state);
+            if (!_locationObjects.TryGetValue(locationId, out LocationObject locObj)) return;
+
+            if (inventory != null)
+            {
+                bool isBox = !string.IsNullOrEmpty(inventory.box_id);
+                locObj.SetMetadata(
+                    inventory.product_name  ?? "",
+                    inventory.quantity      ?? 0,
+                    isBox,
+                    "Tarea activa",
+                    inventory.product_id            ?? "",
+                    inventory.product_barcode       ?? "",
+                    inventory.product_category      ?? "",
+                    inventory.product_category_color ?? ""
+                );
+            }
+            locObj.SetState(LocationState.Task);
         }
 
-        private void RestoreLocation(string locationId)
+        // Restaura el estado de una ubicación tras completarse/cancelarse una tarea,
+        // usando el estado e inventario que el backend envía en el evento.
+        private void RestoreLocation(string locationId, string stateStr, InventoryItemDTO inventory)
         {
             if (string.IsNullOrEmpty(locationId)) return;
-            if (_locationObjects.TryGetValue(locationId, out LocationObject locObj))
-                locObj.SetState(LocationState.Free); // simplificación — podría consultarse el inventario real
+            if (!_locationObjects.TryGetValue(locationId, out LocationObject locObj)) return;
+
+            LocationState newState = stateStr switch
+            {
+                "product" => LocationState.Product,
+                "box"     => LocationState.Box,
+                _         => LocationState.Free,
+            };
+
+            if (inventory != null)
+            {
+                bool isBox = !string.IsNullOrEmpty(inventory.box_id);
+                locObj.SetMetadata(
+                    inventory.product_name  ?? "",
+                    inventory.quantity      ?? 0,
+                    isBox,
+                    "",
+                    inventory.product_id            ?? "",
+                    inventory.product_barcode       ?? "",
+                    inventory.product_category      ?? "",
+                    inventory.product_category_color ?? ""
+                );
+            }
+            locObj.SetState(newState);
         }
     }
 }
