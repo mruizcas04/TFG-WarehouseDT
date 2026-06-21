@@ -41,8 +41,12 @@ unity warehouse/
 
 https://github.com/mruizcas04/TFG-WarehouseDT/releases
 
-## Autor
+## Autora
 
 María Ruiz Castro
 
 Grado en Ingeniería Informática – Universidad Politécnica de Madrid
+
+## Tutor académico y creador original de la propuesta
+
+Sergio Ríos Aguilar
