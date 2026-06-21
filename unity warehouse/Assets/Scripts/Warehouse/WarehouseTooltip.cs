@@ -34,10 +34,10 @@ namespace WarehouseTwin.Warehouse
         private const string HexGray  = "#888780";
         private const string HexAmber = "#D9800D";  // new Color(0.85f, 0.50f, 0.05f)
 
-        private const float PanelWidth = 220f;
+        private const float PanelWidth = 270f;
         private const float PaddingH   = 10f;
         private const float PaddingV   = 8f;
-        private const float LineH      = 18f;
+        private const float LineH      = 22f;
 
         private void Awake()
         {
@@ -82,10 +82,11 @@ namespace WarehouseTwin.Warehouse
             GameObject textGO = new GameObject("TooltipText");
             textGO.transform.SetParent(panelGO.transform, false);
             _text                  = textGO.AddComponent<Text>();
-            _text.supportRichText  = true;
-            _text.fontSize         = 13;
-            _text.color            = TextColor;
-            _text.alignment        = TextAnchor.UpperLeft;
+            _text.supportRichText    = true;
+            _text.fontSize           = 13;
+            _text.color              = TextColor;
+            _text.alignment          = TextAnchor.UpperLeft;
+            _text.verticalOverflow   = VerticalWrapMode.Overflow;
             _text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (_text.font == null)
                 _text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
